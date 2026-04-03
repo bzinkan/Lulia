@@ -1,0 +1,78 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file: .env.development
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    volumes:
+      - ./src:/app/src
+      - ./data/state_standards:/app/data/state_standards:ro
+    command: uvicorn src.lms_agents.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env.development
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    volumes:
+      - ./src:/app/src
+      - ./data/state_standards:/app/data/state_standards:ro
+    command: python -m src.lms_agents.worker.scheduler
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./dashboard/src:/app/src
+
+  db:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: lulia
+      POSTGRES_USER: lulia
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lulia"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+
+volumes:
+  postgres_data:
+  minio_data:

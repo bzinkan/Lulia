@@ -1,0 +1,59 @@
+# Core Framework
+fastapi==0.115.*
+uvicorn[standard]==0.32.*
+python-multipart==0.0.*
+
+# CrewAI
+crewai==0.86.*
+crewai-tools==0.14.*
+
+# LLM Providers
+anthropic==0.42.*
+langchain-anthropic==0.3.*
+google-generativeai==0.8.*
+langchain-google-genai==2.0.*
+
+# AWS (S3, Bedrock, SQS, SES)
+boto3==1.35.*
+
+# Database
+sqlalchemy==2.0.*
+asyncpg==0.30.*
+psycopg2-binary==2.9.*
+pgvector==0.3.*
+alembic==1.14.*
+
+# Background Worker
+apscheduler==3.10.*
+
+# Document Processing
+PyMuPDF==1.25.*
+python-docx==1.1.*
+beautifulsoup4==4.12.*
+httpx==0.28.*
+youtube-transcript-api==0.6.*
+
+# PDF Generation
+weasyprint==62.*
+
+# OCR
+pytesseract==0.3.*
+opencv-python-headless==4.10.*
+
+# Google APIs
+google-auth==2.36.*
+google-auth-oauthlib==1.2.*
+google-api-python-client==2.157.*
+
+# TTS
+google-cloud-texttospeech==2.21.*
+# elevenlabs==1.9.*  # Uncomment if using ElevenLabs
+
+# Utilities
+pydantic==2.10.*
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+python-dotenv==1.0.*
+pyyaml==6.0.*
+Pillow==11.*
+qrcode==8.*

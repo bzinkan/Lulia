@@ -1,0 +1,48 @@
+# Environment
+.env
+.env.development
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Node (Dashboard)
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Local data (don't commit database/storage volumes)
+postgres_data/
+minio_data/
+
+# Temp files from video rendering
+/tmp/video/
+/tmp/activities/
+
+# Uploaded files (these live in MinIO/S3)
+uploads/
+scans/

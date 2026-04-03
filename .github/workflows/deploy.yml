@@ -1,0 +1,11 @@
+name: Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder
+        run: echo "CI/CD pipeline to be configured"
