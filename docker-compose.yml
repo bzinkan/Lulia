@@ -40,6 +40,8 @@ services:
       - "3001:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./dashboard/src:/app/src
 
   db:
     image: pgvector/pgvector:pg16
