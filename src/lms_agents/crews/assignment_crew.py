@@ -378,71 +378,37 @@ def run_format_agent(
     content_output: dict,
     rubric_output: dict,
 ) -> dict:
-    """Render content as HTML for the selected template."""
-    log.info("[Format Agent] Rendering output...")
+    """
+    Render content through the Output Template Library.
+
+    Uses the template renderer (no LLM call) — deterministic, instant,
+    and produces consistent TpT-quality HTML for all 10 template types.
+    """
+    log.info("[Format Agent] Rendering output via template library...")
+
+    from src.lms_agents.tools.template_renderer import render_template
 
     template_id = work_order.get("output_template_id", "worksheet")
-    subject = work_order.get("subject", "")
-    grade = work_order.get("grade_level", "")
     theme = work_order.get("design_theme", "modern_clean")
 
-    system = (
-        "You are an expert at creating beautiful, print-ready educational materials. "
-        "You produce clean HTML with inline CSS that looks professional and teacher-ready. "
-        "Your output should look like a $10 Teachers Pay Teachers product."
-    )
+    # Merge rubric answers into content for answer key rendering
+    answer_key_content = dict(content_output)
+    if rubric_output and rubric_output.get("answer_key"):
+        for ak_item in rubric_output["answer_key"]:
+            qnum = ak_item.get("question_number")
+            for q in answer_key_content.get("questions", []):
+                if q.get("question_number") == qnum:
+                    q["answer"] = ak_item.get("correct_answer", q.get("answer", ""))
+                    q["points"] = ak_item.get("points", 1)
 
-    user = f"""Render this educational content as a beautiful, print-ready HTML document.
+    student_html = render_template(template_id, content_output, answer_key=False, theme=theme)
+    answer_key_html = render_template(template_id, answer_key_content, answer_key=True, theme=theme)
 
-TEMPLATE: {template_id}
-SUBJECT: {subject}
-GRADE: {grade}
-DESIGN THEME: {theme}
-
-CONTENT:
-{json.dumps(content_output, indent=2)}
-
-ANSWER KEY:
-{json.dumps(rubric_output, indent=2)}
-
-Create TWO HTML sections:
-1. STUDENT VERSION: The assignment for students (no answers)
-2. ANSWER KEY: Teacher version with all answers highlighted
-
-Requirements:
-- Use inline CSS (no external stylesheets)
-- Clean, modern design with good typography
-- Include a header with title, subject, grade, and standard codes
-- Number all questions clearly
-- Add a name/date field for students
-- For the answer key, show answers in bold/highlighted
-- Use a subtle color scheme appropriate for {theme} theme
-- Print-friendly (no dark backgrounds, good margins)
-
-Respond with a JSON object:
-{{
-  "student_html": "<html>...</html>",
-  "answer_key_html": "<html>...</html>"
-}}
-
-Respond with ONLY the JSON object."""
-
-    response = _call_claude(client, SONNET, system, user, max_tokens=8192)
-    result = _extract_json(response)
-
-    if result is None:
-        # Fallback: wrap content in basic HTML
-        title = content_output.get("title", "Assignment")
-        questions_html = ""
-        for q in content_output.get("questions", []):
-            questions_html += f"<p><strong>{q.get('question_number', '')}.</strong> {q.get('question_text', '')}</p>\n"
-        result = {
-            "student_html": f"<html><body><h1>{title}</h1>{questions_html}</body></html>",
-            "answer_key_html": f"<html><body><h1>{title} — Answer Key</h1></body></html>",
-        }
-
-    log.info(f"[Format Agent] Rendered {len(result.get('student_html', ''))} chars student HTML")
-    return result
+    log.info(f"[Format Agent] Rendered {template_id}: {len(student_html)} chars student, {len(answer_key_html)} chars key")
+    return {
+        "student_html": student_html,
+        "answer_key_html": answer_key_html,
+    }
 
 
 # ---------------------------------------------------------------------------

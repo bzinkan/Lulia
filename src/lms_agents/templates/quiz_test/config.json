@@ -1,1 +1,10 @@
-{"cards_per_page": 6}
+{
+  "template_id": "quiz_test",
+  "name": "Quiz / Test",
+  "description": "Formal assessment with point values, score box, multiple question types",
+  "default_question_count": 15,
+  "question_types": ["multiple_choice", "short_answer", "fill_blank", "true_false"],
+  "supports_difficulty": true,
+  "show_points": true,
+  "print_layout": "full_page"
+}

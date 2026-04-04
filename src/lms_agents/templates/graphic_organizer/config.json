@@ -1,1 +1,9 @@
-{"cards_per_page": 6}
+{
+  "template_id": "graphic_organizer",
+  "name": "Graphic Organizer",
+  "description": "Visual organizer: Venn diagram, T-chart, KWL chart",
+  "layout_type": "tchart",
+  "layout_options": ["tchart", "venn", "kwl"],
+  "default_question_count": 0,
+  "print_layout": "full_page"
+}

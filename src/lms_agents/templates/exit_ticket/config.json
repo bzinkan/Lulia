@@ -1,1 +1,8 @@
-{"cards_per_page": 6}
+{
+  "template_id": "exit_ticket",
+  "name": "Exit Ticket",
+  "description": "Half-page format, 2 per sheet, 3-5 quick check questions",
+  "default_question_count": 4,
+  "max_questions": 5,
+  "print_layout": "half_page"
+}

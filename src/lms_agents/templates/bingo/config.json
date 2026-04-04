@@ -1,1 +1,9 @@
-{"cards_per_page": 6}
+{
+  "template_id": "bingo",
+  "name": "BINGO",
+  "description": "5x5 grid with FREE center, randomized content per card",
+  "grid_size": 5,
+  "terms_needed": 24,
+  "default_question_count": 24,
+  "print_layout": "full_page"
+}

@@ -1,1 +1,8 @@
-{"cards_per_page": 6}
+{
+  "template_id": "flashcards",
+  "name": "Flashcards",
+  "description": "8 per page, front/back format. Terms on front, definitions on back",
+  "cards_per_page": 8,
+  "default_question_count": 16,
+  "print_layout": "card_grid"
+}

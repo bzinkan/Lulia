@@ -1,1 +1,8 @@
-{"cards_per_page": 6}
+{
+  "template_id": "morning_work",
+  "name": "Morning Work / Bell Ringer",
+  "description": "3-5 warm-up problems with a Challenge bonus question",
+  "default_question_count": 5,
+  "has_challenge": true,
+  "print_layout": "compact"
+}

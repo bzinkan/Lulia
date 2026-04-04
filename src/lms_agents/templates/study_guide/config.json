@@ -1,1 +1,9 @@
-{"cards_per_page": 6}
+{
+  "template_id": "study_guide",
+  "name": "Study Guide",
+  "description": "Organized by standard/topic with vocabulary, examples, and practice",
+  "default_question_count": 10,
+  "supports_vocabulary": true,
+  "supports_examples": true,
+  "print_layout": "full_page"
+}
