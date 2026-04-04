@@ -18,17 +18,26 @@ python-dotenv==1.0.*
 pyyaml==6.0.*
 httpx==0.28.*
 
-# AWS (S3/MinIO via boto3)
+# AWS (S3/MinIO via boto3, Bedrock for embedding)
 boto3==1.35.*
+
+# === Phase 2a: RAG Knowledge Base ===
+
+# LLM Providers (Claude for standards tagging)
+anthropic==0.42.*
+
+# Document Processing
+PyMuPDF==1.25.*
+python-docx==1.1.*
+beautifulsoup4==4.12.*
 
 # === Commented out until needed in later phases ===
 
-# # CrewAI (Phase 2)
+# # CrewAI (Phase 2b)
 # crewai==0.86.*
 # crewai-tools==0.14.*
 
-# # LLM Providers (Phase 2)
-# anthropic==0.42.*
+# # LLM Providers - additional (Phase 2b+)
 # langchain-anthropic==0.3.*
 # google-generativeai==0.8.*
 # langchain-google-genai==2.0.*
@@ -36,10 +45,7 @@ boto3==1.35.*
 # # Background Worker (Phase 6)
 # apscheduler==3.10.*
 
-# # Document Processing (Phase 2)
-# PyMuPDF==1.25.*
-# python-docx==1.1.*
-# beautifulsoup4==4.12.*
+# # Document Processing - additional (Phase 2b+)
 # youtube-transcript-api==0.6.*
 
 # # PDF Generation (Phase 3)
@@ -57,7 +63,7 @@ boto3==1.35.*
 # # TTS (Phase 10)
 # google-cloud-texttospeech==2.21.*
 
-# # Auth (Phase 2)
+# # Auth (Phase 2b)
 # python-jose[cryptography]==3.3.*
 # passlib[bcrypt]==1.7.*
 
