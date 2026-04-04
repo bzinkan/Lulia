@@ -112,7 +112,8 @@ CREATE TABLE knowledge_chunks (
     section_heading VARCHAR
 );
 
-CREATE INDEX ON knowledge_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- HNSW index works on empty tables (ivfflat requires rows to build)
+CREATE INDEX ON knowledge_chunks USING hnsw (embedding vector_cosine_ops);
 
 -- ============================================
 -- CURRICULUM CALENDAR

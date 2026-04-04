@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   api:
     build:
@@ -15,6 +13,7 @@ services:
         condition: service_started
     volumes:
       - ./src:/app/src
+      - ./scripts:/app/scripts
       - ./data/state_standards:/app/data/state_standards:ro
     command: uvicorn src.lms_agents.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -38,16 +37,14 @@ services:
       context: ./dashboard
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
-    volumes:
-      - ./dashboard/src:/app/src
 
   db:
     image: pgvector/pgvector:pg16
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: lulia
       POSTGRES_USER: lulia
@@ -72,6 +69,28 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/lulia-uploads;
+      mc mb --ignore-existing local/lulia-generated;
+      mc mb --ignore-existing local/lulia-scans;
+      mc mb --ignore-existing local/lulia-templates;
+      mc mb --ignore-existing local/lulia-activities;
+      echo 'All buckets created';
+      "
 
 volumes:
   postgres_data:
