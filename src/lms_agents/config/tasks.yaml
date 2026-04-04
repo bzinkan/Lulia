@@ -1,0 +1,63 @@
+# Lulia — Task Definitions for Assignment Generation Crew
+# Sequential chain: Curriculum → Content → Rubric → QA → Format
+
+curriculum_task:
+  description: >
+    Given the work order, retrieve the relevant standards from the database
+    using the provided standards_ids and tier priority. Output the full
+    standard codes with descriptions that the Content Agent will use
+    as generation constraints.
+  expected_output: >
+    A structured list of standards with codes, descriptions, grade level,
+    and subject. Include the tier source (custom/state/national).
+
+content_task:
+  description: >
+    Generate educational content shaped for the selected output template.
+    Search the RAG Knowledge Base first when has_kb_coverage is true.
+    Follow these template-specific content rules:
+    - worksheet: numbered questions with varying difficulty
+    - task_cards: one question per card with visual prompt
+    - bingo: 24 vocabulary/concept terms
+    - reading_comprehension: passage + questions
+    - flashcards: term/definition pairs
+    - exit_ticket: 3-5 quick check questions
+    Content must align to ALL provided standards. Use difficulty_distribution
+    to balance easy/medium/hard questions.
+  expected_output: >
+    A JSON object with: title, instructions, questions (array with
+    question_text, answer, difficulty, standard_code), and any
+    template-specific fields (passage for reading comp, terms for bingo).
+
+rubric_task:
+  description: >
+    Create answer key and scoring guide matching the content and template.
+    For objective questions: exact answers with acceptable alternatives.
+    For open-ended: key concepts rubric with point values.
+    Total points should be clearly stated.
+  expected_output: >
+    A JSON object with: answer_key (array matching questions), total_points,
+    scoring_notes, and any rubric criteria for subjective items.
+
+qa_task:
+  description: >
+    Audit the generated content for:
+    1. Factual accuracy (cross-reference RAG KB if available)
+    2. Standards alignment (every question maps to a provided standard)
+    3. Grade-level appropriateness (readability, vocabulary, complexity)
+    4. Answer key correctness (verify each answer)
+    5. Bias and sensitivity check
+    6. No semantic duplicates with Generation History
+    If issues found, provide specific revision notes for Content Agent.
+  expected_output: >
+    A JSON object with: approved (boolean), score (0-100), issues (array),
+    revision_notes (string, only if not approved).
+
+format_task:
+  description: >
+    Render the approved content through the selected Output Template.
+    Apply the teacher's design theme. Generate HTML output suitable
+    for PDF conversion or direct display.
+  expected_output: >
+    HTML string of the rendered assignment, ready for PDF conversion
+    or storage.

@@ -56,7 +56,9 @@ def search_kb(
         params.append(standards_ids)
 
     where = " AND ".join(conditions)
-    params.extend([embedding_str, embedding_str, top_k])
+
+    # Build params in SQL order: SELECT embedding, WHERE filters, ORDER embedding, LIMIT
+    all_params = [embedding_str] + params + [embedding_str, top_k]
 
     sql = f"""
         SELECT kc.chunk_id, kc.content, kc.section_heading, kc.page_number,
@@ -75,7 +77,7 @@ def search_kb(
     conn = get_connection()
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(sql, params)
+        cur.execute(sql, all_params)
         results = [dict(r) for r in cur.fetchall()]
         cur.close()
     finally:
