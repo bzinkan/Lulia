@@ -13,6 +13,7 @@ import psycopg2
 from psycopg2.extras import Json
 
 from src.lms_agents.tools.knowledge_ingestion import ingest_file, ingest_url
+from src.lms_agents.tools.curriculum_importer import import_curriculum
 
 log = logging.getLogger(__name__)
 
@@ -199,6 +200,70 @@ async def upload_materials(
 
 
 @router.post("/curriculum")
-async def upload_curriculum(file: UploadFile = File(...)):
-    """Upload curriculum -> Calendar + RAG KB (dual pipeline)."""
-    return {"filename": file.filename, "status": "stub"}
+async def upload_curriculum(
+    file: UploadFile = File(...),
+    class_id: str = Form(...),
+    subject: str = Form(None),
+    grade_level: str = Form(None),
+    teacher_id: str = Form("00000000-0000-0000-0000-000000000001"),
+    week_start: str = Form(None),
+):
+    """
+    Upload curriculum/pacing guide — dual pipeline.
+
+    1. Full text → RAG Knowledge Base (for agent search)
+    2. Parsed pacing → curriculum_calendar (for Planner scheduling)
+    """
+    from datetime import date as date_type
+
+    filename = file.filename or "curriculum"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        return JSONResponse(
+            {"error": f"Unsupported file type: .{ext}"},
+            status_code=400,
+        )
+
+    # Save to MinIO
+    s3_key = f"curriculum/{uuid4()}/{filename}"
+    content = await file.read()
+
+    try:
+        s3 = get_s3_client()
+        bucket = os.environ.get("S3_BUCKET_UPLOADS", "lulia-uploads")
+        s3.put_object(Bucket=bucket, Key=s3_key, Body=content)
+    except ClientError as e:
+        log.error(f"MinIO upload failed: {e}")
+        return JSONResponse({"error": "File storage failed"}, status_code=500)
+
+    # Write to temp file for processing
+    import tempfile
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    start_date = None
+    if week_start:
+        try:
+            start_date = date_type.fromisoformat(week_start)
+        except ValueError:
+            pass
+
+    try:
+        result = import_curriculum(
+            file_path=tmp_path,
+            file_type=ext,
+            name=filename,
+            teacher_id=teacher_id,
+            class_id=class_id,
+            subject=subject,
+            grade_level=grade_level,
+            week_start=start_date,
+        )
+        result["s3_key"] = s3_key
+        return result
+    except Exception as e:
+        log.error(f"Curriculum import failed: {e}")
+        return JSONResponse({"error": f"Processing failed: {str(e)}"}, status_code=500)
+    finally:
+        os.unlink(tmp_path)
