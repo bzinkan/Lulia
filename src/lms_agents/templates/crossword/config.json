@@ -1,1 +1,8 @@
-{"cards_per_page": 6}
+{
+  "template_id": "crossword",
+  "name": "Crossword",
+  "description": "Crossword puzzle with clue/answer pairs that intersect on shared letters",
+  "grid_size": 20,
+  "default_question_count": 12,
+  "print_layout": "full_page"
+}

@@ -1,1 +1,8 @@
-{"cards_per_page": 6}
+{
+  "template_id": "escape_room",
+  "name": "Escape Room",
+  "description": "Multi-stage puzzle where answers form a lock code",
+  "num_stages": 4,
+  "default_question_count": 4,
+  "print_layout": "full_page"
+}

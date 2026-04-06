@@ -1,1 +1,8 @@
-{"cards_per_page": 6}
+{
+  "template_id": "word_search",
+  "name": "Word Search",
+  "description": "NxN grid puzzle with hidden vocabulary words",
+  "grid_size": 15,
+  "default_question_count": 15,
+  "print_layout": "full_page"
+}

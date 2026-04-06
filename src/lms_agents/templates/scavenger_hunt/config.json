@@ -1,1 +1,8 @@
-{"cards_per_page": 6}
+{
+  "template_id": "scavenger_hunt",
+  "name": "Scavenger Hunt",
+  "description": "Classroom scavenger hunt with clue cards leading to question stations",
+  "max_stations": 12,
+  "default_question_count": 8,
+  "print_layout": "card_grid"
+}

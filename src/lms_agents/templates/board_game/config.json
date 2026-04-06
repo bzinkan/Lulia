@@ -1,1 +1,8 @@
-{"cards_per_page": 6}
+{
+  "template_id": "board_game",
+  "name": "Board Game",
+  "description": "Path-based board game with question spaces and special action spaces",
+  "total_spaces": 36,
+  "default_question_count": 10,
+  "print_layout": "full_page"
+}

@@ -160,11 +160,21 @@ def run_content_agent(
     """
     log.info("[Content Agent] Generating content...")
 
+    from src.lms_agents.tools.generation_history import query_history, build_exclusion_prompt
+
     template_id = work_order.get("output_template_id", "worksheet")
     question_count = work_order.get("question_count", 10)
     difficulty = work_order.get("difficulty_distribution", {"easy": 3, "medium": 4, "hard": 3})
     subject = work_order.get("subject", "")
     grade = work_order.get("grade_level", "")
+    teacher_id = work_order.get("teacher_id", "")
+
+    # Query Generation History for exclusion list
+    history_exclusion = ""
+    if teacher_id:
+        standards_codes = [s["code"] for s in curriculum_output.get("standards", [])]
+        history = query_history(teacher_id, standards_codes, freshness_months=6, output_template_id=template_id)
+        history_exclusion = build_exclusion_prompt(history)
 
     # RAG search if KB coverage available
     kb_context = ""
@@ -205,6 +215,7 @@ ALIGNED STANDARDS:
 {standards_text}
 {kb_context}
 {revision_section}
+{history_exclusion}
 
 Generate a JSON object with this structure:
 {{
@@ -469,6 +480,19 @@ def run_assignment_crew(work_order: dict) -> dict:
 
     # Store in database
     assignment_id = _store_assignment(work_order, content_output, rubric_output, qa_output, format_output)
+
+    # Store in Generation History (no-repeat system)
+    from src.lms_agents.tools.generation_history import store_generation
+    try:
+        store_generation(
+            teacher_id=work_order.get("teacher_id", ""),
+            assignment_id=assignment_id,
+            standard_codes=[s["code"] for s in curriculum_output.get("standards", [])],
+            output_template_id=work_order.get("output_template_id", ""),
+            content=content_output,
+        )
+    except Exception as e:
+        log.warning(f"Failed to store generation history: {e}")
 
     return {
         "assignment_id": assignment_id,
