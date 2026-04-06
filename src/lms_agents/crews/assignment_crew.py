@@ -494,7 +494,7 @@ def run_assignment_crew(work_order: dict) -> dict:
     except Exception as e:
         log.warning(f"Failed to store generation history: {e}")
 
-    return {
+    result = {
         "assignment_id": assignment_id,
         "work_order_id": work_order.get("work_order_id"),
         "title": content_output.get("title", ""),
@@ -509,7 +509,46 @@ def run_assignment_crew(work_order: dict) -> dict:
         "student_html": format_output.get("student_html", ""),
         "answer_key_html": format_output.get("answer_key_html", ""),
         "status": "complete",
+        "accommodation_versions": [],
     }
+
+    # Generate accommodation versions if requested
+    accommodation_profiles = work_order.get("accommodation_versions", [])
+    if accommodation_profiles:
+        from src.lms_agents.tools.accommodation_engine import get_profile, apply_modifications
+        from src.lms_agents.tools.template_renderer import render_template
+
+        template_id = work_order.get("output_template_id", "worksheet")
+        theme = work_order.get("design_theme", "modern_clean")
+        subject = work_order.get("subject", "")
+        grade = work_order.get("grade_level", "")
+
+        for profile_id in accommodation_profiles:
+            profile = get_profile(profile_id)
+            if not profile:
+                log.warning(f"[Accommodation] Profile not found: {profile_id}")
+                continue
+
+            log.info(f"[Accommodation] Generating {profile.get('name', profile_id)} version")
+            modified = apply_modifications(content_output, profile, subject, grade)
+            mod_student = render_template(template_id, modified, answer_key=False, theme=theme)
+            mod_key = render_template(template_id, modified, answer_key=True, theme=theme)
+
+            # Store as separate assignment
+            mod_id = _store_assignment(
+                {**work_order, "work_order_id": f"ACCOM-{profile_id}-{work_order.get('work_order_id', '')}"},
+                modified, rubric_output, qa_output, {"student_html": mod_student, "answer_key_html": mod_key},
+            )
+            result["accommodation_versions"].append({
+                "profile_id": profile_id,
+                "profile_name": profile.get("name", profile_id),
+                "assignment_id": mod_id,
+                "question_count": len(modified.get("questions", [])),
+                "student_html": mod_student,
+                "answer_key_html": mod_key,
+            })
+
+    return result
 
 
 def _store_assignment(

@@ -40,6 +40,7 @@ class WorkOrder(BaseModel):
     question_count: int = 10
     difficulty_distribution: dict = {"easy": 3, "medium": 4, "hard": 3}
     has_kb_coverage: bool = False
+    accommodation_versions: list[str] = []
 
 
 @router.post("/generate")

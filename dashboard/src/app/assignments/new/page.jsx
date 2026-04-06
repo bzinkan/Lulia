@@ -50,6 +50,7 @@ export default function NewAssignment() {
     standards_ids: [],
     has_kb_coverage: true,
     difficulty_distribution: { easy: 3, medium: 4, hard: 3 },
+    accommodation_versions: [],
   });
   const [standards, setStandards] = useState([]);
   const [generating, setGenerating] = useState(false);
@@ -258,10 +259,43 @@ export default function NewAssignment() {
                 type="checkbox"
                 checked={form.has_kb_coverage}
                 onChange={e => setForm(f => ({ ...f, has_kb_coverage: e.target.checked }))}
-                className="accent-indigo-600"
+                className="accent-orange-500"
               />
               <span className="text-gray-700">Use Knowledge Base content (RAG grounding)</span>
             </label>
+
+            {/* Accommodations */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Accommodation Versions (optional)</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'iep_reading_reduced', label: 'IEP — Reduced', color: '#2563EB' },
+                  { id: '504_extended_time', label: '504 — Extended', color: '#7C3AED' },
+                  { id: 'ell_beginner', label: 'ELL — Beginner', color: '#D97706' },
+                  { id: 'gifted_enriched', label: 'Gifted — Enriched', color: '#059669' },
+                ].map(a => (
+                  <label key={a.id} className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                    form.accommodation_versions.includes(a.id)
+                      ? 'border-orange-300 bg-orange-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={form.accommodation_versions.includes(a.id)}
+                      onChange={e => setForm(f => ({
+                        ...f,
+                        accommodation_versions: e.target.checked
+                          ? [...f.accommodation_versions, a.id]
+                          : f.accommodation_versions.filter(x => x !== a.id),
+                      }))}
+                      className="accent-orange-500"
+                    />
+                    <span className="w-2 h-2 rounded-full" style={{ background: a.color }} />
+                    <span className="text-gray-700">{a.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
             {/* Error */}
             {error && (
