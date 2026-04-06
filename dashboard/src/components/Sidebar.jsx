@@ -11,6 +11,7 @@ const navItems = [
   { label: 'Assignments', icon: FileText, href: '/assignments' },
   { label: 'Content Library', icon: Upload, href: '/library' },
   { label: 'Accommodations', icon: Shield, href: '/accommodations' },
+  { label: 'Settings', icon: Settings, href: '/settings' },
 ];
 
 export default function Sidebar() {

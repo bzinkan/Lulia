@@ -31,37 +31,33 @@ PyMuPDF==1.25.*
 python-docx==1.1.*
 beautifulsoup4==4.12.*
 
-# === Phase 2c: Assignment Generation Crew ===
-# Using Anthropic SDK directly for the 5-agent chain.
-# CrewAI integration deferred until multi-crew orchestration is needed (Phase 6+).
+# === Phase 6: Google Classroom + Workspace ===
 
-# === Commented out until needed in later phases ===
+# Google APIs
+google-auth==2.36.*
+google-auth-oauthlib==1.2.*
+google-api-python-client==2.157.*
+google-generativeai==0.8.*
 
-# # Background Worker (Phase 6)
+# Auth + Encryption
+python-jose[cryptography]==3.3.*
+cryptography==44.*
+
+# === Commented out until needed ===
+
+# # Background Worker
 # apscheduler==3.10.*
 
-# # Document Processing - additional
-# youtube-transcript-api==0.6.*
-
-# # PDF Generation (Phase 3)
+# # PDF Generation
 # weasyprint==62.*
 
-# # OCR (Phase 5)
+# # OCR
 # pytesseract==0.3.*
 # opencv-python-headless==4.10.*
 
-# # Google APIs (Phase 8)
-# google-auth==2.36.*
-# google-auth-oauthlib==1.2.*
-# google-api-python-client==2.157.*
-
-# # TTS (Phase 10)
+# # TTS
 # google-cloud-texttospeech==2.21.*
 
-# # Auth
-# python-jose[cryptography]==3.3.*
-# passlib[bcrypt]==1.7.*
-
-# # Media (Phase 10)
+# # Media
 # Pillow==11.*
 # qrcode==8.*
