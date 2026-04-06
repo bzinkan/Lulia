@@ -346,3 +346,31 @@ CREATE TABLE share_links (
     remix_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ============================================
+-- ADMIN AUDIT LOG
+-- ============================================
+CREATE TABLE admin_audit_log (
+    log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    admin_email VARCHAR NOT NULL,
+    action VARCHAR NOT NULL,
+    target_type VARCHAR,
+    target_id VARCHAR,
+    metadata JSONB,
+    ip_address VARCHAR,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================
+-- SYSTEM ERRORS LOG
+-- ============================================
+CREATE TABLE system_errors (
+    error_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    error_type VARCHAR NOT NULL,
+    message TEXT NOT NULL,
+    stack_trace TEXT,
+    teacher_id UUID,
+    context JSONB,
+    severity VARCHAR DEFAULT 'error',
+    created_at TIMESTAMP DEFAULT NOW()
+);
