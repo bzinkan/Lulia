@@ -10,6 +10,7 @@ const navItems = [
   { label: 'New Assignment', icon: PlusCircle, href: '/assignments/new' },
   { label: 'Assignments', icon: FileText, href: '/assignments' },
   { label: 'Grading', icon: CheckSquare, href: '/grading' },
+  { label: 'Analytics', icon: BookOpen, href: '/analytics' },
   { label: 'Content Library', icon: Upload, href: '/library' },
   { label: 'Accommodations', icon: Shield, href: '/accommodations' },
   { label: 'Settings', icon: Settings, href: '/settings' },

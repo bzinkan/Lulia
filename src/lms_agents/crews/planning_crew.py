@@ -191,6 +191,25 @@ def run_planner(
     history = query_history(teacher_id, standards_from_calendar, freshness_months=6)
     exclusion = build_exclusion_prompt(history)
 
+    # Get analytics feedback for adaptive planning
+    analytics_context = ""
+    try:
+        from src.lms_agents.crews.analytics_crew import get_planner_analytics
+        analytics = get_planner_analytics(class_id)
+        if analytics.get("struggling_standards") or analytics.get("mastered_standards"):
+            analytics_context = "\n\nANALYTICS FEEDBACK (adapt your plan based on this data):\n"
+            analytics_context += f"Class Average: {analytics.get('class_average', 'N/A')}%\n"
+            if analytics.get("struggling_standards"):
+                analytics_context += f"STRUGGLING STANDARDS (need re-teaching): {', '.join(analytics['struggling_standards'])}\n"
+            if analytics.get("mastered_standards"):
+                analytics_context += f"MASTERED STANDARDS (can skip or advance): {', '.join(analytics['mastered_standards'])}\n"
+            if analytics.get("struggling_student_count"):
+                analytics_context += f"Students below 65%: {analytics['struggling_student_count']} — suggest accommodation versions\n"
+            if analytics.get("recommendations"):
+                analytics_context += f"Recommendations: {'; '.join(analytics['recommendations'])}\n"
+    except Exception as e:
+        log.warning(f"Analytics feedback failed: {e}")
+
     # Subject-aware templates
     available_templates = SUBJECT_TEMPLATES.get(subject, SUBJECT_TEMPLATES["Mathematics"])
 
@@ -219,6 +238,7 @@ AVAILABLE TEMPLATES (vary these across days):
 
 DESIGN THEME: {design_theme}
 {exclusion}
+{analytics_context}
 
 Generate a JSON plan with this structure:
 {{

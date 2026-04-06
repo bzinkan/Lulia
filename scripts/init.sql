@@ -418,3 +418,24 @@ CREATE TABLE student_mastery (
     last_assessed TIMESTAMP DEFAULT NOW(),
     trend VARCHAR
 );
+
+-- ============================================
+-- ANALYTICS
+-- ============================================
+CREATE TABLE analytics_snapshots (
+    snapshot_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    class_id UUID,
+    snapshot_date DATE,
+    period_type VARCHAR DEFAULT 'daily',
+    aggregated_data JSONB,
+    insights JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE standard_mastery_history (
+    history_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    class_id UUID,
+    standard_code VARCHAR,
+    date DATE,
+    mastery_percent DECIMAL
+);
