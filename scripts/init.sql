@@ -374,3 +374,47 @@ CREATE TABLE system_errors (
     severity VARCHAR DEFAULT 'error',
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ============================================
+-- SUBMISSIONS & GRADING
+-- ============================================
+CREATE TABLE submissions (
+    submission_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assignment_id UUID REFERENCES assignments(assignment_id),
+    student_id UUID,
+    student_name VARCHAR,
+    submission_method VARCHAR,
+    raw_file_url VARCHAR,
+    ocr_responses JSONB,
+    confidence_scores JSONB,
+    flagged_questions JSONB,
+    status VARCHAR DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE grades (
+    grade_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    submission_id UUID REFERENCES submissions(submission_id),
+    question_number INTEGER,
+    student_response TEXT,
+    correct_answer TEXT,
+    points_earned DECIMAL,
+    points_possible DECIMAL,
+    feedback TEXT,
+    needs_review BOOLEAN DEFAULT false,
+    teacher_override BOOLEAN DEFAULT false
+);
+
+-- ============================================
+-- STUDENT MASTERY TRACKING
+-- ============================================
+CREATE TABLE student_mastery (
+    mastery_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id UUID,
+    standard_id VARCHAR,
+    total_questions INTEGER,
+    correct_questions INTEGER,
+    mastery_percentage DECIMAL,
+    last_assessed TIMESTAMP DEFAULT NOW(),
+    trend VARCHAR
+);
