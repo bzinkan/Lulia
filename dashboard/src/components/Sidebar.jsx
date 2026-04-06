@@ -1,11 +1,12 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, FileText, Upload, BookOpen, Settings, Zap, Menu, X } from 'lucide-react';
+import { Home, Calendar, PlusCircle, FileText, Upload, BookOpen, Settings, Zap, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
   { label: 'Dashboard', icon: Home, href: '/' },
+  { label: 'Weekly Planner', icon: Calendar, href: '/planner' },
   { label: 'New Assignment', icon: PlusCircle, href: '/assignments/new' },
   { label: 'Assignments', icon: FileText, href: '/assignments' },
   { label: 'Content Library', icon: Upload, href: '/library' },
