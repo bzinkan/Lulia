@@ -19,6 +19,9 @@ log = logging.getLogger(__name__)
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 THEMES_DIR = TEMPLATES_DIR / "shared_themes"
 
+# Module-level theme state — set by render_template(), read by _base_css()
+_current_theme = "modern_clean"
+
 
 def get_template_config(template_id: str) -> dict:
     """Load config.json for a template."""
@@ -28,18 +31,78 @@ def get_template_config(template_id: str) -> dict:
     return {}
 
 
-def _base_css(theme: str = "modern_clean") -> str:
-    """Shared CSS for all templates — Modern Clean theme."""
+THEMES = {
+    "modern_clean": {
+        "name": "Modern Clean",
+        "primary": "#F97316", "primary_light": "#FB923C", "primary_lighter": "#FDBA74",
+        "primary_lightest": "#FED7AA", "primary_bg": "#FFF7ED", "primary_dark": "#EA580C",
+        "primary_darkest": "#9A3412",
+        "heading_font": "'DM Serif Display', serif", "body_font": "'DM Sans', sans-serif",
+        "bg": "#FFFFFF", "bg_tint": "#FEF9F2", "text": "#1C1917", "text_secondary": "#78716C",
+        "text_muted": "#A8A29E", "border": "#E7E5E4", "border_light": "#F5F5F4",
+        "success": "#16A34A", "success_bg": "#DCFCE7",
+    },
+    "playful_primary": {
+        "name": "Playful Primary",
+        "primary": "#E11D48", "primary_light": "#FB7185", "primary_lighter": "#FECDD3",
+        "primary_lightest": "#FFF1F2", "primary_bg": "#FFF1F2", "primary_dark": "#BE123C",
+        "primary_darkest": "#881337",
+        "heading_font": "'Fredoka', 'DM Sans', sans-serif", "body_font": "'DM Sans', sans-serif",
+        "bg": "#FFFFFF", "bg_tint": "#FFFBEB", "text": "#1C1917", "text_secondary": "#78716C",
+        "text_muted": "#A8A29E", "border": "#FECDD3", "border_light": "#FFF1F2",
+        "success": "#16A34A", "success_bg": "#DCFCE7",
+    },
+    "bold_bright": {
+        "name": "Bold & Bright",
+        "primary": "#7C3AED", "primary_light": "#A78BFA", "primary_lighter": "#C4B5FD",
+        "primary_lightest": "#EDE9FE", "primary_bg": "#F5F3FF", "primary_dark": "#6D28D9",
+        "primary_darkest": "#4C1D95",
+        "heading_font": "'DM Serif Display', serif", "body_font": "'DM Sans', sans-serif",
+        "bg": "#FFFFFF", "bg_tint": "#F5F3FF", "text": "#1C1917", "text_secondary": "#6B7280",
+        "text_muted": "#9CA3AF", "border": "#C4B5FD", "border_light": "#EDE9FE",
+        "success": "#059669", "success_bg": "#D1FAE5",
+    },
+    "nature_earth": {
+        "name": "Nature & Earth",
+        "primary": "#059669", "primary_light": "#34D399", "primary_lighter": "#6EE7B7",
+        "primary_lightest": "#D1FAE5", "primary_bg": "#ECFDF5", "primary_dark": "#047857",
+        "primary_darkest": "#064E3B",
+        "heading_font": "'DM Serif Display', serif", "body_font": "'DM Sans', sans-serif",
+        "bg": "#FFFFFF", "bg_tint": "#F0FDF4", "text": "#1C1917", "text_secondary": "#6B7280",
+        "text_muted": "#9CA3AF", "border": "#6EE7B7", "border_light": "#D1FAE5",
+        "success": "#B45309", "success_bg": "#FEF3C7",
+    },
+}
+
+
+def _base_css(theme: str | None = None) -> str:
+    """Shared CSS for all templates with theme support via CSS custom properties."""
+    t = THEMES.get(theme or _current_theme, THEMES["modern_clean"])
+    css_vars = (
+        f"@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=Fredoka:wght@400;500;600&display=swap');\n"
+        f":root {{\n"
+        f"  --t-primary: {t['primary']}; --t-primary-light: {t['primary_light']};\n"
+        f"  --t-primary-lighter: {t['primary_lighter']}; --t-primary-lightest: {t['primary_lightest']};\n"
+        f"  --t-primary-bg: {t['primary_bg']}; --t-primary-dark: {t['primary_dark']};\n"
+        f"  --t-primary-darkest: {t['primary_darkest']};\n"
+        f"  --t-heading-font: {t['heading_font']}; --t-body-font: {t['body_font']};\n"
+        f"  --t-bg: {t['bg']}; --t-bg-tint: {t['bg_tint']};\n"
+        f"  --t-text: {t['text']}; --t-text-secondary: {t['text_secondary']};\n"
+        f"  --t-text-muted: {t['text_muted']}; --t-border: {t['border']};\n"
+        f"  --t-border-light: {t['border_light']};\n"
+        f"  --t-success: {t['success']}; --t-success-bg: {t['success_bg']};\n"
+        f"}}\n"
+    )
     return """
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');
+      """ + css_vars + """
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
-        font-family: 'DM Sans', sans-serif;
+        font-family: var(--t-body-font);
         font-size: 14px;
-        color: #1C1917;
+        color: var(--t-text);
         line-height: 1.6;
-        background: #fff;
+        background: var(--t-bg);
       }
       .page {
         width: 8.5in;
@@ -48,24 +111,24 @@ def _base_css(theme: str = "modern_clean") -> str:
         margin: 0 auto;
         position: relative;
       }
-      h1, h2, h3 { font-family: 'DM Serif Display', serif; }
+      h1, h2, h3 { font-family: var(--t-heading-font); }
       h1 { font-size: 22px; margin-bottom: 4px; }
-      h2 { font-size: 16px; margin-bottom: 8px; color: #78350F; }
+      h2 { font-size: 16px; margin-bottom: 8px; color: var(--t-primary-darkest); }
       h3 { font-size: 13px; margin-bottom: 4px; }
       .header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        border-bottom: 2px solid #F97316;
+        border-bottom: 2px solid var(--t-primary);
         padding-bottom: 10px;
         margin-bottom: 16px;
       }
-      .header-left h1 { color: #1C1917; }
-      .header-left .subtitle { font-size: 12px; color: #78716C; margin-top: 2px; }
+      .header-left h1 { color: var(--t-text); }
+      .header-left .subtitle { font-size: 12px; color: var(--t-text-secondary); margin-top: 2px; }
       .header-right {
         text-align: right;
         font-size: 12px;
-        color: #78716C;
+        color: var(--t-text-secondary);
       }
       .header-right .field-line {
         display: flex;
@@ -74,9 +137,9 @@ def _base_css(theme: str = "modern_clean") -> str:
         margin-bottom: 4px;
         justify-content: flex-end;
       }
-      .header-right .field-label { font-weight: 600; color: #78350F; font-size: 11px; }
+      .header-right .field-label { font-weight: 600; color: var(--t-primary-darkest); font-size: 11px; }
       .header-right .field-blank {
-        border-bottom: 1px solid #E7E5E4;
+        border-bottom: 1px solid var(--t-border);
         width: 140px;
         display: inline-block;
         height: 18px;
@@ -91,17 +154,17 @@ def _base_css(theme: str = "modern_clean") -> str:
         font-size: 10px;
         padding: 2px 8px;
         border-radius: 4px;
-        background: #FFF7ED;
-        color: #9A3412;
-        border: 1px solid #FDBA74;
+        background: var(--t-primary-bg);
+        color: var(--t-primary-darkest);
+        border: 1px solid var(--t-primary-lighter);
         font-weight: 500;
       }
       .instructions {
-        background: #FFF7ED;
-        border-left: 3px solid #F97316;
+        background: var(--t-primary-bg);
+        border-left: 3px solid var(--t-primary);
         padding: 8px 12px;
         font-size: 12px;
-        color: #78350F;
+        color: var(--t-primary-darkest);
         margin-bottom: 16px;
         border-radius: 0 8px 8px 0;
       }
@@ -111,12 +174,12 @@ def _base_css(theme: str = "modern_clean") -> str:
       }
       .question-number {
         font-weight: 700;
-        color: #F97316;
+        color: var(--t-primary);
         margin-right: 6px;
       }
-      .question-text { font-size: 13px; color: #1C1917; }
+      .question-text { font-size: 13px; color: var(--t-text); }
       .answer-line {
-        border-bottom: 1px solid #E7E5E4;
+        border-bottom: 1px solid var(--t-border);
         height: 24px;
         margin-top: 6px;
         margin-left: 20px;
@@ -126,7 +189,7 @@ def _base_css(theme: str = "modern_clean") -> str:
         margin-left: 20px;
       }
       .answer-lines-multi .line {
-        border-bottom: 1px solid #E7E5E4;
+        border-bottom: 1px solid var(--t-border);
         height: 22px;
       }
       .mc-options {
@@ -135,17 +198,17 @@ def _base_css(theme: str = "modern_clean") -> str:
         font-size: 13px;
       }
       .mc-options .option { margin-bottom: 2px; }
-      .mc-options .option-letter { font-weight: 600; color: #78350F; margin-right: 8px; }
+      .mc-options .option-letter { font-weight: 600; color: var(--t-primary-darkest); margin-right: 8px; }
       .word-bank {
-        border: 1px solid #E7E5E4;
+        border: 1px solid var(--t-border);
         border-radius: 10px;
         padding: 10px 14px;
         margin-bottom: 16px;
-        background: #FEF9F2;
+        background: var(--t-bg-tint);
       }
-      .word-bank-title { font-size: 11px; font-weight: 600; color: #78350F; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+      .word-bank-title { font-size: 11px; font-weight: 600; color: var(--t-primary-darkest); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
       .word-bank-words { display: flex; flex-wrap: wrap; gap: 8px; }
-      .word-bank-word { font-size: 13px; color: #1C1917; padding: 2px 10px; background: white; border-radius: 6px; border: 1px solid #FDBA74; }
+      .word-bank-word { font-size: 13px; color: var(--t-text); padding: 2px 10px; background: white; border-radius: 6px; border: 1px solid var(--t-primary-lighter); }
       .difficulty-badge {
         display: inline-block;
         font-size: 9px;
@@ -158,8 +221,8 @@ def _base_css(theme: str = "modern_clean") -> str:
       .diff-easy { background: #DCFCE7; color: #16A34A; }
       .diff-medium { background: #FEF3C7; color: #D97706; }
       .diff-hard { background: #FEF2F2; color: #EF4444; }
-      .points { font-size: 10px; color: #A8A29E; float: right; }
-      .answer-key-answer { color: #16A34A; font-weight: 600; }
+      .points { font-size: 10px; color: var(--t-text-muted); float: right; }
+      .answer-key-answer { color: var(--t-success); font-weight: 600; }
       .footer {
         position: absolute;
         bottom: 0.4in;
@@ -167,8 +230,8 @@ def _base_css(theme: str = "modern_clean") -> str:
         right: 0.7in;
         text-align: center;
         font-size: 9px;
-        color: #A8A29E;
-        border-top: 1px solid #F5F5F4;
+        color: var(--t-text-muted);
+        border-top: 1px solid var(--t-border-light);
         padding-top: 6px;
       }
       /* Print */
@@ -186,7 +249,7 @@ def _base_css(theme: str = "modern_clean") -> str:
       .card-grid-6 { grid-template-columns: repeat(2, 1fr); }
       .card-grid-8 { grid-template-columns: repeat(2, 1fr); }
       .card {
-        border: 1px solid #E7E5E4;
+        border: 1px solid var(--t-border);
         border-radius: 12px;
         padding: 14px;
         page-break-inside: avoid;
@@ -198,8 +261,8 @@ def _base_css(theme: str = "modern_clean") -> str:
         right: 10px;
         font-size: 10px;
         font-weight: 700;
-        color: #F97316;
-        background: #FFF7ED;
+        color: var(--t-primary);
+        background: var(--t-primary-bg);
         border-radius: 50%;
         width: 22px;
         height: 22px;
@@ -215,12 +278,12 @@ def _base_css(theme: str = "modern_clean") -> str:
       .bingo-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        border: 2px solid #F97316;
+        border: 2px solid var(--t-primary);
         border-radius: 10px;
         overflow: hidden;
       }
       .bingo-cell {
-        border: 1px solid #E7E5E4;
+        border: 1px solid var(--t-border);
         padding: 10px 4px;
         text-align: center;
         font-size: 11px;
@@ -230,23 +293,23 @@ def _base_css(theme: str = "modern_clean") -> str:
         justify-content: center;
       }
       .bingo-header {
-        background: #F97316;
+        background: var(--t-primary);
         color: white;
-        font-family: 'DM Serif Display', serif;
+        font-family: var(--t-heading-font);
         font-size: 18px;
         font-weight: 700;
         padding: 8px;
       }
       .bingo-free {
-        background: #FFF7ED;
+        background: var(--t-primary-bg);
         font-weight: 700;
-        color: #F97316;
+        color: var(--t-primary);
         font-size: 14px;
       }
       /* Passage */
       .passage {
-        background: #FEF9F2;
-        border: 1px solid #E7E5E4;
+        background: var(--t-bg-tint);
+        border: 1px solid var(--t-border);
         border-radius: 10px;
         padding: 16px;
         margin-bottom: 16px;
@@ -258,7 +321,7 @@ def _base_css(theme: str = "modern_clean") -> str:
         width: 24px;
         text-align: right;
         margin-right: 10px;
-        color: #A8A29E;
+        color: var(--t-text-muted);
         font-size: 10px;
         user-select: none;
       }
@@ -268,13 +331,13 @@ def _base_css(theme: str = "modern_clean") -> str:
         padding: 12px;
         font-size: 12px;
       }
-      .vocab-sidebar .vocab-word { font-weight: 600; color: #78350F; }
-      .vocab-sidebar .vocab-def { color: #78716C; margin-left: 4px; }
+      .vocab-sidebar .vocab-word { font-weight: 600; color: var(--t-primary-darkest); }
+      .vocab-sidebar .vocab-def { color: var(--t-text-secondary); margin-left: 4px; }
       /* Two-column for reading comp */
       .two-col { display: grid; grid-template-columns: 1fr 200px; gap: 16px; }
       /* Half-page */
       .half-page { min-height: 5.25in; max-height: 5.5in; overflow: hidden; }
-      .half-divider { border-top: 2px dashed #E7E5E4; margin: 8px 0; }
+      .half-divider { border-top: 2px dashed var(--t-border); margin: 8px 0; }
       /* Graphic organizer */
       .go-venn { display: flex; justify-content: center; gap: 0; margin: 20px 0; }
       .go-circle {
@@ -293,17 +356,17 @@ def _base_css(theme: str = "modern_clean") -> str:
       .go-tchart {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        border: 2px solid #F97316;
+        border: 2px solid var(--t-primary);
         border-radius: 10px;
         overflow: hidden;
       }
       .go-tchart-header {
-        background: #FFF7ED;
+        background: var(--t-primary-bg);
         padding: 8px;
         font-weight: 600;
         text-align: center;
-        border-bottom: 2px solid #F97316;
-        font-family: 'DM Serif Display', serif;
+        border-bottom: 2px solid var(--t-primary);
+        font-family: var(--t-heading-font);
       }
       .go-tchart-cell {
         padding: 12px;
@@ -313,7 +376,7 @@ def _base_css(theme: str = "modern_clean") -> str:
       .go-kwl {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        border: 2px solid #F97316;
+        border: 2px solid var(--t-primary);
         border-radius: 10px;
         overflow: hidden;
       }
@@ -323,10 +386,10 @@ def _base_css(theme: str = "modern_clean") -> str:
         padding: 12px;
         margin-bottom: 12px;
       }
-      .study-vocab { font-weight: 600; color: #F97316; }
+      .study-vocab { font-weight: 600; color: var(--t-primary); }
       .study-example {
-        background: #FEF9F2;
-        border-left: 3px solid #FDBA74;
+        background: var(--t-bg-tint);
+        border-left: 3px solid var(--t-primary-lighter);
         padding: 8px 12px;
         margin: 8px 0;
         font-size: 12px;
@@ -1029,6 +1092,245 @@ def render_escape_room(content: dict, config: dict, answer_key: bool = False) ->
 </div></body></html>"""
 
 
+def render_vocab_cards(content: dict, config: dict, answer_key: bool = False) -> str:
+    """Render tiered vocabulary cards — word, definition, part of speech, example sentence. 8 per page."""
+    title = content.get("title", "Vocabulary Cards")
+    questions = content.get("questions", [])
+
+    cards = ""
+    for q in questions:
+        word = q.get("question_text", "")
+        definition = q.get("answer", "")
+        explanation = q.get("explanation", "")
+        num = q.get("question_number", "")
+        cards += f"""
+        <div class="card" style="padding:12px;">
+          <div class="card-number">{num}</div>
+          <div style="font-family:var(--t-heading-font);font-size:16px;color:var(--t-text);margin-bottom:4px;">{word}</div>
+          <div style="font-size:11px;color:var(--t-text-secondary);margin-bottom:6px;"><strong>Definition:</strong> {definition}</div>
+          <div style="font-size:11px;color:var(--t-text-muted);font-style:italic;">{explanation}</div>
+          {'<div style="margin-top:6px;height:40px;border:1px dashed var(--t-border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--t-text-muted);">illustration</div>' if not answer_key else ''}
+        </div>"""
+
+    ak = " — Answer Key" if answer_key else ""
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">{_base_css()}</head>
+<body><div class="page">
+  <div class="header"><div class="header-left"><h1>{title}{ak}</h1><div class="subtitle">Cut along card borders</div></div></div>
+  <div class="card-grid card-grid-8">{cards}</div>
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>"""
+
+
+def render_anchor_chart(content: dict, config: dict, answer_key: bool = False) -> str:
+    """Render anchor chart — large-format reference poster."""
+    title = content.get("title", "Anchor Chart")
+    questions = content.get("questions", [])
+    instructions = content.get("instructions", "")
+
+    key_points = ""
+    for q in questions[:6]:
+        text = q.get("question_text", "")
+        ans = q.get("answer", "")
+        key_points += f'<div style="margin-bottom:10px;padding:8px 12px;background:var(--t-primary-bg);border-radius:10px;"><div style="font-weight:600;color:var(--t-text);font-size:14px;">{text}</div><div style="font-size:12px;color:var(--t-text-secondary);margin-top:2px;">{ans}</div></div>'
+
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">{_base_css()}</head>
+<body><div class="page" style="border:3px solid var(--t-primary);border-radius:16px;">
+  <div style="text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--t-primary);">
+    <h1 style="font-size:28px;">{title}</h1>
+    <p style="font-size:13px;color:var(--t-text-secondary);">{instructions}</p>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div>{key_points}</div>
+    <div style="border:2px dashed var(--t-border);border-radius:14px;display:flex;align-items:center;justify-content:center;min-height:200px;"><span style="font-size:12px;color:var(--t-text-muted);">Visual / Diagram Area</span></div>
+  </div>
+  <div style="margin-top:16px;background:var(--t-primary-lightest);border:2px solid var(--t-primary-lighter);border-radius:14px;padding:14px;text-align:center;">
+    <h3 style="color:var(--t-primary);margin-bottom:4px;">Remember!</h3>
+    <p style="font-size:13px;color:var(--t-primary-darkest);">{questions[-1].get('answer', '') if questions else 'Key takeaway goes here'}</p>
+  </div>
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>"""
+
+
+def render_homework_packet(content: dict, config: dict, answer_key: bool = False) -> str:
+    """Render multi-page weekly homework packet. Mon-Thu + Friday review."""
+    title = content.get("title", "Homework Packet")
+    questions = content.get("questions", [])
+
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday"]
+    per_day = max(1, len(questions) // 5) if len(questions) >= 5 else len(questions)
+
+    pages = ""
+    q_idx = 0
+    for day in days:
+        day_qs = ""
+        for j in range(per_day):
+            if q_idx >= len(questions):
+                break
+            q = questions[q_idx]
+            q_idx += 1
+            if answer_key:
+                day_qs += f'<div class="question"><span class="question-number">{q.get("question_number", "")}.</span><span class="question-text">{q.get("question_text", "")}</span><div style="margin-left:20px;margin-top:2px;"><span class="answer-key-answer">{q.get("answer", "")}</span></div></div>'
+            else:
+                day_qs += f'<div class="question"><span class="question-number">{q.get("question_number", "")}.</span><span class="question-text">{q.get("question_text", "")}</span><div class="answer-line"></div></div>'
+        pages += f'<div style="margin-bottom:20px;"><h2>{day}</h2>{day_qs}</div>'
+
+    # Friday review with remaining questions
+    friday_qs = ""
+    while q_idx < len(questions):
+        q = questions[q_idx]
+        q_idx += 1
+        if answer_key:
+            friday_qs += f'<div class="question"><span class="question-number">{q.get("question_number", "")}.</span><span class="question-text">{q.get("question_text", "")}</span><div style="margin-left:20px;margin-top:2px;"><span class="answer-key-answer">{q.get("answer", "")}</span></div></div>'
+        else:
+            friday_qs += f'<div class="question"><span class="question-number">{q.get("question_number", "")}.</span><span class="question-text">{q.get("question_text", "")}</span><div class="answer-line"></div></div>'
+    if friday_qs:
+        pages += f'<div style="margin-bottom:20px;"><h2>Friday Review</h2>{friday_qs}</div>'
+
+    ak = " — Answer Key" if answer_key else ""
+    sig_line = '' if answer_key else '<div style="margin-top:20px;border-top:1px solid var(--t-border);padding-top:8px;font-size:11px;color:var(--t-text-muted);">Parent/Guardian Signature: _________________________ Date: __________</div>'
+
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">{_base_css()}</head>
+<body><div class="page">
+  <div class="header"><div class="header-left"><h1>{title}{ak}</h1><div class="subtitle">Weekly Practice</div></div>
+    <div class="header-right"><div class="field-line"><span class="field-label">Name:</span><span class="field-blank"></span></div></div>
+  </div>
+  {pages}
+  {sig_line}
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>"""
+
+
+def render_sub_plans(content: dict, config: dict, answer_key: bool = False) -> str:
+    """Render substitute teacher plans."""
+    title = content.get("title", "Substitute Teacher Plans")
+    instructions = content.get("instructions", "")
+    questions = content.get("questions", [])
+
+    activities = ""
+    for q in questions:
+        activities += f'<div style="margin-bottom:10px;padding:10px;background:var(--t-primary-bg);border-radius:10px;"><div style="font-weight:600;color:var(--t-text);">{q.get("question_text", "")}</div><div style="font-size:12px;color:var(--t-text-secondary);margin-top:2px;">{q.get("answer", "")}</div></div>'
+
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">{_base_css()}</head>
+<body><div class="page">
+  <div class="header"><div class="header-left"><h1>{title}</h1><div class="subtitle">Emergency Lesson Plan</div></div>
+    <div class="header-right"><div class="field-line"><span class="field-label">Date:</span><span class="field-blank"></span></div><div class="field-line"><span class="field-label">Sub Name:</span><span class="field-blank"></span></div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div style="background:var(--t-bg-tint);border-radius:10px;padding:10px;"><h3>Schedule Overview</h3><div style="font-size:12px;color:var(--t-text-secondary);">{instructions or 'See posted schedule'}</div></div>
+    <div style="background:var(--t-bg-tint);border-radius:10px;padding:10px;"><h3>Seating Chart</h3><div style="font-size:11px;color:var(--t-text-muted);">See posted seating chart at front of room</div></div>
+  </div>
+  <h2>Activities</h2>
+  {activities}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+    <div style="background:var(--t-primary-bg);border:1px solid var(--t-primary-lighter);border-radius:10px;padding:10px;"><h3 style="color:var(--t-primary);">Early Finishers</h3><p style="font-size:12px;color:var(--t-text-secondary);">Silent reading, vocabulary review, or enrichment worksheet in the sub folder.</p></div>
+    <div style="background:var(--t-bg-tint);border:1px solid var(--t-border);border-radius:10px;padding:10px;"><h3>Behavior Notes</h3><div style="min-height:60px;"></div></div>
+  </div>
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>"""
+
+
+def render_parent_newsletter(content: dict, config: dict, answer_key: bool = False) -> str:
+    """Render parent newsletter — what we learned, upcoming, vocabulary, ways to help."""
+    title = content.get("title", "Classroom Newsletter")
+    instructions = content.get("instructions", "")
+    questions = content.get("questions", [])
+
+    learned = questions[:3] if len(questions) >= 3 else questions
+    upcoming = questions[3:6] if len(questions) >= 6 else []
+    vocab = questions[6:] if len(questions) > 6 else []
+
+    learned_html = "<ul style='font-size:12px;color:var(--t-text-secondary);padding-left:16px;'>" + "".join(f"<li style='margin-bottom:4px;'>{q.get('question_text', '')}</li>" for q in learned) + "</ul>"
+    upcoming_html = "<ul style='font-size:12px;color:var(--t-text-secondary);padding-left:16px;'>" + "".join(f"<li style='margin-bottom:4px;'>{q.get('question_text', '')}</li>" for q in upcoming) + "</ul>" if upcoming else "<p style='font-size:12px;color:var(--t-text-muted);'>Stay tuned!</p>"
+    vocab_html = "<div style='display:flex;flex-wrap:wrap;gap:6px;'>" + "".join(f"<span class='word-bank-word'>{q.get('answer', q.get('question_text', ''))}</span>" for q in vocab) + "</div>" if vocab else ""
+
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">{_base_css()}</head>
+<body><div class="page">
+  <div style="text-align:center;border-bottom:3px solid var(--t-primary);padding-bottom:12px;margin-bottom:16px;">
+    <h1 style="font-size:26px;">{title}</h1>
+    <p style="font-size:12px;color:var(--t-text-secondary);">{instructions}</p>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div><h2 style="margin-bottom:6px;">What We Learned</h2>{learned_html}</div>
+    <div><h2 style="margin-bottom:6px;">Coming Up Next</h2>{upcoming_html}</div>
+  </div>
+  {f'<div style="margin-top:16px;"><h2 style="margin-bottom:6px;">Vocabulary to Practice</h2>{vocab_html}</div>' if vocab_html else ''}
+  <div style="margin-top:16px;background:var(--t-primary-bg);border-radius:14px;padding:14px;">
+    <h3 style="color:var(--t-primary);margin-bottom:6px;">Ways to Help at Home</h3>
+    <ul style="font-size:12px;color:var(--t-primary-darkest);padding-left:16px;">
+      <li>Practice vocabulary words together</li>
+      <li>Ask your child to teach you something they learned</li>
+      <li>Read together for 20 minutes each night</li>
+    </ul>
+  </div>
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>"""
+
+
+def render_lab_activity(content: dict, config: dict, answer_key: bool = False) -> str:
+    """Render science lab activity — objective, hypothesis, materials, procedure, data, analysis."""
+    title = content.get("title", "Lab Activity")
+    instructions = content.get("instructions", "")
+    questions = content.get("questions", [])
+
+    procedure = questions[:5] if len(questions) >= 5 else questions
+    analysis = questions[5:] if len(questions) > 5 else []
+
+    steps = "".join(f'<div style="margin-bottom:6px;"><span class="question-number">{i+1}.</span> {q.get("question_text", "")}</div>' for i, q in enumerate(procedure))
+    analysis_qs = ""
+    for q in analysis:
+        if answer_key:
+            analysis_qs += f'<div class="question"><span class="question-number">{q.get("question_number", "")}.</span><span class="question-text">{q.get("question_text", "")}</span><div style="margin-left:20px;margin-top:2px;"><span class="answer-key-answer">{q.get("answer", "")}</span></div></div>'
+        else:
+            analysis_qs += f'<div class="question"><span class="question-number">{q.get("question_number", "")}.</span><span class="question-text">{q.get("question_text", "")}</span><div class="answer-lines-multi"><div class="line"></div><div class="line"></div></div></div>'
+
+    ak = " — Answer Key" if answer_key else ""
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">{_base_css()}</head>
+<body><div class="page">
+  <div class="header"><div class="header-left"><h1>{title}{ak}</h1><div class="subtitle">Science Lab</div></div>
+    <div class="header-right"><div class="field-line"><span class="field-label">Name:</span><span class="field-blank"></span></div><div class="field-line"><span class="field-label">Date:</span><span class="field-blank"></span></div><div class="field-line"><span class="field-label">Lab Partner:</span><span class="field-blank"></span></div></div>
+  </div>
+  <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:#DC2626;">⚠ Safety: Wear goggles. Follow all lab safety rules. Report spills immediately.</div>
+  <div style="margin-bottom:12px;"><h2>Objective</h2><p style="font-size:12px;color:var(--t-text-secondary);">{instructions}</p></div>
+  <div style="margin-bottom:12px;"><h2>Hypothesis</h2><div style="border-bottom:1px solid var(--t-border);height:24px;"></div><div style="border-bottom:1px solid var(--t-border);height:24px;"></div></div>
+  <div style="margin-bottom:12px;"><h2>Procedure</h2>{steps}</div>
+  <div style="margin-bottom:12px;"><h2>Data / Observations</h2><div style="border:1px solid var(--t-border);border-radius:10px;min-height:100px;padding:8px;"></div></div>
+  <div><h2>Analysis Questions</h2>{analysis_qs}</div>
+  <div style="margin-top:12px;"><h2>Conclusion</h2><div class="answer-lines-multi"><div class="line"></div><div class="line"></div><div class="line"></div></div></div>
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>"""
+
+
+def render_lab_report(content: dict, config: dict, answer_key: bool = False) -> str:
+    """Render formal science lab report template."""
+    title = content.get("title", "Lab Report")
+    instructions = content.get("instructions", "")
+    questions = content.get("questions", [])
+
+    sections = ["Abstract", "Introduction", "Methods", "Results", "Discussion", "Conclusion"]
+    section_html = ""
+    for sec in sections:
+        section_html += f"""
+        <div style="margin-bottom:14px;">
+          <h2>{sec}</h2>
+          <div class="answer-lines-multi">{''.join('<div class="line"></div>' for _ in range(4))}</div>
+        </div>"""
+
+    ak = " — Answer Key" if answer_key else ""
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">{_base_css()}</head>
+<body><div class="page">
+  <div style="text-align:center;border-bottom:2px solid var(--t-primary);padding-bottom:12px;margin-bottom:16px;">
+    <h1 style="font-size:24px;">{title}{ak}</h1>
+    <p style="font-size:12px;color:var(--t-text-secondary);">{instructions}</p>
+    <div style="margin-top:8px;font-size:11px;color:var(--t-text-muted);">
+      Name: _________________ Date: _____________ Period: _____
+    </div>
+  </div>
+  {section_html}
+  <div style="margin-top:12px;"><h2>Data Table</h2><div style="border:1px solid var(--t-border);border-radius:10px;min-height:120px;padding:8px;display:flex;align-items:center;justify-content:center;"><span style="font-size:11px;color:var(--t-text-muted);">Record your data here</span></div></div>
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>"""
+
+
 RENDERERS = {
     "worksheet": render_worksheet,
     "task_cards": render_task_cards,
@@ -1045,6 +1347,13 @@ RENDERERS = {
     "board_game": render_board_game,
     "scavenger_hunt": render_scavenger_hunt,
     "escape_room": render_escape_room,
+    "vocab_cards": render_vocab_cards,
+    "anchor_chart": render_anchor_chart,
+    "homework_packet": render_homework_packet,
+    "sub_plans": render_sub_plans,
+    "parent_newsletter": render_parent_newsletter,
+    "lab_activity": render_lab_activity,
+    "lab_report": render_lab_report,
 }
 
 
@@ -1066,6 +1375,9 @@ def render_template(
     Returns:
         Complete HTML string
     """
+    global _current_theme
+    _current_theme = theme
+
     renderer = RENDERERS.get(template_id)
     if not renderer:
         log.warning(f"Unknown template: {template_id}, falling back to worksheet")

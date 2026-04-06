@@ -5,11 +5,35 @@ import { Sparkles, ChevronDown } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
 const TEMPLATES = [
-  { id: 'worksheet', label: 'Worksheet' },
-  { id: 'task_cards', label: 'Task Cards' },
-  { id: 'quiz_test', label: 'Quiz / Test' },
-  { id: 'exit_ticket', label: 'Exit Ticket' },
-  { id: 'flashcards', label: 'Flashcards' },
+  { id: 'worksheet', label: 'Worksheet', group: 'Standard' },
+  { id: 'task_cards', label: 'Task Cards', group: 'Standard' },
+  { id: 'quiz_test', label: 'Quiz / Test', group: 'Standard' },
+  { id: 'exit_ticket', label: 'Exit Ticket', group: 'Standard' },
+  { id: 'flashcards', label: 'Flashcards', group: 'Standard' },
+  { id: 'bingo', label: 'BINGO', group: 'Standard' },
+  { id: 'morning_work', label: 'Morning Work', group: 'Standard' },
+  { id: 'study_guide', label: 'Study Guide', group: 'Standard' },
+  { id: 'reading_comprehension', label: 'Reading Comprehension', group: 'Standard' },
+  { id: 'graphic_organizer', label: 'Graphic Organizer', group: 'Standard' },
+  { id: 'vocab_cards', label: 'Vocabulary Cards', group: 'Standard' },
+  { id: 'anchor_chart', label: 'Anchor Chart', group: 'Standard' },
+  { id: 'homework_packet', label: 'Homework Packet', group: 'Standard' },
+  { id: 'sub_plans', label: 'Sub Plans', group: 'Special' },
+  { id: 'parent_newsletter', label: 'Parent Newsletter', group: 'Special' },
+  { id: 'lab_activity', label: 'Lab Activity', group: 'Science' },
+  { id: 'lab_report', label: 'Lab Report', group: 'Science' },
+  { id: 'word_search', label: 'Word Search', group: 'Puzzle' },
+  { id: 'crossword', label: 'Crossword', group: 'Puzzle' },
+  { id: 'board_game', label: 'Board Game', group: 'Puzzle' },
+  { id: 'scavenger_hunt', label: 'Scavenger Hunt', group: 'Puzzle' },
+  { id: 'escape_room', label: 'Escape Room', group: 'Puzzle' },
+];
+
+const THEMES = [
+  { id: 'modern_clean', label: 'Modern Clean', color: '#F97316' },
+  { id: 'playful_primary', label: 'Playful Primary', color: '#E11D48' },
+  { id: 'bold_bright', label: 'Bold & Bright', color: '#7C3AED' },
+  { id: 'nature_earth', label: 'Nature & Earth', color: '#059669' },
 ];
 
 const SUBJECTS = ['Mathematics', 'ELA', 'Science', 'Social Studies'];
@@ -21,6 +45,7 @@ export default function NewAssignment() {
     subject: 'Mathematics',
     grade_level: '4',
     output_template_id: 'worksheet',
+    design_theme: 'modern_clean',
     question_count: 10,
     standards_ids: [],
     has_kb_coverage: true,
@@ -120,8 +145,37 @@ export default function NewAssignment() {
                 onChange={e => setForm(f => ({ ...f, output_template_id: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
               >
-                {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                {['Standard', 'Special', 'Science', 'Puzzle'].map(group => (
+                  <optgroup key={group} label={group}>
+                    {TEMPLATES.filter(t => t.group === group).map(t => (
+                      <option key={t.id} value={t.id}>{t.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
+            </div>
+
+            {/* Design Theme */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Design Theme</label>
+              <div className="flex gap-3">
+                {THEMES.map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, design_theme: t.id }))}
+                    className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                      form.design_theme === t.id
+                        ? 'border-2 shadow-sm font-medium'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                    style={form.design_theme === t.id ? { borderColor: t.color, color: t.color } : {}}
+                  >
+                    <span className="w-3 h-3 rounded-full" style={{ background: t.color }} />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Question Count */}

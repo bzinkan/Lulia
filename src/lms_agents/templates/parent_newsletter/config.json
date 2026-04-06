@@ -1,1 +1,1 @@
-{"cards_per_page": 6}
+{"template_id": "parent_newsletter", "name": "Parent Newsletter", "description": "What we learned, upcoming topics, vocabulary, ways to help at home", "default_question_count": 10, "print_layout": "full_page"}

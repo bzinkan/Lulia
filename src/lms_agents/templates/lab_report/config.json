@@ -1,1 +1,1 @@
-{"cards_per_page": 6}
+{"template_id": "lab_report", "name": "Lab Report", "description": "Formal student lab report: abstract, intro, methods, results, discussion, conclusion", "default_question_count": 0, "print_layout": "full_page", "subject": "Science"}
