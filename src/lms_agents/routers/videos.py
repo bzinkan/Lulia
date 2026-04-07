@@ -42,7 +42,32 @@ class GenerateVideoRequest(BaseModel):
 
 @router.post("/generate")
 async def create_video(req: GenerateVideoRequest):
-    """Generate a video from an assignment."""
+    """Generate a video from an assignment. Routes to Polly (default) or ElevenLabs (premium)."""
+    from src.lms_agents.tools.tts_generator import get_provider_for_voice
+    from src.lms_agents.tools.voice_cloning import get_teacher_voice
+    from src.lms_agents.tools.db import get_connection as get_conn
+    from psycopg2.extras import RealDictCursor as RDC
+
+    # Check teacher tier
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=RDC)
+    cur.execute("SELECT COALESCE((SELECT tier FROM credit_accounts WHERE teacher_id = %s::uuid), 'basic') as tier", (req.teacher_id,))
+    tier = cur.fetchone()["tier"]
+    cur.close()
+    conn.close()
+
+    # Check if voice requires premium
+    voice = req.voice_id or "Joanna"
+    custom_voice = get_teacher_voice(req.teacher_id)
+    provider = get_provider_for_voice(voice, custom_voice, tier)
+
+    if provider == "elevenlabs" and tier not in ("premium", "max"):
+        return JSONResponse(
+            {"error": "Premium voice requires a premium subscription. Upgrade to use ElevenLabs voices and voice cloning.",
+             "upgrade_required": True},
+            status_code=402,
+        )
+
     result = generate_video(
         assignment_id=req.assignment_id,
         teacher_id=req.teacher_id,
@@ -56,12 +81,10 @@ async def create_video(req: GenerateVideoRequest):
 
 @router.get("/voices")
 async def available_voices(teacher_id: str = Query("00000000-0000-0000-0000-000000000001")):
-    """List available voices (presets + custom)."""
-    voices = list_voices()
+    """List available voices grouped by tier (standard=Polly, premium=ElevenLabs)."""
     custom = get_teacher_voice(teacher_id)
-    if custom:
-        voices.insert(0, {"voice_id": custom, "name": "My Voice", "description": "Your cloned voice"})
-    return {"voices": voices}
+    voices = list_voices(teacher_id=teacher_id, custom_voice_id=custom)
+    return {"voices": voices, "default_voice": "Joanna"}
 
 
 @router.get("/{video_id}")

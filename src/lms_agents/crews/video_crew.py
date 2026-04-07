@@ -14,7 +14,7 @@ import boto3
 from psycopg2.extras import Json
 
 from src.lms_agents.tools.db import get_connection
-from src.lms_agents.tools.tts_generator import synthesize_speech, PRESET_VOICES
+from src.lms_agents.tools.tts_generator import synthesize_speech, get_provider_for_voice, DEFAULT_VOICE
 from src.lms_agents.tools.voice_cloning import get_teacher_voice
 from src.lms_agents.tools.video_slide_renderer import render_slide
 from src.lms_agents.tools.video_assembler import assemble_video, generate_thumbnail
@@ -140,13 +140,22 @@ def generate_video(
     }
     standards = assignment.get("standards_ids", [])
 
-    # Resolve voice
-    if use_my_voice:
-        custom = get_teacher_voice(teacher_id)
-        if custom:
-            voice_id = custom
+    # Resolve voice and provider
+    custom_voice = get_teacher_voice(teacher_id)
+    if use_my_voice and custom_voice:
+        voice_id = custom_voice
     if not voice_id:
-        voice_id = os.environ.get("ELEVENLABS_DEFAULT_VOICE", PRESET_VOICES["rachel"]["id"])
+        voice_id = DEFAULT_VOICE
+
+    # Get teacher tier for provider routing
+    conn2 = get_connection()
+    cur2 = conn2.cursor()
+    cur2.execute("SELECT COALESCE((SELECT tier FROM credit_accounts WHERE teacher_id = %s), 'basic')", (teacher_id,))
+    tier = cur2.fetchone()[0]
+    cur2.close()
+    conn2.close()
+
+    tts_provider = get_provider_for_voice(voice_id, custom_voice, tier)
 
     # 1. Generate script
     script = run_video_script_agent(content, standards, "4", "Mathematics", target_duration)
@@ -160,8 +169,8 @@ def generate_video(
         narration = scene.get("narration", "")
         total_chars += len(narration)
 
-        # TTS
-        audio_path = synthesize_speech(narration, voice_id, teacher_id) if narration else None
+        # TTS (provider-routed)
+        audio_path = synthesize_speech(narration, voice_id, teacher_id, provider=tts_provider) if narration else None
 
         # Render slide
         image_path = render_slide(scene, theme)
@@ -207,7 +216,8 @@ def generate_video(
     video_id = str(uuid4())
     transcript = " ".join(s.get("narration", "") for s in scenes)
     duration = sum(s.get("duration", 0) for s in assembled_scenes)
-    cost_estimate = total_chars * 0.00003
+    cost_per_char = 0.000016 if tts_provider == "polly" else 0.00003
+    cost_estimate = total_chars * cost_per_char
 
     conn = get_connection()
     cur = conn.cursor()
@@ -250,6 +260,8 @@ def generate_video(
         "scenes": len(scenes),
         "character_count": total_chars,
         "cost_estimate": round(cost_estimate, 4),
+        "tts_provider": tts_provider,
+        "voice_was_cloned": bool(custom_voice and voice_id == custom_voice),
         "file_url": video_url,
         "thumbnail_url": thumb_url,
         "status": "complete",
