@@ -16,6 +16,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./scripts:/app/scripts
+      - ./tests:/app/tests
       - ./data/state_standards:/app/data/state_standards:ro
     command: uvicorn src.lms_agents.main:app --host 0.0.0.0 --port 8000 --reload
 
