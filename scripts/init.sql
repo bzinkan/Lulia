@@ -503,3 +503,43 @@ CREATE TABLE interactive_submissions (
     standards_mastery_json JSONB,
     submitted_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ============================================
+-- LIVE GAME SESSIONS
+-- ============================================
+CREATE TABLE game_sessions_v2 (
+    session_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    teacher_id UUID REFERENCES teachers(teacher_id),
+    assignment_id UUID REFERENCES assignments(assignment_id),
+    game_shell_id VARCHAR NOT NULL,
+    pin VARCHAR(6) UNIQUE NOT NULL,
+    status VARCHAR DEFAULT 'lobby',
+    settings_json JSONB DEFAULT '{}',
+    max_players INTEGER DEFAULT 40,
+    started_at TIMESTAMP,
+    ended_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE game_players (
+    player_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id UUID REFERENCES game_sessions_v2(session_id) ON DELETE CASCADE,
+    name VARCHAR NOT NULL,
+    avatar VARCHAR DEFAULT '🐻',
+    final_score INTEGER DEFAULT 0,
+    rank INTEGER,
+    answers_json JSONB DEFAULT '[]',
+    joined_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE game_results (
+    result_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id UUID REFERENCES game_sessions_v2(session_id) ON DELETE CASCADE,
+    total_questions INTEGER,
+    total_players INTEGER,
+    average_score DECIMAL,
+    fastest_player VARCHAR,
+    most_correct VARCHAR,
+    standards_mastery_json JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
+);

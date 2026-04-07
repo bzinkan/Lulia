@@ -11,6 +11,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      redis:
+        condition: service_healthy
     volumes:
       - ./src:/app/src
       - ./scripts:/app/scripts
@@ -94,6 +96,19 @@ services:
       echo 'All buckets created';
       "
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   postgres_data:
   minio_data:
+  redis_data:
