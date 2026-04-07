@@ -439,3 +439,33 @@ CREATE TABLE standard_mastery_history (
     date DATE,
     mastery_percent DECIMAL
 );
+
+-- ============================================
+-- VIDEO PIPELINE
+-- ============================================
+CREATE TABLE videos (
+    video_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assignment_id UUID REFERENCES assignments(assignment_id),
+    teacher_id UUID REFERENCES teachers(teacher_id),
+    title VARCHAR,
+    duration_seconds INTEGER,
+    file_url VARCHAR,
+    thumbnail_url VARCHAR,
+    script_json JSONB,
+    transcript_text TEXT,
+    voice_used VARCHAR,
+    theme_used VARCHAR,
+    status VARCHAR DEFAULT 'pending',
+    character_count INTEGER DEFAULT 0,
+    cost_estimate DECIMAL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE tts_usage (
+    usage_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    teacher_id UUID REFERENCES teachers(teacher_id),
+    characters_used INTEGER,
+    cost_estimate DECIMAL,
+    cache_hit BOOLEAN DEFAULT false,
+    date DATE DEFAULT CURRENT_DATE
+);

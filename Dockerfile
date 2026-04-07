@@ -1,8 +1,10 @@
 FROM python:3.12-slim
 
-# Minimal system deps for Phase 1a (psycopg2 needs libpq)
+# System deps: psycopg2 + ffmpeg for video pipeline + fonts
 RUN apt-get update && apt-get install -y \
     libpq-dev \
+    ffmpeg \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
