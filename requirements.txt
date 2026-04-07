@@ -53,6 +53,10 @@ redis>=5,<6
 # Image generation
 replicate>=0.25,<1
 
+# === Phase 15: Stripe Billing ===
+
+stripe>=8,<10
+
 # === Phase 9: Video Pipeline ===
 
 # TTS
