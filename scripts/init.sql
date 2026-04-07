@@ -469,3 +469,37 @@ CREATE TABLE tts_usage (
     cache_hit BOOLEAN DEFAULT false,
     date DATE DEFAULT CURRENT_DATE
 );
+
+-- ============================================
+-- INTERACTIVE ACTIVITIES
+-- ============================================
+CREATE TABLE interactive_activities (
+    activity_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assignment_id UUID REFERENCES assignments(assignment_id),
+    teacher_id UUID REFERENCES teachers(teacher_id),
+    class_id UUID,
+    interactive_template_id VARCHAR NOT NULL,
+    content_json JSONB NOT NULL,
+    access_code VARCHAR(8) UNIQUE,
+    access_url VARCHAR,
+    max_attempts INTEGER DEFAULT 3,
+    time_limit_seconds INTEGER,
+    show_answers_after BOOLEAN DEFAULT true,
+    status VARCHAR DEFAULT 'building',
+    created_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP
+);
+
+CREATE TABLE interactive_submissions (
+    submission_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    activity_id UUID REFERENCES interactive_activities(activity_id),
+    student_name VARCHAR NOT NULL,
+    student_code VARCHAR,
+    responses_json JSONB,
+    score DECIMAL,
+    max_score DECIMAL,
+    percentage DECIMAL,
+    time_spent_seconds INTEGER,
+    standards_mastery_json JSONB,
+    submitted_at TIMESTAMP DEFAULT NOW()
+);

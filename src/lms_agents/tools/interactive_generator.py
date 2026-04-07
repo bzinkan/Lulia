@@ -1,0 +1,401 @@
+"""
+Interactive Activity Generator — creates self-contained HTML activities
+that students access via a link. No build step needed — React loads via CDN.
+
+Each activity is a single HTML file with embedded content data that runs
+a React component for the selected interaction type.
+"""
+import json
+import logging
+import os
+import random
+import string
+from uuid import uuid4
+
+import boto3
+from psycopg2.extras import Json
+
+from src.lms_agents.tools.db import get_connection
+
+log = logging.getLogger(__name__)
+
+INTERACTIVE_TEMPLATES = {
+    "multiple_choice_quiz": {"name": "Multiple Choice Quiz", "group": "Quiz", "desc": "Click-to-answer with instant feedback"},
+    "drag_drop_sort": {"name": "Drag & Drop Sort", "group": "Drag-Drop", "desc": "Drag items into categories"},
+    "drag_drop_sequence": {"name": "Sequence Order", "group": "Drag-Drop", "desc": "Drag items into correct order"},
+    "matching_pairs": {"name": "Matching Pairs", "group": "Matching", "desc": "Match items in two columns"},
+    "fill_in_blank": {"name": "Fill in the Blank", "group": "Text", "desc": "Click word bank or type answer"},
+    "click_to_reveal": {"name": "Click to Reveal", "group": "Study", "desc": "Click cards to reveal answers"},
+    "flash_cards_interactive": {"name": "Flashcards", "group": "Study", "desc": "Swipe to flip cards"},
+    "category_sort": {"name": "Category Sort", "group": "Drag-Drop", "desc": "Drop items into buckets"},
+    "word_search_interactive": {"name": "Word Search", "group": "Puzzle", "desc": "Find hidden words"},
+    "crossword_interactive": {"name": "Crossword", "group": "Puzzle", "desc": "Type answers into grid"},
+    "number_line": {"name": "Number Line", "group": "Math", "desc": "Place values on number line"},
+    "slider_estimation": {"name": "Estimation Slider", "group": "Math", "desc": "Slide to estimate values"},
+    "timeline_builder": {"name": "Timeline Builder", "group": "Social Studies", "desc": "Drag events chronologically"},
+    "whiteboard_response": {"name": "Whiteboard Response", "group": "Open", "desc": "Free-text or drawing"},
+    "hotspot_labeling": {"name": "Hotspot Labeling", "group": "Science", "desc": "Click to label parts"},
+}
+
+
+def _generate_access_code() -> str:
+    """Generate a 6-char access code like BEAR23."""
+    words = ["BEAR", "LION", "STAR", "MOON", "TREE", "FISH", "BIRD", "FROG", "LEAF", "WAVE"]
+    return random.choice(words) + "".join(random.choices(string.digits, k=2))
+
+
+def _build_activity_html(template_id: str, content: dict, activity_id: str, api_url: str) -> str:
+    """
+    Build a self-contained HTML file for the interactive activity.
+    Uses React via CDN — no build step needed.
+    """
+    title = content.get("title", "Activity")
+    questions = content.get("questions", [])
+    instructions = content.get("instructions", "")
+
+    # Serialize content for embedding
+    content_json = json.dumps(content)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title} — Lulia</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ font-family: 'DM Sans', sans-serif; background: #F5DEC3; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }}
+.app {{ max-width: 680px; width: 100%; background: #FEF9F2; border-radius: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
+h1 {{ font-family: 'DM Serif Display', serif; color: #1C1917; font-size: 22px; margin-bottom: 4px; }}
+h2 {{ font-family: 'DM Serif Display', serif; color: #78350F; font-size: 16px; margin-bottom: 12px; }}
+.subtitle {{ font-size: 13px; color: #78716C; margin-bottom: 16px; }}
+.btn-primary {{ background: #F97316; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; font-family: 'DM Sans'; }}
+.btn-primary:hover {{ background: #EA580C; }}
+.btn-primary:disabled {{ background: #FDBA74; cursor: not-allowed; }}
+.btn-secondary {{ background: white; color: #78350F; border: 1px solid #E7E5E4; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans'; }}
+.input {{ width: 100%; border: 1px solid #E7E5E4; border-radius: 12px; padding: 12px 16px; font-size: 14px; outline: none; font-family: 'DM Sans'; }}
+.input:focus {{ border-color: #F97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.1); }}
+.question-card {{ background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px; }}
+.option {{ display: block; width: 100%; text-align: left; padding: 12px 16px; border: 2px solid #E7E5E4; border-radius: 10px; margin-bottom: 8px; cursor: pointer; font-size: 14px; font-family: 'DM Sans'; background: white; transition: all 0.2s; }}
+.option:hover {{ border-color: #FDBA74; background: #FFF7ED; }}
+.option.selected {{ border-color: #F97316; background: #FFF7ED; }}
+.option.correct {{ border-color: #22C55E; background: #DCFCE7; }}
+.option.wrong {{ border-color: #EF4444; background: #FEF2F2; }}
+.feedback {{ padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-top: 8px; }}
+.feedback.correct {{ background: #DCFCE7; color: #16A34A; }}
+.feedback.wrong {{ background: #FEF2F2; color: #EF4444; }}
+.progress {{ height: 6px; background: #E7E5E4; border-radius: 3px; margin-bottom: 16px; overflow: hidden; }}
+.progress-bar {{ height: 100%; background: #F97316; border-radius: 3px; transition: width 0.3s; }}
+.score-card {{ text-align: center; padding: 24px; }}
+.score-big {{ font-size: 48px; font-weight: 700; color: #F97316; }}
+.score-label {{ font-size: 14px; color: #78716C; }}
+.badge {{ display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #FFF7ED; color: #9A3412; border: 1px solid #FDBA74; margin: 2px; }}
+.logo {{ text-align: center; font-size: 11px; color: #A8A29E; margin-top: 16px; }}
+.drag-item {{ padding: 10px 16px; background: white; border: 2px solid #E7E5E4; border-radius: 10px; margin: 4px; cursor: grab; font-size: 13px; display: inline-block; }}
+.drag-item:active {{ cursor: grabbing; }}
+.drop-zone {{ min-height: 60px; border: 2px dashed #FDBA74; border-radius: 12px; padding: 8px; margin-bottom: 8px; }}
+.drop-zone.over {{ background: #FFF7ED; border-color: #F97316; }}
+.match-col {{ display: flex; flex-direction: column; gap: 8px; }}
+.match-item {{ padding: 10px; border: 2px solid #E7E5E4; border-radius: 10px; cursor: pointer; text-align: center; font-size: 13px; transition: all 0.2s; }}
+.match-item.active {{ border-color: #F97316; background: #FFF7ED; }}
+.match-item.matched {{ border-color: #22C55E; background: #DCFCE7; }}
+.flip-card {{ perspective: 1000px; cursor: pointer; }}
+.flip-inner {{ transition: transform 0.5s; transform-style: preserve-3d; position: relative; min-height: 120px; }}
+.flip-card.flipped .flip-inner {{ transform: rotateY(180deg); }}
+.flip-front, .flip-back {{ position: absolute; width: 100%; backface-visibility: hidden; border-radius: 14px; padding: 20px; display: flex; align-items: center; justify-content: center; text-align: center; }}
+.flip-front {{ background: white; border: 2px solid #E7E5E4; }}
+.flip-back {{ background: #FFF7ED; border: 2px solid #F97316; transform: rotateY(180deg); }}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.LULIA_DATA = {content_json};
+window.LULIA_ACTIVITY_ID = "{activity_id}";
+window.LULIA_API = "{api_url}";
+window.LULIA_TEMPLATE = "{template_id}";
+</script>
+<script type="text/babel">
+const {{ useState, useEffect }} = React;
+const data = window.LULIA_DATA;
+const activityId = window.LULIA_ACTIVITY_ID;
+const apiUrl = window.LULIA_API;
+
+function App() {{
+  const [screen, setScreen] = useState('welcome');
+  const [name, setName] = useState('');
+  const [current, setCurrent] = useState(0);
+  const [answers, setAnswers] = useState({{}});
+  const [score, setScore] = useState(null);
+  const [startTime] = useState(Date.now());
+  const questions = data.questions || [];
+
+  function handleAnswer(qNum, answer) {{
+    setAnswers(prev => ({{...prev, [qNum]: answer}}));
+  }}
+
+  function submitAll() {{
+    let correct = 0;
+    questions.forEach(q => {{
+      const resp = answers[q.question_number];
+      if (resp && resp.toLowerCase().trim() === (q.answer || '').toLowerCase().trim()) correct++;
+    }});
+    const pct = Math.round(correct / Math.max(questions.length, 1) * 100);
+    setScore({{ correct, total: questions.length, percentage: pct }});
+    setScreen('results');
+    // POST to API
+    fetch(apiUrl + '/api/v1/interactive/' + activityId + '/submit', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify({{
+        student_name: name,
+        responses: answers,
+        time_spent: Math.round((Date.now() - startTime) / 1000),
+      }}),
+    }}).catch(() => {{}});
+  }}
+
+  if (screen === 'welcome') return (
+    <div className="app">
+      <h1>{{data.title}}</h1>
+      <p className="subtitle">{{data.instructions || `${{questions.length}} questions`}}</p>
+      <div style={{{{marginBottom: 16}}}}>
+        <input className="input" placeholder="Enter your name" value={{name}} onChange={{e => setName(e.target.value)}} />
+      </div>
+      <button className="btn-primary" disabled={{!name.trim()}} onClick={{() => setScreen('play')}}>Start Activity</button>
+      <div className="logo">Powered by Lulia AI</div>
+    </div>
+  );
+
+  if (screen === 'results') return (
+    <div className="app">
+      <div className="score-card">
+        <h2>Great work, {{name}}!</h2>
+        <div className="score-big">{{score.percentage}}%</div>
+        <div className="score-label">{{score.correct}} of {{score.total}} correct</div>
+        <div style={{{{marginTop: 16}}}}>
+          {{(data.questions || []).map(q => (
+            <span key={{q.question_number}} className="badge" style={{{{
+              background: answers[q.question_number]?.toLowerCase().trim() === q.answer?.toLowerCase().trim() ? '#DCFCE7' : '#FEF2F2',
+              color: answers[q.question_number]?.toLowerCase().trim() === q.answer?.toLowerCase().trim() ? '#16A34A' : '#EF4444',
+              borderColor: answers[q.question_number]?.toLowerCase().trim() === q.answer?.toLowerCase().trim() ? '#22C55E' : '#EF4444',
+            }}}}>
+              Q{{q.question_number}}: {{answers[q.question_number]?.toLowerCase().trim() === q.answer?.toLowerCase().trim() ? '✓' : '✗'}}
+            </span>
+          ))}}
+        </div>
+      </div>
+      <div className="logo">Powered by Lulia AI</div>
+    </div>
+  );
+
+  // Play screen — differs by template
+  const q = questions[current];
+  const progress = ((current + 1) / questions.length) * 100;
+
+  return (
+    <div className="app">
+      <div className="progress"><div className="progress-bar" style={{{{width: progress + '%'}}}} /></div>
+      <div style={{{{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}}}>
+        <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>Question {{current + 1}} of {{questions.length}}</span>
+        <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>{{name}}</span>
+      </div>
+      <div className="question-card">
+        <h2>{{q?.question_text}}</h2>
+        {{/* For MC: show lettered options */}}
+        {{['A', 'B', 'C', 'D'].map((letter, i) => {{
+          const optionText = q?.options?.[i] || (i === 0 ? q?.answer : `Option ${{letter}}`);
+          const selected = answers[q?.question_number] === optionText;
+          return (
+            <button key={{letter}} className={{`option ${{selected ? 'selected' : ''}}`}}
+              onClick={{() => handleAnswer(q.question_number, optionText)}}>
+              <strong>{{letter}}.</strong> {{optionText}}
+            </button>
+          );
+        }}))}}
+      </div>
+      <div style={{{{display: 'flex', gap: 8}}}}>
+        {{current > 0 && <button className="btn-secondary" onClick={{() => setCurrent(c => c - 1)}}>Back</button>}}
+        {{current < questions.length - 1 ? (
+          <button className="btn-primary" onClick={{() => setCurrent(c => c + 1)}}>Next</button>
+        ) : (
+          <button className="btn-primary" onClick={{submitAll}}>Submit</button>
+        )}}
+      </div>
+      <div className="logo">Powered by Lulia AI</div>
+    </div>
+  );
+}}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>"""
+
+
+def generate_interactive_activity(
+    assignment_id: str,
+    teacher_id: str,
+    interactive_template_id: str = "multiple_choice_quiz",
+    class_id: str | None = None,
+    max_attempts: int = 3,
+    show_answers_after: bool = True,
+    time_limit: int | None = None,
+) -> dict:
+    """
+    Generate and deploy an interactive activity.
+    Returns activity_id, access_code, and access_url.
+    """
+    log.info(f"[Interactive] Generating {interactive_template_id} for assignment {assignment_id}")
+
+    # Get assignment content
+    conn = get_connection()
+    from psycopg2.extras import RealDictCursor
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT * FROM assignments WHERE assignment_id = %s", (assignment_id,))
+    assignment = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not assignment:
+        return {"error": "Assignment not found"}
+
+    content = {
+        "title": assignment["title"],
+        "instructions": "",
+        "questions": assignment["questions"] if isinstance(assignment["questions"], list) else [],
+        "standards": assignment.get("standards_ids", []),
+    }
+
+    activity_id = str(uuid4())
+    access_code = _generate_access_code()
+    api_url = os.environ.get("API_URL", "http://localhost:8000")
+
+    # Build the HTML
+    html = _build_activity_html(interactive_template_id, content, activity_id, api_url)
+
+    # Deploy to MinIO
+    access_url = None
+    try:
+        s3 = boto3.client(
+            "s3", endpoint_url=os.environ.get("S3_ENDPOINT"),
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY"),
+            aws_secret_access_key=os.environ.get("S3_SECRET_KEY"),
+        )
+        key = f"activities/{activity_id}/index.html"
+        s3.put_object(
+            Bucket=os.environ.get("S3_BUCKET_ACTIVITIES", "lulia-activities"),
+            Key=key,
+            Body=html.encode(),
+            ContentType="text/html",
+        )
+        endpoint = os.environ.get("S3_ENDPOINT", "http://localhost:9000")
+        access_url = f"{endpoint}/lulia-activities/{key}"
+        log.info(f"[Interactive] Deployed to {access_url}")
+    except Exception as e:
+        log.error(f"[Interactive] Deploy failed: {e}")
+        access_url = f"/activities/{activity_id}"
+
+    # Store in DB
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """INSERT INTO interactive_activities
+               (activity_id, assignment_id, teacher_id, class_id,
+                interactive_template_id, content_json, access_code, access_url,
+                max_attempts, time_limit_seconds, show_answers_after, status)
+               VALUES (%s, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, 'live')""",
+            (activity_id, assignment_id, teacher_id, class_id,
+             interactive_template_id, Json(content), access_code, access_url,
+             max_attempts, time_limit, show_answers_after),
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[Interactive] DB insert failed: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+    return {
+        "activity_id": activity_id,
+        "access_code": access_code,
+        "access_url": access_url,
+        "template": interactive_template_id,
+        "question_count": len(content["questions"]),
+        "status": "live",
+    }
+
+
+def submit_interactive_response(
+    activity_id: str,
+    student_name: str,
+    responses: dict,
+    time_spent: int = 0,
+) -> dict:
+    """Process and store a student's interactive submission."""
+    conn = get_connection()
+    from psycopg2.extras import RealDictCursor
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT * FROM interactive_activities WHERE activity_id = %s", (activity_id,))
+    activity = cur.fetchone()
+    cur.close()
+
+    if not activity:
+        conn.close()
+        return {"error": "Activity not found"}
+
+    content = activity["content_json"]
+    questions = content.get("questions", [])
+
+    # Grade responses
+    correct = 0
+    max_score = len(questions)
+    standards_mastery = {}
+
+    for q in questions:
+        qnum = q.get("question_number", 0)
+        correct_answer = (q.get("answer", "") or "").lower().strip()
+        student_resp = (str(responses.get(str(qnum), responses.get(qnum, ""))) or "").lower().strip()
+
+        is_correct = student_resp == correct_answer
+        if is_correct:
+            correct += 1
+
+        std = q.get("standard_code", "")
+        if std:
+            if std not in standards_mastery:
+                standards_mastery[std] = {"total": 0, "correct": 0}
+            standards_mastery[std]["total"] += 1
+            if is_correct:
+                standards_mastery[std]["correct"] += 1
+
+    percentage = round(correct / max(max_score, 1) * 100, 1)
+
+    # Store submission
+    submission_id = str(uuid4())
+    cur = conn.cursor()
+    cur.execute(
+        """INSERT INTO interactive_submissions
+           (submission_id, activity_id, student_name, responses_json,
+            score, max_score, percentage, time_spent_seconds, standards_mastery_json)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+        (submission_id, activity_id, student_name, Json(responses),
+         correct, max_score, percentage, time_spent, Json(standards_mastery)),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return {
+        "submission_id": submission_id,
+        "score": correct,
+        "max_score": max_score,
+        "percentage": percentage,
+        "time_spent": time_spent,
+    }
