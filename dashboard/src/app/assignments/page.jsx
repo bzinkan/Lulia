@@ -1,95 +1,128 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FileText, PlusCircle } from 'lucide-react';
+import { PlusCircle, ChevronLeft, ChevronRight, Calendar, FileText, Inbox } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
-export default function AssignmentsList() {
-  const [assignments, setAssignments] = useState([]);
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(date.setDate(diff));
+}
+
+export default function AssignmentsPage() {
+  const [view, setView] = useState('class');
+  const [classes, setClasses] = useState([]);
+  const [activeClass, setActiveClass] = useState(null);
+  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
+  const [weekData, setWeekData] = useState(null);
+  const [inboxCount, setInboxCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // The API doesn't have a list endpoint yet, so we query the DB directly
-    // For now, show a placeholder that links to the generate page
-    setLoading(false);
+    Promise.all([
+      apiFetch('/api/v1/manager/classes').then(d => { setClasses(d.classes || []); if (d.classes?.length) setActiveClass(d.classes[0]); }),
+      apiFetch('/api/v1/manager/grading-inbox/count').then(d => setInboxCount(d.count || 0)),
+    ]).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!activeClass) return;
+    const dateStr = weekStart.toISOString().split('T')[0];
+    apiFetch(`/api/v1/manager/classes/${activeClass.class_id}/week?date=${dateStr}`)
+      .then(setWeekData)
+      .catch(console.error);
+  }, [activeClass, weekStart]);
+
+  function shiftWeek(dir) { setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() + dir * 7); return n; }); }
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 4);
 
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Assignments</h1>
-          <p className="text-sm text-gray-500 mt-1">View and manage all generated assignments</p>
+          <h1 className="text-2xl font-semibold" style={{ fontFamily: "'DM Serif Display', serif", color: '#1C1917' }}>Assignments</h1>
         </div>
-        <Link
-          href="/assignments/new"
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
-        >
-          <PlusCircle className="w-4 h-4" />
-          New Assignment
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/assignments/inbox" className="relative bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-gray-50">
+            <Inbox className="w-4 h-4" /> Inbox
+            {inboxCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">{inboxCount}</span>}
+          </Link>
+          <Link href="/assignments/new" className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2">
+            <PlusCircle className="w-4 h-4" /> New Assignment
+          </Link>
+        </div>
       </div>
 
-      {/* Empty state */}
-      {!loading && assignments.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="text-center py-16">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No assignments yet</h3>
-            <p className="text-sm text-gray-500 mb-4">Generate your first assignment to get started</p>
-            <Link
-              href="/assignments/new"
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Generate Assignment
-            </Link>
+      {/* View toggle + Class tabs */}
+      <div className="bg-white rounded-[14px] p-3 mb-4" style={{ border: '1px solid #E7E5E4' }}>
+        <div className="flex items-center justify-between mb-3">
+          {/* Class tabs */}
+          <div className="flex gap-1 overflow-x-auto">
+            {classes.map(c => (
+              <button key={c.class_id} onClick={() => setActiveClass(c)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                  activeClass?.class_id === c.class_id ? 'bg-orange-500 text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}>
+                {c.name} <span className="opacity-70">({c.assignment_count})</span>
+              </button>
+            ))}
+          </div>
+          {/* Week navigator */}
+          <div className="flex items-center gap-2 ml-4">
+            <button onClick={() => shiftWeek(-1)} className="p-1 rounded hover:bg-gray-100 text-gray-400"><ChevronLeft className="w-4 h-4" /></button>
+            <span className="text-xs text-gray-600 whitespace-nowrap">
+              {weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+            <button onClick={() => shiftWeek(1)} className="p-1 rounded hover:bg-gray-100 text-gray-400"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
-      )}
 
-      {/* Table (when we have assignments) */}
-      {assignments.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Title</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Subject</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Grade</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Template</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Created</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {assignments.map(a => (
-                <tr key={a.assignment_id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link href={`/assignments/${a.assignment_id}`} className="text-indigo-600 hover:text-indigo-700 font-medium">
-                      {a.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{a.subject}</td>
-                  <td className="px-4 py-3 text-gray-600">{a.grade_level}</td>
-                  <td className="px-4 py-3 text-gray-600">{a.output_template_id}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      a.status === 'complete'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}>
-                      {a.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">{new Date(a.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {/* Week grid */}
+        {weekData && (
+          <div className="grid grid-cols-5 gap-2">
+            {['mon', 'tue', 'wed', 'thu', 'fri'].map(day => {
+              const dayData = weekData.days?.[day] || { date: '', assignments: [] };
+              return (
+                <div key={day} className="min-h-[120px]">
+                  <div className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mb-1 text-center">
+                    {day} <span className="text-gray-300">{dayData.date?.slice(5)}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {dayData.assignments.map(a => (
+                      <Link key={a.assignment_id} href={`/assignments/${a.assignment_id}`}
+                        className="block p-2 bg-white rounded-lg border border-gray-100 hover:border-orange-200 hover:bg-orange-50/30 transition-colors">
+                        <div className="flex items-center gap-1">
+                          <FileText className="w-3 h-3 text-orange-400" />
+                          <span className="text-[11px] text-gray-800 truncate">{a.title?.slice(0, 25)}</span>
+                        </div>
+                        <div className="flex justify-between mt-1">
+                          <span className="text-[9px] text-gray-400">{a.output_template_id}</span>
+                          {a.submissions > 0 && <span className="text-[9px] text-orange-500">{a.submissions} sub</span>}
+                        </div>
+                      </Link>
+                    ))}
+                    {dayData.assignments.length === 0 && (
+                      <div className="text-center py-4">
+                        <Link href="/assignments/new" className="text-[10px] text-gray-300 hover:text-orange-400">+ Add</Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!weekData && !loading && classes.length === 0 && (
+          <div className="text-center py-8">
+            <FileText className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">No classes yet. Create a class to get started.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
