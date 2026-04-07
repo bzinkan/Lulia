@@ -557,3 +557,21 @@ CREATE TABLE lulings (
     rarity VARCHAR DEFAULT 'common',
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ============================================
+-- CUSTOM TEMPLATES (Design Studio)
+-- ============================================
+CREATE TABLE custom_templates (
+    template_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    teacher_id UUID REFERENCES teachers(teacher_id),
+    name VARCHAR NOT NULL,
+    description TEXT,
+    canvas_json JSONB NOT NULL DEFAULT '{}',
+    thumbnail_url VARCHAR,
+    design_theme VARCHAR DEFAULT 'modern_clean',
+    category VARCHAR DEFAULT 'custom_worksheet',
+    is_public BOOLEAN DEFAULT false,
+    usage_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);

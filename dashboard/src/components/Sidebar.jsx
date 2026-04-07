@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, PlusCircle, FileText, Upload, Shield, CheckSquare, BookOpen, Video, Gamepad2, Settings, Zap, Menu, X } from 'lucide-react';
+import { Home, Calendar, PlusCircle, FileText, Upload, Shield, CheckSquare, BookOpen, Video, Gamepad2, Palette, Settings, Zap, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Analytics', icon: BookOpen, href: '/analytics' },
   { label: 'Videos', icon: Video, href: '/videos' },
   { label: 'Interactive', icon: Gamepad2, href: '/interactive' },
+  { label: 'Design Studio', icon: Palette, href: '/design' },
   { label: 'Content Library', icon: Upload, href: '/library' },
   { label: 'Accommodations', icon: Shield, href: '/accommodations' },
   { label: 'Settings', icon: Settings, href: '/settings' },

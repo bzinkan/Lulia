@@ -143,6 +143,8 @@ def generate_all():
 
     log.info(f"Generating {len(LULINGS)} Lulings...")
 
+    import sys
+    sys.path.insert(0, "/app")
     from src.lms_agents.tools.image_generator import generate_image
 
     s3 = get_s3()
@@ -150,6 +152,8 @@ def generate_all():
     cur = conn.cursor()
     preview_items = []
     total_cost = 0
+
+    import time
 
     for i, (name, category, desc, affinity, rarity) in enumerate(LULINGS, 1):
         log.info(f"Generating {name} ({i}/{len(LULINGS)})...")
@@ -159,6 +163,10 @@ def generate_all():
         if cur.fetchone():
             log.info(f"  Already exists, skipping")
             continue
+
+        # Rate limit: wait 12 seconds between requests (5 per minute safe)
+        if i > 1:
+            time.sleep(12)
 
         prompt = f"A cute chibi-style mascot character: {desc}, {STYLE_PROMPT}"
         char_id = f"{category}_{name.lower().replace(' ', '_')}"
