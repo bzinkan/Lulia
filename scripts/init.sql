@@ -543,3 +543,17 @@ CREATE TABLE game_results (
     standards_mastery_json JSONB,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ============================================
+-- LULINGS (Custom Avatars)
+-- ============================================
+CREATE TABLE lulings (
+    luling_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR NOT NULL,
+    category VARCHAR NOT NULL,
+    file_url VARCHAR,
+    thumbnail_url VARCHAR,
+    subject_affinity VARCHAR DEFAULT 'all',
+    rarity VARCHAR DEFAULT 'common',
+    created_at TIMESTAMP DEFAULT NOW()
+);

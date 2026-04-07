@@ -2,13 +2,13 @@
 import { useState } from 'react';
 import { Gamepad2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
-
-const AVATARS = ['🐻', '🦊', '🐱', '🐶', '🦁', '🐼', '🦄', '🐸', '🐙', '🦋', '🐢', '🐬', '🦉', '🐝', '🌟', '🎯'];
+import LulingSelector from '@/components/LulingSelector';
 
 export default function JoinPage() {
   const [pin, setPin] = useState('');
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('🐻');
+  const [avatar, setAvatar] = useState(null); // Luling object or null
+  const [avatarDisplay, setAvatarDisplay] = useState('🐻');
   const [step, setStep] = useState('pin'); // pin ��� name → lobby → playing
   const [gameInfo, setGameInfo] = useState(null);
   const [error, setError] = useState('');
@@ -59,20 +59,20 @@ export default function JoinPage() {
         {step === 'name' && (
           <>
             <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: '#1C1917', marginBottom: 4 }}>{gameInfo?.title}</h1>
-            <p style={{ fontSize: 13, color: '#78716C', marginBottom: 16 }}>Pick your avatar and enter your name</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
-              {AVATARS.map(a => (
-                <button key={a} onClick={() => setAvatar(a)} style={{ fontSize: 24, padding: 6, borderRadius: 10, border: a === avatar ? '2px solid #F97316' : '2px solid transparent', background: a === avatar ? '#FFF7ED' : 'transparent', cursor: 'pointer' }}>{a}</button>
-              ))}
-            </div>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" style={{ width: '100%', border: '2px solid #E7E5E4', borderRadius: 14, padding: '12px 16px', fontSize: 16, outline: 'none', textAlign: 'center', fontFamily: "'DM Sans'" }} />
-            <button onClick={joinGame} disabled={!name.trim()} style={{ width: '100%', marginTop: 16, background: '#F97316', color: 'white', border: 'none', padding: '14px', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans'" }}>Let's Go! {avatar}</button>
+            <p style={{ fontSize: 13, color: '#78716C', marginBottom: 16 }}>Pick your Luling and enter your name</p>
+            <LulingSelector
+              onSelect={(l) => { setAvatar(l); setAvatarDisplay(l.emoji || l.name?.[0] || '🌟'); }}
+              selected={avatar?.luling_id}
+              showCategories={false}
+            />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" style={{ width: '100%', marginTop: 12, border: '2px solid #E7E5E4', borderRadius: 14, padding: '12px 16px', fontSize: 16, outline: 'none', textAlign: 'center', fontFamily: "'DM Sans'" }} />
+            <button onClick={joinGame} disabled={!name.trim()} style={{ width: '100%', marginTop: 12, background: '#F97316', color: 'white', border: 'none', padding: '14px', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans'" }}>Let's Go! {avatar?.name || avatarDisplay}</button>
           </>
         )}
 
         {step === 'lobby' && (
           <>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>{avatar}</div>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>{avatar?.thumbnail_url ? <img src={avatar.thumbnail_url} alt={avatar.name} style={{ width: 64, height: 64, borderRadius: 16, margin: '0 auto' }} /> : avatarDisplay}</div>
             <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: '#1C1917' }}>You're in, {name}!</h2>
             <p style={{ fontSize: 13, color: '#78716C', marginTop: 8 }}>Waiting for teacher to start the game...</p>
             <div style={{ marginTop: 16 }}>

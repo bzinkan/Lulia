@@ -48,6 +48,11 @@ cryptography==44.*
 # Redis
 redis>=5,<6
 
+# === Phase 11.5: Lulings ===
+
+# Image generation
+replicate>=0.25,<1
+
 # === Phase 9: Video Pipeline ===
 
 # TTS
