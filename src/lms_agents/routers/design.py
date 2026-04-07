@@ -1,5 +1,7 @@
 """Design Studio routes — custom templates CRUD + AI Fill."""
+import json
 import os
+from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -12,6 +14,13 @@ from pydantic import BaseModel
 from src.lms_agents.tools.ai_fill_engine import ai_fill_template, render_custom_template
 
 router = APIRouter(prefix="/design", tags=["Design Studio"])
+
+# Load course components config once at import time
+_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "course_components.json"
+_COURSE_COMPONENTS: dict = {}
+if _CONFIG_PATH.exists():
+    with open(_CONFIG_PATH, "r") as f:
+        _COURSE_COMPONENTS = json.load(f)
 
 
 def get_db():
@@ -193,6 +202,12 @@ async def preview_template(template_id: UUID, conn=Depends(get_db)):
 
     html = render_custom_template(row["canvas_json"], row.get("design_theme", "modern_clean"))
     return {"preview_html": html}
+
+
+@router.get("/course-components")
+async def get_course_components():
+    """Return the category → course → component mapping config."""
+    return _COURSE_COMPONENTS
 
 
 @router.get("/components")

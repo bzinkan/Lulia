@@ -1,0 +1,117 @@
+{
+  "categories": {
+    "Mathematics": {
+      "category_components": ["equation_editor", "number_line", "coordinate_plane", "geometry_canvas", "work_space_grid"],
+      "courses": {
+        "general_math": { "name": "General Math", "grades": ["K","1","2","3","4","5"], "components": ["fraction_visual", "place_value_chart", "multiplication_grid"] },
+        "pre_algebra": { "name": "Pre-Algebra", "grades": ["6","7"], "components": ["function_table", "inequality_number_line"] },
+        "algebra_1": { "name": "Algebra 1", "grades": ["8","9"], "components": ["function_table", "system_of_equations", "inequality_number_line"] },
+        "geometry": { "name": "Geometry", "grades": ["9","10"], "components": ["two_column_proof", "construction_space", "transformation_grid"] },
+        "algebra_2": { "name": "Algebra 2", "grades": ["10","11"], "components": ["function_table", "system_of_equations", "inequality_number_line"] },
+        "precalculus": { "name": "Pre-Calculus", "grades": ["11"], "components": ["piecewise_function"] },
+        "calculus": { "name": "Calculus", "grades": ["11","12"], "components": ["limit_expression", "integral_derivative", "piecewise_function", "series_summation"] },
+        "statistics": { "name": "Statistics", "grades": ["11","12"], "components": ["probability_tree", "distribution_curve", "box_plot", "two_way_table"] },
+        "ap_calculus": { "name": "AP Calculus", "grades": ["11","12"], "components": ["limit_expression", "integral_derivative", "piecewise_function", "series_summation"] },
+        "ap_statistics": { "name": "AP Statistics", "grades": ["11","12"], "components": ["probability_tree", "distribution_curve", "box_plot", "two_way_table"] }
+      }
+    },
+    "English Language Arts": {
+      "category_components": ["reading_passage", "annotation_layer", "writing_prompt", "grammar_exercise"],
+      "courses": {
+        "general_ela": { "name": "General ELA", "grades": ["K","1","2","3","4","5"], "components": ["sight_word_practice", "phonics_exercise", "handwriting_lines"] },
+        "ela_6_8": { "name": "ELA 6-8", "grades": ["6","7","8"], "components": ["text_evidence_chart", "literary_analysis_frame"] },
+        "english_1": { "name": "English 1", "grades": ["9"], "components": ["text_evidence_chart", "literary_analysis_frame", "rhetorical_analysis"] },
+        "english_2": { "name": "English 2", "grades": ["10"], "components": ["text_evidence_chart", "literary_analysis_frame", "rhetorical_analysis"] },
+        "english_3": { "name": "English 3", "grades": ["11"], "components": ["text_evidence_chart", "literary_analysis_frame", "rhetorical_analysis"] },
+        "english_4": { "name": "English 4", "grades": ["12"], "components": ["text_evidence_chart", "literary_analysis_frame", "rhetorical_analysis"] },
+        "ap_language": { "name": "AP Language", "grades": ["11","12"], "components": ["rhetorical_analysis", "argument_outline", "synthesis_source_chart"] },
+        "ap_literature": { "name": "AP Literature", "grades": ["11","12"], "components": ["literary_analysis_frame", "poetry_annotation", "close_reading_guide"] }
+      }
+    },
+    "Science": {
+      "category_components": ["lab_report", "diagram_label", "data_collection_table", "observation_box"],
+      "courses": {
+        "general_science": { "name": "General Science", "grades": ["K","1","2","3","4","5"], "components": ["science_graphic_organizer"] },
+        "earth_science": { "name": "Earth Science", "grades": ["6","7","8"], "components": ["science_graphic_organizer"] },
+        "life_science": { "name": "Life Science", "grades": ["6","7","8"], "components": [] },
+        "physical_science": { "name": "Physical Science", "grades": ["8","9"], "components": [] },
+        "biology": { "name": "Biology", "grades": ["9","10"], "components": ["punnett_square", "cell_diagram", "dna_rna_sequence", "phylogenetic_tree"] },
+        "chemistry": { "name": "Chemistry", "grades": ["10","11"], "components": ["chemical_equation_balancer", "lewis_dot", "periodic_table_ref", "electron_config", "molar_calc_space"] },
+        "physics": { "name": "Physics", "grades": ["11","12"], "components": ["free_body_diagram", "circuit_diagram", "vector_diagram", "kinematics_equations"] },
+        "environmental_science": { "name": "Environmental Science", "grades": ["9","10","11","12"], "components": ["science_graphic_organizer"] },
+        "ap_biology": { "name": "AP Biology", "grades": ["10","11","12"], "components": ["punnett_square", "cell_diagram", "dna_rna_sequence", "phylogenetic_tree"] },
+        "ap_chemistry": { "name": "AP Chemistry", "grades": ["11","12"], "components": ["chemical_equation_balancer", "lewis_dot", "periodic_table_ref", "electron_config", "molar_calc_space"] },
+        "ap_physics": { "name": "AP Physics", "grades": ["11","12"], "components": ["free_body_diagram", "circuit_diagram", "vector_diagram", "kinematics_equations"] }
+      }
+    },
+    "Social Studies": {
+      "category_components": ["timeline", "map_analysis", "primary_source_analysis", "comparison_chart"],
+      "courses": {
+        "general_social_studies": { "name": "General Social Studies", "grades": ["K","1","2","3","4","5"], "components": ["community_map", "biography_frame"] },
+        "world_geography": { "name": "World Geography", "grades": ["6","7"], "components": ["map_skills_exercise"] },
+        "world_history": { "name": "World History", "grades": ["7","8","9","10"], "components": ["cause_effect_chart", "dbq_document_analysis"] },
+        "us_history": { "name": "US History", "grades": ["8","9","10","11"], "components": ["cause_effect_chart", "dbq_document_analysis", "amendment_analysis"] },
+        "government": { "name": "Government", "grades": ["11","12"], "components": ["branches_diagram", "court_case_brief", "policy_analysis"] },
+        "economics": { "name": "Economics", "grades": ["11","12"], "components": ["supply_demand_graph", "economic_model", "cost_benefit_analysis"] },
+        "ap_world_history": { "name": "AP World History", "grades": ["10","11","12"], "components": ["cause_effect_chart", "dbq_document_analysis", "ccot_analysis"] },
+        "ap_us_history": { "name": "AP US History", "grades": ["10","11","12"], "components": ["cause_effect_chart", "dbq_document_analysis", "leq_outline"] },
+        "ap_government": { "name": "AP Government", "grades": ["11","12"], "components": ["branches_diagram", "court_case_brief", "scotus_comparison"] }
+      }
+    },
+    "World Languages": {
+      "category_components": ["vocabulary_flashcard", "conjugation_table", "translation_exercise", "dialogue_bubble"],
+      "courses": {
+        "general_world_lang": { "name": "General World Languages", "grades": ["K","1","2","3","4","5"], "components": ["picture_vocabulary", "basic_phrases"] },
+        "spanish_1": { "name": "Spanish 1", "grades": ["6","7","8","9"], "components": ["accent_practice", "sentence_builder"] },
+        "spanish_2": { "name": "Spanish 2", "grades": ["8","9","10"], "components": ["accent_practice", "sentence_builder", "reading_comprehension_wl"] },
+        "spanish_3": { "name": "Spanish 3", "grades": ["10","11"], "components": ["accent_practice", "essay_prompt_wl", "reading_comprehension_wl"] },
+        "french_1": { "name": "French 1", "grades": ["6","7","8","9"], "components": ["accent_practice", "sentence_builder"] },
+        "french_2": { "name": "French 2", "grades": ["8","9","10"], "components": ["accent_practice", "sentence_builder", "reading_comprehension_wl"] },
+        "german_1": { "name": "German 1", "grades": ["6","7","8","9"], "components": ["case_table", "sentence_builder"] },
+        "latin_1": { "name": "Latin 1", "grades": ["8","9","10"], "components": ["declension_table", "translation_exercise"] },
+        "ap_spanish": { "name": "AP Spanish", "grades": ["11","12"], "components": ["essay_prompt_wl", "audio_response_prompt", "cultural_comparison"] },
+        "ap_french": { "name": "AP French", "grades": ["11","12"], "components": ["essay_prompt_wl", "audio_response_prompt", "cultural_comparison"] }
+      }
+    },
+    "Fine Arts": {
+      "category_components": ["color_wheel", "sketch_space", "critique_frame", "music_staff"],
+      "courses": {
+        "general_art": { "name": "General Art", "grades": ["K","1","2","3","4","5"], "components": ["drawing_prompt", "art_vocabulary"] },
+        "art_6_8": { "name": "Art 6-8", "grades": ["6","7","8"], "components": ["design_elements_chart", "artist_study"] },
+        "visual_arts": { "name": "Visual Arts", "grades": ["9","10","11","12"], "components": ["portfolio_reflection", "art_critique_guide"] },
+        "music_general": { "name": "Music", "grades": ["K","1","2","3","4","5","6","7","8"], "components": ["rhythm_notation", "note_identification"] },
+        "music_theory": { "name": "Music Theory", "grades": ["9","10","11","12"], "components": ["chord_progression", "interval_identification", "key_signature_exercise"] },
+        "theater": { "name": "Theater", "grades": ["6","7","8","9","10","11","12"], "components": ["script_format", "character_analysis", "blocking_diagram"] },
+        "ap_art_history": { "name": "AP Art History", "grades": ["11","12"], "components": ["artwork_comparison", "contextual_analysis"] },
+        "ap_music_theory": { "name": "AP Music Theory", "grades": ["11","12"], "components": ["chord_progression", "four_part_harmony", "aural_skills_exercise"] }
+      }
+    },
+    "Health & PE": {
+      "category_components": ["body_diagram", "fitness_log", "nutrition_chart", "goal_setting_form"],
+      "courses": {
+        "general_health_pe": { "name": "General Health & PE", "grades": ["K","1","2","3","4","5"], "components": ["healthy_habits_checklist", "movement_activity"] },
+        "health_6_8": { "name": "Health 6-8", "grades": ["6","7","8"], "components": ["decision_making_model", "wellness_assessment"] },
+        "health_9_12": { "name": "Health 9-12", "grades": ["9","10","11","12"], "components": ["decision_making_model", "wellness_assessment", "stress_management_plan"] },
+        "pe_6_8": { "name": "PE 6-8", "grades": ["6","7","8"], "components": ["workout_plan", "skills_rubric"] },
+        "pe_9_12": { "name": "PE 9-12", "grades": ["9","10","11","12"], "components": ["workout_plan", "training_log", "sport_strategy_diagram"] }
+      }
+    },
+    "CTE / Electives": {
+      "category_components": ["project_planner", "rubric_builder", "reflection_journal"],
+      "courses": {
+        "general_elective": { "name": "General Elective", "grades": ["K","1","2","3","4","5","6","7","8","9","10","11","12"], "components": [] },
+        "computer_science": { "name": "Computer Science", "grades": ["6","7","8","9","10","11","12"], "components": ["code_block", "flowchart", "pseudocode_editor"] },
+        "business": { "name": "Business", "grades": ["9","10","11","12"], "components": ["budget_spreadsheet", "business_plan_section", "swot_analysis"] },
+        "engineering": { "name": "Engineering", "grades": ["9","10","11","12"], "components": ["design_process_chart", "technical_drawing_space", "materials_table"] },
+        "culinary_arts": { "name": "Culinary Arts", "grades": ["9","10","11","12"], "components": ["recipe_card", "conversion_table", "kitchen_safety_checklist"] },
+        "ap_computer_science": { "name": "AP Computer Science", "grades": ["10","11","12"], "components": ["code_block", "trace_table", "class_diagram"] }
+      }
+    },
+    "General": {
+      "category_components": [],
+      "courses": {
+        "general": { "name": "General", "grades": ["K","1","2","3","4","5","6","7","8","9","10","11","12"], "components": [] }
+      }
+    }
+  }
+}

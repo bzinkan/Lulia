@@ -42,7 +42,8 @@ def search_kb(
     params: list = []
 
     if teacher_id:
-        conditions.append("ks.teacher_id = %s::uuid")
+        # Search both teacher's own content AND system-level OER content
+        conditions.append("(ks.teacher_id = %s::uuid OR ks.upload_lane = 'oer_textbook')")
         params.append(teacher_id)
     if subject:
         conditions.append("ks.subject ILIKE %s")

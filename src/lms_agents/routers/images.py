@@ -1,17 +1,23 @@
-"""Teacher image library — upload, generate, manage."""
+"""Teacher image library — upload, stock search, manage."""
+import logging
 import os
-import tempfile
 from uuid import uuid4
 
 import boto3
-from botocore.exceptions import ClientError
+import httpx
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import JSONResponse
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/images", tags=["Images"])
+
+
+def _public_endpoint():
+    """Return the S3 endpoint reachable from the browser (not the Docker-internal one)."""
+    return os.environ.get("S3_PUBLIC_ENDPOINT", "http://localhost:9000")
 
 
 def get_db():
@@ -70,9 +76,9 @@ async def upload_image(
     except Exception as e:
         return JSONResponse({"error": f"Upload failed: {e}"}, status_code=500)
 
-    endpoint = os.environ.get("S3_ENDPOINT", "http://localhost:9000")
-    storage_url = f"{endpoint}/lulia-uploads/{key}"
-    thumbnail_url = f"{endpoint}/lulia-uploads/{thumb_key}"
+    pub = _public_endpoint()
+    storage_url = f"{pub}/lulia-uploads/{key}"
+    thumbnail_url = f"{pub}/lulia-uploads/{thumb_key}"
 
     cur = conn.cursor()
     cur.execute(
@@ -116,30 +122,255 @@ async def delete_image(image_id: str, conn=Depends(get_db)):
     return {"status": "deleted"}
 
 
+@router.get("/search")
+async def search_images(
+    q: str = Query(..., description="Search query"),
+    source: str = Query("all", description="Source: all, wikimedia, pixabay, openstax"),
+    page: int = Query(1, ge=1),
+):
+    """
+    Search educational images from multiple free sources.
+    Wikimedia Commons (diagrams) + Pixabay (photos) + OpenStax (textbook figures).
+    All results are free for educational use.
+    """
+    results = []
+
+    # ── Wikimedia Commons — best for educational diagrams ──────────────
+    if source in ("all", "wikimedia"):
+        try:
+            resp = httpx.get(
+                "https://commons.wikimedia.org/w/api.php",
+                params={
+                    "action": "query",
+                    "generator": "search",
+                    "gsrsearch": f"{q} diagram OR illustration",
+                    "gsrnamespace": 6,  # File namespace
+                    "gsrlimit": 12 if source == "all" else 24,
+                    "prop": "imageinfo",
+                    "iiprop": "url|mime|extmetadata",
+                    "iiurlwidth": 400,
+                    "format": "json",
+                },
+                timeout=10,
+            )
+            resp.raise_for_status()
+            pages = resp.json().get("query", {}).get("pages", {})
+            for pid, page_data in pages.items():
+                info = (page_data.get("imageinfo") or [{}])[0]
+                mime = info.get("mime", "")
+                if not mime.startswith("image/"):
+                    continue
+                thumb = info.get("thumburl", "")
+                full = info.get("url", "")
+                if not thumb or not full:
+                    continue
+                meta = info.get("extmetadata", {})
+                artist = meta.get("Artist", {}).get("value", "Wikimedia Commons")
+                # Strip HTML from artist
+                import re
+                artist = re.sub(r"<[^>]+>", "", artist).strip()[:60]
+                results.append({
+                    "id": f"wiki_{pid}",
+                    "url": full,
+                    "thumb": thumb,
+                    "source": "Wikimedia",
+                    "attribution": f"{artist} — Wikimedia Commons",
+                    "page_url": f"https://commons.wikimedia.org/wiki/File:{page_data.get('title', '').replace('File:', '')}",
+                })
+        except Exception as e:
+            log.warning(f"[Images] Wikimedia search failed: {e}")
+
+    # ── Pixabay — stock photos ─────────────────────────────────────────
+    pixabay_key = os.environ.get("PIXABAY_API_KEY")
+    if pixabay_key and source in ("all", "pixabay"):
+        try:
+            resp = httpx.get(
+                "https://pixabay.com/api/",
+                params={
+                    "key": pixabay_key,
+                    "q": q,
+                    "image_type": "all",
+                    "safesearch": "true",
+                    "order": "popular",
+                    "min_width": 400,
+                    "per_page": 12 if source == "all" else 24,
+                    "page": page,
+                },
+                timeout=10,
+            )
+            resp.raise_for_status()
+            for hit in resp.json().get("hits", []):
+                results.append({
+                    "id": f"pixabay_{hit['id']}",
+                    "url": hit["webformatURL"],
+                    "thumb": hit["previewURL"],
+                    "source": "Pixabay",
+                    "attribution": f"Image by {hit.get('user', 'Pixabay')} on Pixabay",
+                    "page_url": hit.get("pageURL", ""),
+                })
+        except Exception as e:
+            log.warning(f"[Images] Pixabay search failed: {e}")
+
+    return {"images": results, "total": len(results), "sources": ["wikimedia", "pixabay"]}
+
+
+# ── OpenStax Textbook Image Search ─────────────────────────────────────────
+
+# Map of HS/AP subjects to OpenStax book CNX IDs
+OPENSTAX_BOOKS = {
+    "Biology": "185cbf87-c72e-48f5-94f1-fe3c10b9a220",
+    "AP Biology": "6c322e32-9b0f-4c7d-b389-4e0a3b29269e",
+    "Chemistry": "7fccc9cf-9b71-44f6-800b-f9457fd64335",
+    "AP Chemistry": "d9b85ee6-c57f-4861-8208-5ddf261e9c5f",
+    "Physics": "031da8d3-b525-429c-80cf-6c8ed997733a",
+    "AP Physics": "896a1f67-9498-40dc-8a58-292e4b66a740",
+    "Algebra & Trigonometry": "13ac107a-f15f-49d2-97e8-60ab2e3b519c",
+    "Pre-Calculus": "fd53eae1-fa23-47c7-bb1b-972349835c3c",
+    "Calculus Vol 1": "8b89d172-2927-466f-8661-01abc7ccdba4",
+    "Statistics": "b56bb972-978b-4e24-9a22-14cab3e0d7b1",
+    "US History": "a7ba2fb8-8925-4987-b182-5f4429d48daa",
+    "American Government": "9d8df601-4f12-4ac1-8b59-2a15a566e726",
+    "Economics": "bc498e1f-efe9-43a0-8dea-d3569ad09a82",
+    "Psychology": "4abf04bf-93a0-45c3-9cbc-2cefd46e68cc",
+    "Sociology": "02040312-72c8-441e-a685-20e9333f3e1d",
+    "Anatomy & Physiology": "14fb4ad7-39a1-4eee-ab6e-3ef2482e3e22",
+    "Astronomy": "2e737be8-ea65-48c3-aa0a-9f35b4c6a966",
+}
+
+
+@router.get("/openstax/books")
+async def list_openstax_books():
+    """List available OpenStax textbooks for image browsing."""
+    return {"books": [{"id": v, "name": k} for k, v in OPENSTAX_BOOKS.items()]}
+
+
+@router.get("/openstax/search")
+async def search_openstax_images(
+    book_id: str = Query(..., description="OpenStax CNX book UUID"),
+    q: str = Query("", description="Search within book content"),
+):
+    """
+    Search for images within an OpenStax textbook.
+    Fetches the book TOC, finds pages matching the query, extracts image URLs.
+    """
+    try:
+        # Get book TOC
+        resp = httpx.get(f"https://archive.cnx.org/contents/{book_id}.json", timeout=15)
+        resp.raise_for_status()
+        book = resp.json()
+
+        # Collect page IDs from TOC tree
+        page_ids = []
+        def walk_tree(node):
+            if "contents" in node:
+                for child in node["contents"]:
+                    walk_tree(child)
+            elif "id" in node:
+                title = node.get("title", "")
+                if not q or q.lower() in title.lower():
+                    page_ids.append({"id": node["id"], "title": title})
+        for item in book.get("tree", {}).get("contents", []):
+            walk_tree(item)
+
+        # Fetch first 3 matching pages and extract images
+        results = []
+        for page_info in page_ids[:3]:
+            try:
+                page_resp = httpx.get(f"https://archive.cnx.org/contents/{page_info['id']}.json", timeout=10)
+                page_resp.raise_for_status()
+                page_data = page_resp.json()
+                html = page_data.get("content", "")
+
+                # Extract image URLs from HTML
+                import re
+                img_matches = re.findall(r'src="([^"]*?/resources/[^"]+)"', html)
+                for img_path in img_matches:
+                    if img_path.startswith(".."):
+                        img_url = f"https://archive.cnx.org{img_path.replace('..', '')}"
+                    elif img_path.startswith("/"):
+                        img_url = f"https://archive.cnx.org{img_path}"
+                    else:
+                        img_url = img_path
+                    results.append({
+                        "id": f"openstax_{hash(img_url) & 0xFFFFFF:06x}",
+                        "url": img_url,
+                        "thumb": img_url,
+                        "source": "OpenStax",
+                        "attribution": f"OpenStax — {page_info['title']}",
+                        "page_url": f"https://openstax.org/books/{book_id}/pages/{page_info['id']}",
+                    })
+            except Exception:
+                continue
+
+        return {"images": results, "total": len(results), "chapter_count": len(page_ids)}
+    except Exception as e:
+        log.error(f"[Images] OpenStax search failed: {e}")
+        return JSONResponse({"error": f"OpenStax search failed: {e}"}, status_code=500)
+
+
 class GenerateImageRequest(BaseModel):
     prompt: str
-    style: str = "illustration"
+    style: str = "educational_diagram"
+    subject: str = "General"
+    grade: str = "4"
+    size: str = "1024x1024"
     teacher_id: str = "00000000-0000-0000-0000-000000000001"
 
 
 @router.post("/generate")
 async def generate_image_endpoint(req: GenerateImageRequest, conn=Depends(get_db)):
-    """Generate an image using AI (Flux via Replicate)."""
-    from src.lms_agents.tools.image_generator import generate_image
+    """Generate an educational image using DALL-E 3."""
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    if not openai_key:
+        return JSONResponse({"error": "OPENAI_API_KEY not set"}, status_code=503)
 
-    style_map = {
-        "illustration": "educational illustration, clean lines, friendly style",
-        "diagram": "scientific diagram, labeled parts, clear lines",
-        "cartoon": "cartoon style, colorful, kid-friendly",
-        "line_art": "black and white line art, coloring book style",
-        "realistic": "realistic photograph style",
-    }
-    style_suffix = style_map.get(req.style, req.style)
-    full_prompt = f"{req.prompt}, {style_suffix}, white background, no text"
+    # Build an educational prompt with style guidance
+    style_instructions = {
+        "educational_diagram": "Create a clear, labeled educational diagram. Use arrows, labels, and numbered steps. Textbook illustration style.",
+        "scientific_illustration": "Create a detailed scientific illustration with accurate cross-sections, labeled structures, and proper proportions. Textbook quality.",
+        "worksheet_clipart": "Create simple, clean black-outline clipart suitable for a printed worksheet. Minimal color, bold lines, easy to photocopy.",
+        "infographic": "Create a colorful infographic with icons, clear visual hierarchy, and organized sections. Suitable for a classroom poster.",
+        "line_art": "Create a black and white line drawing with clean outlines and no shading. Suitable for a coloring activity or worksheet.",
+    }.get(req.style, "Create a clear educational illustration suitable for a classroom worksheet.")
 
-    path = generate_image(full_prompt)
-    if not path:
-        return JSONResponse({"error": "Image generation failed"}, status_code=500)
+    grade_note = (
+        "Use simple shapes, bright colors, large elements, and minimal detail — suitable for young children."
+        if req.grade in ("K", "1", "2") else
+        "Use age-appropriate complexity and clear visuals."
+        if req.grade in ("3", "4", "5") else
+        "Use detailed, accurate representations suitable for secondary students."
+    )
+
+    full_prompt = (
+        f"{style_instructions}\n\n"
+        f"Topic: {req.prompt}\n"
+        f"Subject: {req.subject}, Grade {req.grade}\n"
+        f"{grade_note}\n"
+        f"The image must be educationally accurate. White background. No watermarks."
+    )
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=openai_key)
+
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=full_prompt,
+            size=req.size,
+            quality="standard",
+            n=1,
+        )
+
+        image_url = response.data[0].url
+
+        # Download the image and store in MinIO
+        img_resp = httpx.get(image_url, follow_redirects=True, timeout=60)
+        img_resp.raise_for_status()
+        image_data = img_resp.content
+
+    except Exception as e:
+        log.error(f"[Images] DALL-E generation failed: {e}")
+        return JSONResponse({"error": f"Image generation failed: {e}"}, status_code=500)
 
     # Upload to MinIO
     image_id = str(uuid4())
@@ -148,18 +379,14 @@ async def generate_image_endpoint(req: GenerateImageRequest, conn=Depends(get_db
 
     try:
         s3 = _get_s3()
-        with open(path, "rb") as f:
-            data = f.read()
-        s3.put_object(Bucket="lulia-uploads", Key=key, Body=data, ContentType="image/png")
+        s3.put_object(Bucket="lulia-uploads", Key=key, Body=image_data, ContentType="image/png")
     except Exception as e:
         return JSONResponse({"error": f"Storage failed: {e}"}, status_code=500)
-    finally:
-        os.unlink(path)
 
-    endpoint = os.environ.get("S3_ENDPOINT", "http://localhost:9000")
-    storage_url = f"{endpoint}/lulia-uploads/{key}"
+    pub = _public_endpoint()
+    storage_url = f"{pub}/lulia-uploads/{key}"
 
-    # Save to library
+    # Save to teacher's library automatically
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO teacher_images (image_id, teacher_id, filename, storage_url, thumbnail_url, source, generation_prompt)

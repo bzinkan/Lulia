@@ -8,13 +8,8 @@ import json
 import logging
 import os
 import re
-from uuid import uuid4
 
 import httpx
-from psycopg2.extras import Json
-
-from src.lms_agents.tools.bedrock_embedding import embed_batch
-from src.lms_agents.tools.db import get_connection
 
 log = logging.getLogger(__name__)
 
@@ -297,9 +292,13 @@ def ingest_file(
     unit: str | None = None,
 ) -> dict:
     """
-    Full ingestion pipeline: extract → chunk → embed → tag → store.
-    Returns dict with source_id and chunk_count.
+    Full ingestion pipeline: extract -> chunk -> embed -> tag -> store.
+    Returns dict with source_id, chunk_count, embedded_count, status.
+
+    Delegates the chunk/embed/tag/store to content_ingestion_core.ingest_sections().
     """
+    from src.lms_agents.tools.content_ingestion_core import ingest_sections
+
     log.info(f"Ingesting {name} ({file_type})")
 
     # 1. Extract text sections
@@ -318,85 +317,16 @@ def ingest_file(
 
     log.info(f"  Extracted {len(sections)} sections")
 
-    # 2. Chunk
-    chunks = chunk_sections(sections)
-    log.info(f"  Created {len(chunks)} chunks")
-
-    # 3. Embed
-    texts = [c["content"] for c in chunks]
-    embeddings = embed_batch(texts)
-    for i, chunk in enumerate(chunks):
-        chunk["embedding"] = embeddings[i]
-    embedded_count = sum(1 for e in embeddings if e is not None)
-    log.info(f"  Embedded {embedded_count}/{len(chunks)} chunks")
-
-    # 4. Standards tagging
-    chunks = tag_chunks_with_standards(chunks, subject, grade_level)
-
-    # 5. Store in database
-    conn = get_connection()
-    cur = conn.cursor()
-    source_id = str(uuid4())
-
-    try:
-        cur.execute(
-            """INSERT INTO knowledge_sources
-               (source_id, teacher_id, name, file_type, original_path, subject,
-                grade_level, unit, upload_lane, chunk_count, processing_status)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'processing')""",
-            (source_id, teacher_id, name, file_type, file_path,
-             subject, grade_level, unit, upload_lane, len(chunks)),
-        )
-
-        for chunk in chunks:
-            chunk_id = str(uuid4())
-            embedding = chunk.get("embedding")
-            # Format embedding as pgvector literal if present
-            embedding_str = (
-                f"[{','.join(str(x) for x in embedding)}]" if embedding else None
-            )
-            cur.execute(
-                """INSERT INTO knowledge_chunks
-                   (chunk_id, source_id, chunk_number, content, embedding,
-                    standards_tags, page_number, section_heading)
-                   VALUES (%s, %s, %s, %s, %s::vector, %s, %s, %s)""",
-                (chunk_id, source_id, chunk["chunk_number"], chunk["content"],
-                 embedding_str, Json(chunk.get("standards_tags", [])),
-                 chunk.get("page_number"), chunk.get("section_heading")),
-            )
-
-        # Mark complete
-        cur.execute(
-            """UPDATE knowledge_sources
-               SET processing_status = 'complete', processed_at = NOW(), chunk_count = %s
-               WHERE source_id = %s""",
-            (len(chunks), source_id),
-        )
-        conn.commit()
-        log.info(f"  Stored {len(chunks)} chunks for source {source_id}")
-
-    except Exception:
-        conn.rollback()
-        # Mark as failed
-        try:
-            cur.execute(
-                "UPDATE knowledge_sources SET processing_status = 'failed' WHERE source_id = %s",
-                (source_id,),
-            )
-            conn.commit()
-        except Exception:
-            pass
-        raise
-    finally:
-        cur.close()
-        conn.close()
-
-    return {
-        "source_id": source_id,
-        "chunk_count": len(chunks),
-        "embedded_count": embedded_count,
-        "status": "complete",
-    }
+    return ingest_sections(
+        sections=sections,
+        name=name,
+        teacher_id=teacher_id,
+        subject=subject,
+        grade_level=grade_level,
+        upload_lane=upload_lane,
+        file_type=file_type,
+        original_path=file_path,
+    )
 
 
 def ingest_url(
@@ -406,62 +336,22 @@ def ingest_url(
     subject: str | None = None,
     grade_level: str | None = None,
 ) -> dict:
-    """Ingest content from a URL."""
+    """Ingest content from a URL. Delegates to shared core pipeline."""
+    from src.lms_agents.tools.content_ingestion_core import ingest_sections
+
     log.info(f"Ingesting URL: {url}")
 
     sections = extract_url(url)
     if not sections:
         return {"source_id": None, "chunk_count": 0, "status": "empty"}
 
-    chunks = chunk_sections(sections)
-    texts = [c["content"] for c in chunks]
-    embeddings = embed_batch(texts)
-    for i, chunk in enumerate(chunks):
-        chunk["embedding"] = embeddings[i]
-    embedded_count = sum(1 for e in embeddings if e is not None)
-
-    chunks = tag_chunks_with_standards(chunks, subject, grade_level)
-
-    conn = get_connection()
-    cur = conn.cursor()
-    source_id = str(uuid4())
-
-    try:
-        cur.execute(
-            """INSERT INTO knowledge_sources
-               (source_id, teacher_id, name, file_type, original_path, subject,
-                grade_level, upload_lane, chunk_count, processing_status)
-               VALUES (%s, %s, %s, 'url', %s, %s, %s, 'materials', %s, 'complete')""",
-            (source_id, teacher_id, name, url, subject, grade_level, len(chunks)),
-        )
-
-        for chunk in chunks:
-            chunk_id = str(uuid4())
-            embedding = chunk.get("embedding")
-            embedding_str = (
-                f"[{','.join(str(x) for x in embedding)}]" if embedding else None
-            )
-            cur.execute(
-                """INSERT INTO knowledge_chunks
-                   (chunk_id, source_id, chunk_number, content, embedding,
-                    standards_tags, page_number, section_heading)
-                   VALUES (%s, %s, %s, %s, %s::vector, %s, %s, %s)""",
-                (chunk_id, source_id, chunk["chunk_number"], chunk["content"],
-                 embedding_str, Json(chunk.get("standards_tags", [])),
-                 chunk.get("page_number"), chunk.get("section_heading")),
-            )
-
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        cur.close()
-        conn.close()
-
-    return {
-        "source_id": source_id,
-        "chunk_count": len(chunks),
-        "embedded_count": embedded_count,
-        "status": "complete",
-    }
+    return ingest_sections(
+        sections=sections,
+        name=name,
+        teacher_id=teacher_id,
+        subject=subject,
+        grade_level=grade_level,
+        upload_lane="materials",
+        file_type="url",
+        original_path=url,
+    )

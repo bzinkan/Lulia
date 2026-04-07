@@ -42,14 +42,18 @@ Additional docs:
 12. Credits are atomic — `SELECT FOR UPDATE` prevents race conditions.
 13. Interactive activities are self-contained HTML files (React via CDN, no build step).
 14. Live games use Redis for state + WebSocket for real-time sync.
+15. OER content ingestion uses a shared framework (`content_ingestion_core.py`). Source adapters (OpenStax, LibreTexts, future) implement extraction only — chunking, embedding, tagging, storage handled by core.
+16. Design Studio uses two-level subject system: Category → Course. Components are tiered: Universal (always visible), Category-specific, Course-specific. Loaded from `config/course_components.json`.
 
 ## Project Structure
 ```
 src/lms_agents/
-├── config/          # Agent YAML, tasks YAML, pricing configuration
+├── config/          # Agent YAML, tasks YAML, pricing, course_components.json
 ├── crews/           # 5 agent crews: assignment, planning, grading, analytics, video
 ├── routers/         # 30+ FastAPI route handlers
 ├── tools/           # 25+ shared tools (RAG, embedding, TTS, Stripe, credit manager, etc.)
+│   ├── content_ingestion_core.py   # Shared chunk→embed→tag→store pipeline
+│   └── content_sources/            # Source adapters (openstax, libretexts, future sources)
 ├── templates/       # 22 output templates + 5 puzzle generators + shared themes
 ├── websocket/       # WebSocket game server
 ├── worker/          # Background worker
@@ -59,15 +63,20 @@ dashboard/
 ├── src/app/         # 20+ Next.js App Router pages
 │   ├── admin/       # Super admin panel (9 pages)
 │   ├── assignments/ # Assignment manager + detail + inbox
-│   ├── design/      # WYSIWYG Design Studio
+│   ├── design/      # WYSIWYG Design Studio (157 component renderers)
 │   ├── planner/     # Weekly Planner
 │   └── ...          # billing, games, interactive, videos, etc.
-├── src/components/  # Shared React components (Sidebar, ChatSidebar, LulingSelector, etc.)
+├── src/components/  # Shared React components
+│   └── design/      # ComponentRenderers.jsx (157), ComponentEditors.jsx (math toolbar, shapes)
 └── src/lib/         # API client, admin client
 
 scripts/             # DB init, standards import, seed data, Lulings generation, Stripe listener
+├── ingest.py        # Unified CLI: ingest.py openstax sync-all | libretexts | status
+├── ingest_openstax.py   # OpenStax-specific CLI (backwards compat)
+└── ingest_libretexts.py # LibreTexts-specific CLI (backwards compat)
 docs/                # DEVELOPMENT.md, STRIPE_SETUP.md, PRE_AWS_CHECKLIST.md
 tests/               # pytest critical path tests (15 tests)
+data/content/        # Local OER content storage (gitignored, S3 in prod)
 ```
 
 ## Skills (Read Before Coding)
@@ -103,6 +112,8 @@ tests/               # pytest critical path tests (15 tests)
 | 14-14.5 | Chat sidebar, Onboarding wizard, Sharing/Remix, Feature flags, Support tickets, Announcements |
 | 15 | Stripe billing (5 tiers, credit system, webhooks, atomic charging) |
 | 16 | Local polish (tests, seed data, docs, tablet responsive) |
+| 17 | Design Studio v2: two-level subject (Category→Course), 157 renderers, specialist editors (math toolbar, geometry shapes, coordinate plane equations), image panel (Wikimedia/Pixabay search + upload + library), standards panel (AI suggest), course_components.json config |
+| 18 | OER Content Ingestion Framework: shared core pipeline, OpenStax adapter (82 books, CNXML parsing, git clone), LibreTexts adapter (K-12 Playwright scraping), unified CLI, RAG knowledge base (7K+ chunks, growing to 100K+) |
 
 ## Local Development
 
