@@ -10,7 +10,7 @@ import re
 
 log = logging.getLogger(__name__)
 
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 
 def get_gemini_model(model: str | None = None):
