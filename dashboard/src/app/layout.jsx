@@ -1,5 +1,6 @@
 import './globals.css';
 import Sidebar from '@/components/Sidebar';
+import ChatSidebar from '@/components/ChatSidebar';
 
 export const metadata = {
   title: 'Lulia — AI-Powered LMS',
@@ -17,6 +18,7 @@ export default function RootLayout({ children }) {
             {children}
           </div>
         </main>
+        <ChatSidebar />
       </body>
     </html>
   );
