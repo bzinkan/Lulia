@@ -32,7 +32,7 @@ async def health_check():
 from src.lms_agents.routers import (
     auth, plans, upload, assignments, activities, student_auth,
     grading, analytics, classroom, calendar, credits,
-    accommodations, sharing, settings, chat, standards, knowledge, history, admin, videos, games, lulings, design, assignment_manager, onboarding,
+    accommodations, sharing, settings, chat, standards, knowledge, history, admin, videos, games, lulings, design, assignment_manager, onboarding, admin_extended, support,
 )
 
 app.include_router(auth.router, prefix="/api/v1")
@@ -60,3 +60,5 @@ app.include_router(lulings.router, prefix="/api/v1")
 app.include_router(design.router, prefix="/api/v1")
 app.include_router(assignment_manager.router, prefix="/api/v1")
 app.include_router(onboarding.router, prefix="/api/v1")
+app.include_router(admin_extended.router, prefix="/api/v1")
+app.include_router(support.router, prefix="/api/v1")

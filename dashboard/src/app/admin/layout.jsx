@@ -1,16 +1,21 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, BarChart3, Users, Activity, AlertTriangle, DollarSign, Heart, FileText } from 'lucide-react';
+import { Shield, BarChart3, Users, Activity, AlertTriangle, DollarSign, Heart, FileText, Flag, MessageSquare, ToggleRight, Megaphone } from 'lucide-react';
 
 const adminNav = [
   { label: 'Overview', icon: BarChart3, href: '/admin' },
   { label: 'Teachers', icon: Users, href: '/admin/teachers' },
+  { label: 'Billing', icon: DollarSign, href: '/admin/billing' },
+  { label: 'Moderation', icon: Flag, href: '/admin/moderation' },
+  { label: 'Support', icon: MessageSquare, href: '/admin/support' },
+  { label: 'Features', icon: ToggleRight, href: '/admin/features' },
+  { label: 'Announcements', icon: Megaphone, href: '/admin/announcements' },
   { label: 'Activity', icon: Activity, href: '/admin/activity' },
   { label: 'Errors', icon: AlertTriangle, href: '/admin/errors' },
   { label: 'Costs', icon: DollarSign, href: '/admin/costs' },
   { label: 'Health', icon: Heart, href: '/admin/health' },
-  { label: 'Audit Log', icon: FileText, href: '/admin/audit' },
+  { label: 'Audit', icon: FileText, href: '/admin/audit' },
 ];
 
 export default function AdminLayout({ children }) {

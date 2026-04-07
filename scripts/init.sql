@@ -575,3 +575,93 @@ CREATE TABLE custom_templates (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ============================================
+-- ADMIN: CONTENT FLAGS / MODERATION
+-- ============================================
+CREATE TABLE content_flags (
+    flag_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    content_type VARCHAR NOT NULL,
+    content_id UUID NOT NULL,
+    teacher_id UUID,
+    reason VARCHAR NOT NULL,
+    description TEXT,
+    status VARCHAR DEFAULT 'pending',
+    flagged_by VARCHAR,
+    reviewed_by VARCHAR,
+    reviewed_at TIMESTAMP,
+    action_taken VARCHAR,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================
+-- SUPPORT TICKETS
+-- ============================================
+CREATE TABLE support_tickets (
+    ticket_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    teacher_id UUID REFERENCES teachers(teacher_id),
+    subject VARCHAR NOT NULL,
+    message TEXT NOT NULL,
+    status VARCHAR DEFAULT 'open',
+    priority VARCHAR DEFAULT 'medium',
+    category VARCHAR DEFAULT 'other',
+    assigned_to VARCHAR,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    resolved_at TIMESTAMP
+);
+
+CREATE TABLE ticket_replies (
+    reply_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ticket_id UUID REFERENCES support_tickets(ticket_id) ON DELETE CASCADE,
+    author_email VARCHAR NOT NULL,
+    author_type VARCHAR DEFAULT 'teacher',
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================
+-- FEATURE FLAGS
+-- ============================================
+CREATE TABLE feature_flags (
+    flag_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    key VARCHAR UNIQUE NOT NULL,
+    name VARCHAR NOT NULL,
+    description TEXT,
+    default_enabled BOOLEAN DEFAULT false,
+    rollout_percentage INTEGER DEFAULT 100,
+    tier_required VARCHAR,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE teacher_feature_overrides (
+    teacher_id UUID,
+    flag_key VARCHAR,
+    enabled BOOLEAN NOT NULL,
+    PRIMARY KEY (teacher_id, flag_key)
+);
+
+-- ============================================
+-- ANNOUNCEMENTS
+-- ============================================
+CREATE TABLE announcements (
+    announcement_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR DEFAULT 'info',
+    audience VARCHAR DEFAULT 'all',
+    audience_filter JSONB,
+    delivery VARCHAR DEFAULT 'in_app',
+    scheduled_at TIMESTAMP,
+    expires_at TIMESTAMP,
+    created_by VARCHAR,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE announcement_dismissals (
+    teacher_id UUID,
+    announcement_id UUID,
+    dismissed_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (teacher_id, announcement_id)
+);
