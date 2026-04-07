@@ -16,7 +16,7 @@ Additional docs:
 
 ## Tech Stack
 - **AI Orchestration**: 5 agent crews (Assignment, Planning, Grading, Analytics, Video)
-- **LLM Providers**: Claude API (reasoning/content), Gemini API (Slides/Forms), AWS Bedrock (embedding), AWS Polly (TTS default), ElevenLabs (TTS premium/cloning)
+- **LLM Providers**: Claude API (reasoning/content), Gemini 2.5 Flash (Slides/Forms via unified gemini_client.py), AWS Bedrock (embedding), AWS Polly (TTS default), ElevenLabs (TTS premium/cloning)
 - **Image Generation**: Replicate Flux 1.1 Pro (Lulings avatars, worksheet images)
 - **Backend**: FastAPI (Python 3.12+) with 30+ API routers
 - **Database**: PostgreSQL 16 + pgvector (40+ tables)
@@ -28,7 +28,7 @@ Additional docs:
 - **Prod Environment**: AWS (ECS/Fargate, RDS, S3, SQS, SES, Bedrock, CloudFront)
 
 ## Key Architectural Decisions (Do Not Change)
-1. Three LLM providers: Claude (reasoning), Gemini (Google formats), Bedrock (embedding). Zero overlap.
+1. Three LLM providers: Claude (reasoning), Gemini 2.5 Flash (Google Slides/Forms, with Claude Haiku fallback), Bedrock (embedding). Zero overlap.
 2. Three-tier standards: Custom > State (50+DC pre-loaded) > National (Common Core, NGSS, C3).
 3. Per-procedure standard citations on every lesson plan phase.
 4. Generation History prevents content from ever repeating (SHA-256 fingerprinting).
