@@ -138,6 +138,15 @@ def ingest_sections(
         cur.close()
         conn.close()
 
+    # Optional post-ingestion alignment
+    if os.environ.get("AUTO_ALIGN_ON_INGEST", "false").lower() == "true":
+        try:
+            from src.lms_agents.tools.standards_alignment import align_chunks_batch
+            log.info(f"  Auto-aligning chunks for {name}...")
+            align_chunks_batch(source_id=source_id)
+        except Exception as e:
+            log.warning(f"  Auto-alignment failed (non-fatal): {e}")
+
     return {
         "source_id": source_id,
         "chunk_count": len(chunks),

@@ -151,6 +151,48 @@ async def list_states(conn=Depends(get_db)):
     return {"states": [dict(r) for r in rows]}
 
 
+@router.get("/standards/retrieve")
+async def retrieve_aligned_content(
+    code: str = Query(..., description="Standard code to retrieve content for"),
+    grade: str = Query(None, description="Grade level (K, 1-12) for filtering"),
+    subject: str = Query(None, description="Subject filter"),
+    top_k: int = Query(10, ge=1, le=50, description="Max results"),
+):
+    """Retrieve content chunks aligned to a specific standard."""
+    from src.lms_agents.tools.standards_alignment import (
+        retrieve_for_standard,
+        retrieve_for_teaching_assignment,
+        _grade_to_band,
+    )
+
+    try:
+        if grade:
+            results = retrieve_for_teaching_assignment(
+                standard_codes=[code],
+                grade=grade,
+                subject=subject or "",
+                top_k=top_k,
+            )
+        else:
+            results = retrieve_for_standard(
+                standard_code=code,
+                grade_band=None,
+                subject=subject,
+                top_k=top_k,
+            )
+
+        # Serialize UUIDs and other non-JSON types
+        for r in results:
+            for k, v in r.items():
+                if hasattr(v, "hex"):  # UUID
+                    r[k] = str(v)
+
+        return {"results": results, "count": len(results), "code": code}
+    except Exception as e:
+        log.warning(f"[Standards] Retrieval failed: {e}")
+        return {"results": [], "count": 0, "code": code, "error": str(e)}
+
+
 class SuggestStandardsRequest(BaseModel):
     description: str = ""
     subject: str = "Mathematics"
