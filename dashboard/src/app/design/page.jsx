@@ -47,7 +47,7 @@ export default function DesignStudio() {
   const [loadingPreviews, setLoadingPreviews] = useState(false);
 
   // Step 4: Export
-  const [exporting, setExporting] = useState(null); // 'pdf' | 'google' | 'canva' | null
+  const [exporting, setExporting] = useState(null); // 'pdf' | 'google' | null
 
   // Try to auto-fill from class context
   useEffect(() => {
@@ -448,16 +448,6 @@ export default function DesignStudio() {
               }}>
               {exporting === 'google' ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : <ExternalLink style={{ width: 14, height: 14 }} />}
               Google Docs
-            </button>
-            <button onClick={() => { setExporting('canva'); /* Canva MCP handled by chat sidebar */ }}
-              style={{
-                flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
-                background: '#7C3AED', color: 'white', cursor: 'pointer',
-                fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans'",
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}>
-              <Sparkles style={{ width: 14, height: 14 }} />
-              Send to Canva
             </button>
           </div>
         </div>
