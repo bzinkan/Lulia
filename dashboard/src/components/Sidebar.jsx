@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   Home, Calendar, PlusCircle, FileText, Gamepad2, Joystick, Video,
   Palette, Upload, Shield, CheckSquare, BookOpen, Users, CreditCard,
-  Settings, Zap, Menu, X,
+  Settings, Zap, Menu, X, Presentation, ClipboardList,
 } from 'lucide-react';
 
 const navGroups = [
@@ -24,12 +24,13 @@ const navGroups = [
       { label: 'Interactive Activities', icon: Gamepad2, href: '/interactive' },
       { label: 'Live Games', icon: Joystick, href: '/games' },
       { label: 'Videos', icon: Video, href: '/videos' },
+      { label: 'Google Slides', icon: Presentation, href: '/slides' },
+      { label: 'Google Forms', icon: ClipboardList, href: '/forms' },
     ],
   },
   {
     label: 'Tools',
     items: [
-      { label: 'Design Studio', icon: Palette, href: '/design' },
       { label: 'Content Library', icon: Upload, href: '/library' },
       { label: 'Accommodations', icon: Shield, href: '/accommodations' },
       { label: 'Grading', icon: CheckSquare, href: '/grading' },
