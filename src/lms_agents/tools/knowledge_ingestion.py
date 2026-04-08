@@ -290,6 +290,8 @@ def ingest_file(
     subject: str | None = None,
     grade_level: str | None = None,
     unit: str | None = None,
+    class_id: str | None = None,
+    scope: str = "class",
 ) -> dict:
     """
     Full ingestion pipeline: extract -> chunk -> embed -> tag -> store.
@@ -326,6 +328,8 @@ def ingest_file(
         upload_lane=upload_lane,
         file_type=file_type,
         original_path=file_path,
+        class_id=class_id,
+        scope=scope,
     )
 
 
@@ -335,6 +339,8 @@ def ingest_url(
     teacher_id: str,
     subject: str | None = None,
     grade_level: str | None = None,
+    class_id: str | None = None,
+    scope: str = "class",
 ) -> dict:
     """Ingest content from a URL. Delegates to shared core pipeline."""
     from src.lms_agents.tools.content_ingestion_core import ingest_sections
@@ -354,4 +360,6 @@ def ingest_url(
         upload_lane="materials",
         file_type="url",
         original_path=url,
+        class_id=class_id,
+        scope=scope,
     )

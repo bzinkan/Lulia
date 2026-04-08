@@ -481,6 +481,15 @@ def run_assignment_crew(work_order: dict) -> dict:
     # Store in database
     assignment_id = _store_assignment(work_order, content_output, rubric_output, qa_output, format_output)
 
+    # Auto-extract class intelligence (non-fatal)
+    try:
+        from src.lms_agents.tools.class_intelligence import auto_extract_from_assignment
+        class_id = work_order.get("class_id")
+        if class_id and assignment_id:
+            auto_extract_from_assignment(class_id, assignment_id)
+    except Exception as e:
+        log.warning(f"[ClassIntel] Auto-extraction hook failed (non-fatal): {e}")
+
     # Store in Generation History (no-repeat system)
     from src.lms_agents.tools.generation_history import store_generation
     try:

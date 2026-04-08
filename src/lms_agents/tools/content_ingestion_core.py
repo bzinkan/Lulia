@@ -46,6 +46,8 @@ def ingest_sections(
     upload_lane: str = "oer",
     file_type: str = "url",
     original_path: str = "",
+    class_id: str | None = None,
+    scope: str = "class",
 ) -> dict:
     """
     Universal ingestion: chunk -> embed -> tag -> store.
@@ -106,10 +108,13 @@ def ingest_sections(
         cur.execute(
             """INSERT INTO knowledge_sources
                (source_id, teacher_id, name, file_type, original_path, subject,
-                grade_level, upload_lane, chunk_count, processing_status)
-               VALUES (%s, %s::uuid, %s, %s, %s, %s, %s, %s, %s, 'complete')""",
+                grade_level, upload_lane, chunk_count, processing_status,
+                class_id, scope)
+               VALUES (%s, %s::uuid, %s, %s, %s, %s, %s, %s, %s, 'complete',
+                       %s, %s)""",
             (source_id, teacher_id, name, file_type, original_path,
-             subject, grade_level, upload_lane, len(chunks)),
+             subject, grade_level, upload_lane, len(chunks),
+             class_id, scope),
         )
 
         for chunk in chunks:

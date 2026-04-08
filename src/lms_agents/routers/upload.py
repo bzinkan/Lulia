@@ -127,6 +127,8 @@ async def upload_materials(
     grade_level: str = Form(None),
     unit: str = Form(None),
     teacher_id: str = Form("00000000-0000-0000-0000-000000000000"),
+    class_id: str = Form(None),
+    scope: str = Form("class"),
 ):
     """
     Upload teaching materials to the RAG Knowledge Base.
@@ -149,6 +151,8 @@ async def upload_materials(
             teacher_id=teacher_id,
             subject=subject,
             grade_level=grade_level,
+            class_id=class_id,
+            scope=scope,
         )
         return result
 
@@ -189,6 +193,8 @@ async def upload_materials(
             subject=subject,
             grade_level=grade_level,
             unit=unit,
+            class_id=class_id,
+            scope=scope,
         )
         result["s3_key"] = s3_key
         return result

@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 def search_kb(
     query: str,
     teacher_id: str | None = None,
+    class_id: str | None = None,
     subject: str | None = None,
     grade: str | None = None,
     standards_ids: list[str] | None = None,
@@ -41,7 +42,15 @@ def search_kb(
     conditions = ["ks.processing_status = 'complete'"]
     params: list = []
 
-    if teacher_id:
+    if class_id and teacher_id:
+        # Class-scoped: class content + teacher-wide content + system OER
+        conditions.append(
+            "(ks.class_id = %s::uuid"
+            " OR (ks.teacher_id = %s::uuid AND ks.scope = 'teacher')"
+            " OR ks.upload_lane IN ('oer_textbook', 'openstax'))"
+        )
+        params.extend([class_id, teacher_id])
+    elif teacher_id:
         # Search both teacher's own content AND system-level OER content
         conditions.append("(ks.teacher_id = %s::uuid OR ks.upload_lane = 'oer_textbook')")
         params.append(teacher_id)
