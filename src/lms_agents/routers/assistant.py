@@ -210,7 +210,11 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
 
     elif req.output_type == "video":
         from src.lms_agents.crews.video_crew import generate_video
-        result = generate_video(assignment_id, req.teacher_id)
+        result = generate_video(
+            assignment_id, req.teacher_id,
+            subject_override=params.get("subject"),
+            grade_override=str(params.get("grade", "")),
+        )
         output_result["video"] = result
 
     output_result["parsed_intent"] = params

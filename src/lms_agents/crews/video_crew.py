@@ -112,6 +112,8 @@ def generate_video(
     use_my_voice: bool = False,
     target_duration: int = 240,
     theme: str = "modern_clean",
+    subject_override: str | None = None,
+    grade_override: str | None = None,
 ) -> dict:
     """
     Full video generation pipeline.
@@ -119,14 +121,17 @@ def generate_video(
     """
     log.info(f"[Video] Generating for assignment {assignment_id}")
 
-    # Get assignment content
+    # Get assignment content + class info for grade/subject
     conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM assignments WHERE assignment_id = %s", (assignment_id,))
     from psycopg2.extras import RealDictCursor
-    cur.close()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM assignments WHERE assignment_id = %s", (assignment_id,))
+    cur.execute(
+        """SELECT a.*, c.grade_level, c.subject
+           FROM assignments a
+           LEFT JOIN classes c ON a.class_id = c.class_id
+           WHERE a.assignment_id = %s""",
+        (assignment_id,),
+    )
     assignment = cur.fetchone()
     cur.close()
     conn.close()
@@ -138,7 +143,11 @@ def generate_video(
         "title": assignment["title"],
         "questions": assignment["questions"] if isinstance(assignment["questions"], list) else [],
     }
-    standards = assignment.get("standards_ids", [])
+    standards = assignment.get("standards_ids", []) or []
+
+    # Derive grade and subject: overrides > class > defaults
+    grade = grade_override or assignment.get("grade_level") or "4"
+    subject = subject_override or assignment.get("subject") or "General"
 
     # Resolve voice and provider
     custom_voice = get_teacher_voice(teacher_id)
@@ -157,8 +166,9 @@ def generate_video(
 
     tts_provider = get_provider_for_voice(voice_id, custom_voice, tier)
 
-    # 1. Generate script
-    script = run_video_script_agent(content, standards, "4", "Mathematics", target_duration)
+    # 1. Generate script with actual grade and subject
+    log.info(f"[Video] Script agent: grade={grade}, subject={subject}")
+    script = run_video_script_agent(content, standards, grade, subject, target_duration)
     scenes = script.get("scenes", [])
 
     # 2. TTS + Slides for each scene
