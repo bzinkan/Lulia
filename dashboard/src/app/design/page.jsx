@@ -22,7 +22,7 @@ const THEMES = [
 
 export default function DesignStudio() {
   // Step tracking
-  const [step, setStep] = useState(1); // 1=configure, 2=preview content, 3=pick design, 4=export
+  const [step, setStep] = useState(1); // 1=configure, 2=review+export
 
   // Step 1: Configuration
   const [topic, setTopic] = useState('');
@@ -36,17 +36,11 @@ export default function DesignStudio() {
   const [standardResults, setStandardResults] = useState([]);
   const [suggestingStandards, setSuggestingStandards] = useState(false);
 
-  // Step 2: Generated content
+  // Step 2: Generated content + export
   const [generatedContent, setGeneratedContent] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
-
-  // Step 3: Design previews
   const [selectedTheme, setSelectedTheme] = useState('modern_clean');
-  const [previewHtml, setPreviewHtml] = useState({});
-  const [loadingPreviews, setLoadingPreviews] = useState(false);
-
-  // Step 4: Export
   const [exporting, setExporting] = useState(null); // 'pdf' | 'google' | null
 
   // Try to auto-fill from class context
@@ -108,28 +102,7 @@ export default function DesignStudio() {
     }
   }
 
-  // ── Step 3: Generate Theme Previews ─────────────────────────────────
-  async function generatePreviews() {
-    if (!generatedContent) return;
-    setLoadingPreviews(true);
-    const previews = {};
-    for (const theme of THEMES) {
-      try {
-        const res = await apiFetch('/api/v1/design/export-pdf', {
-          method: 'POST',
-          body: JSON.stringify({ content: generatedContent, theme: theme.id }),
-        });
-        previews[theme.id] = res.html || res.preview_html || '';
-      } catch {
-        previews[theme.id] = '';
-      }
-    }
-    setPreviewHtml(previews);
-    setLoadingPreviews(false);
-    setStep(3);
-  }
-
-  // ── Step 4: Export ──────────────────────────────────────────────────
+  // ── Export ──────────────────────────────────────────────────────────
   async function exportPDF() {
     setExporting('pdf');
     try {
@@ -186,7 +159,7 @@ export default function DesignStudio() {
 
       {/* Step indicator */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
-        {['Configure', 'Review Content', 'Pick Design', 'Export'].map((label, i) => (
+        {['Configure', 'Review & Export'].map((label, i) => (
           <button key={i} onClick={() => { if (i + 1 <= step) setStep(i + 1); }}
             style={{
               flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 11, fontWeight: 600,
@@ -314,13 +287,25 @@ export default function DesignStudio() {
         </div>
       )}
 
-      {/* ── STEP 2: Review Content ───────────────────────────────────── */}
+      {/* ── STEP 2: Review Content & Export ────────────────────────────── */}
       {step === 2 && generatedContent && (
         <div style={{ background: 'white', borderRadius: 14, padding: 24, border: '1px solid #E7E5E4' }}>
-          <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: '#1C1917', marginBottom: 4 }}>
-            {generatedContent.title || 'Generated Content'}
-          </h2>
-          <p style={{ fontSize: 12, color: '#78716C', marginBottom: 16 }}>{generatedContent.instructions}</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div>
+              <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, color: '#1C1917', marginBottom: 4 }}>
+                {generatedContent.title || 'Generated Content'}
+              </h2>
+              <p style={{ fontSize: 12, color: '#78716C' }}>{generatedContent.instructions}</p>
+            </div>
+            {/* Theme picker inline */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 10, color: '#A8A29E' }}>Theme:</span>
+              {THEMES.map(t => (
+                <button key={t.id} onClick={() => setSelectedTheme(t.id)} title={t.name}
+                  style={{ width: 24, height: 24, borderRadius: '50%', border: selectedTheme === t.id ? '3px solid #1C1917' : '2px solid #E7E5E4', background: t.color, cursor: 'pointer' }} />
+              ))}
+            </div>
+          </div>
 
           {/* Questions */}
           <div style={{ marginBottom: 16 }}>
@@ -369,85 +354,31 @@ export default function DesignStudio() {
             </div>
           )}
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-            <button onClick={() => setStep(1)}
-              style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid #E7E5E4', background: 'white', cursor: 'pointer', fontSize: 13, fontFamily: "'DM Sans'", color: '#78716C' }}>
-              Back to Edit
-            </button>
-            <button onClick={generatePreviews}
-              disabled={loadingPreviews}
-              style={{
-                flex: 2, padding: '10px 0', borderRadius: 10, border: 'none',
-                background: loadingPreviews ? '#FDBA74' : '#F97316', color: 'white',
-                cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans'",
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}>
-              {loadingPreviews ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : <Palette style={{ width: 14, height: 14 }} />}
-              {loadingPreviews ? 'Generating designs...' : 'Pick a Design'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP 3: Pick Design ──────────────────────────────────────── */}
-      {step === 3 && (
-        <div style={{ background: 'white', borderRadius: 14, padding: 24, border: '1px solid #E7E5E4' }}>
-          <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 18, color: '#1C1917', marginBottom: 16 }}>Choose a design</h2>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-            {THEMES.map(theme => (
-              <button key={theme.id} onClick={() => setSelectedTheme(theme.id)}
-                style={{
-                  border: selectedTheme === theme.id ? `3px solid ${theme.color}` : '2px solid #E7E5E4',
-                  borderRadius: 12, overflow: 'hidden', cursor: 'pointer', background: 'white',
-                  padding: 0, textAlign: 'left',
-                }}>
-                {/* Preview */}
-                <div style={{ height: 180, overflow: 'hidden', background: '#FAFAF9', position: 'relative' }}>
-                  {previewHtml[theme.id] ? (
-                    <iframe srcDoc={previewHtml[theme.id]} style={{ width: '200%', height: '400%', border: 'none', transform: 'scale(0.5)', transformOrigin: 'top left', pointerEvents: 'none' }} />
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                      <Loader2 style={{ width: 20, height: 20, color: theme.color }} className="animate-spin" />
-                    </div>
-                  )}
-                </div>
-                {/* Label */}
-                <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 16, height: 16, borderRadius: '50%', background: theme.color }} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#1C1917', fontFamily: "'DM Sans'" }}>{theme.name}</span>
-                  {selectedTheme === theme.id && <span style={{ fontSize: 9, color: theme.color, fontWeight: 600, marginLeft: 'auto' }}>Selected</span>}
-                </div>
-              </button>
-            ))}
-          </div>
-
           {/* Export buttons */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setStep(2)}
+          <div style={{ display: 'flex', gap: 8, marginTop: 20, borderTop: '1px solid #E7E5E4', paddingTop: 16 }}>
+            <button onClick={() => setStep(1)}
               style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #E7E5E4', background: 'white', cursor: 'pointer', fontSize: 12, fontFamily: "'DM Sans'", color: '#78716C' }}>
               Back
             </button>
             <button onClick={exportPDF} disabled={exporting === 'pdf'}
               style={{
-                flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
-                background: '#1C1917', color: 'white', cursor: 'pointer',
-                fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans'",
+                flex: 1, padding: '12px 0', borderRadius: 10, border: 'none',
+                background: exporting === 'pdf' ? '#FDBA74' : '#F97316', color: 'white', cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans'",
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}>
               {exporting === 'pdf' ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : <Download style={{ width: 14, height: 14 }} />}
-              Download PDF
+              {exporting === 'pdf' ? 'Generating PDF...' : 'Download PDF'}
             </button>
             <button onClick={exportGoogle} disabled={exporting === 'google'}
               style={{
-                flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
-                background: '#2563EB', color: 'white', cursor: 'pointer',
-                fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans'",
+                flex: 1, padding: '12px 0', borderRadius: 10, border: 'none',
+                background: exporting === 'google' ? '#93C5FD' : '#2563EB', color: 'white', cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans'",
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}>
               {exporting === 'google' ? <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" /> : <ExternalLink style={{ width: 14, height: 14 }} />}
-              Google Docs
+              {exporting === 'google' ? 'Creating doc...' : 'Google Docs'}
             </button>
           </div>
         </div>
