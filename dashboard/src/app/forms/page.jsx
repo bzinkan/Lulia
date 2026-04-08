@@ -45,7 +45,11 @@ function QuickFormGenerator() {
         method: 'POST',
         body: JSON.stringify({ topic, grade, subject, question_count: questionCount, question_types: questionTypes }),
       });
-      setResult(res);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setResult(res);
+      }
     } catch (e) {
       setError(e.message || 'Generation failed');
     } finally {
