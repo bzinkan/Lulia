@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Sparkles, FileText, Download, ExternalLink, Loader2, ChevronDown, Wand2, BookOpen, X, Search, Palette } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, API_BASE } from '@/lib/api';
 
 const GRADES = ['K','1','2','3','4','5','6','7','8','9','10','11','12'];
 const SUBJECTS = ['Mathematics', 'English Language Arts', 'Science', 'Social Studies', 'World Languages', 'Fine Arts', 'Health & PE', 'General'];
@@ -133,15 +133,32 @@ export default function DesignStudio() {
   async function exportPDF() {
     setExporting('pdf');
     try {
-      const res = await apiFetch('/api/v1/design/export-pdf', {
+      const res = await fetch(`${API_BASE}/api/v1/design/download-pdf`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: generatedContent, theme: selectedTheme }),
       });
-      // Open print preview in new window
-      const win = window.open('', '_blank');
-      win.document.write(res.html || res.preview_html || '<p>No content</p>');
-      win.document.close();
-    } catch (e) { alert('PDF export failed: ' + e.message); }
+      if (res.ok && res.headers.get('content-type')?.includes('application/pdf')) {
+        // Binary PDF — trigger browser download
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(generatedContent.title || 'worksheet').replace(/\s+/g, '_')}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        // Fallback: HTML response (Carbone unavailable)
+        const data = await res.json();
+        if (data.html || data.preview_html) {
+          const win = window.open('', '_blank');
+          win.document.write(data.html || data.preview_html);
+          win.document.close();
+        } else {
+          alert(data.error || 'PDF export failed');
+        }
+      }
+    } catch (e) { alert('PDF download failed: ' + e.message); }
     finally { setExporting(null); }
   }
 

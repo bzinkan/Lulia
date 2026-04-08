@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 import anthropic
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 import psycopg2
 from psycopg2.extras import Json, RealDictCursor
 from pydantic import BaseModel
@@ -492,21 +492,60 @@ Return ONLY the JSON object, no markdown fences."""
 @router.post("/export-pdf")
 async def export_pdf(req: ExportPDFRequest):
     """
-    Render generated content as printable HTML.
+    Render generated content via Carbone PDF, with HTML fallback.
 
-    Uses the existing render_custom_template() from ai_fill_engine.py.
-    Returns HTML that the teacher can print from their browser.
+    - Primary: Carbone.io professional PDF → returns PDF binary
+    - Fallback: render_custom_template() HTML if Carbone is unavailable
     """
+    # Try Carbone first
     try:
-        # Build a canvas_json-like structure that render_custom_template expects
+        from src.lms_agents.tools.carbone_renderer import render_worksheet
+
+        pdf_bytes = render_worksheet(req.content, req.theme)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=worksheet.pdf"},
+        )
+    except Exception as carbone_err:
+        log.warning(f"[Design] Carbone PDF failed, falling back to HTML: {carbone_err}")
+
+    # Fallback to HTML renderer
+    try:
         canvas_for_render = _content_to_canvas(req.content)
         html = render_custom_template(canvas_for_render, req.theme)
-        return {"html": html, "theme": req.theme}
+        return {"html": html, "theme": req.theme, "note": "Carbone unavailable, HTML fallback"}
     except Exception as e:
         log.error(f"[Design] PDF export failed: {e}")
         return JSONResponse(
             {"error": f"Export failed: {e}"},
             status_code=500,
+        )
+
+
+@router.post("/download-pdf")
+async def download_pdf(req: ExportPDFRequest):
+    """
+    Returns raw PDF bytes for direct browser download.
+
+    Uses Carbone.io for professional output. Falls back to HTML
+    wrapped in a JSON response if Carbone is unavailable.
+    """
+    try:
+        from src.lms_agents.tools.carbone_renderer import render_worksheet
+
+        pdf_bytes = render_worksheet(req.content, req.theme)
+        title = req.content.get("title", "worksheet").replace(" ", "_")
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{title}.pdf"'},
+        )
+    except Exception as e:
+        log.error(f"[Design] PDF download failed: {e}")
+        return JSONResponse(
+            {"error": f"PDF generation failed: {e}", "message": "Please try again or use Google Docs export."},
+            status_code=503,
         )
 
 
