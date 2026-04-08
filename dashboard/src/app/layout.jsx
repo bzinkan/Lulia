@@ -1,6 +1,7 @@
 import './globals.css';
 import Sidebar from '@/components/Sidebar';
 import ChatSidebar from '@/components/ChatSidebar';
+import AppShell from '@/components/AppShell';
 
 export const metadata = {
   title: 'Lulia — AI-Powered LMS',
@@ -14,9 +15,11 @@ export default function RootLayout({ children }) {
         <Sidebar />
         {/* Main content area */}
         <main className="md:ml-64 pt-14 md:pt-0 min-h-screen">
-          <div className="p-6">
-            {children}
-          </div>
+          <AppShell>
+            <div className="p-6">
+              {children}
+            </div>
+          </AppShell>
         </main>
         <ChatSidebar />
       </body>

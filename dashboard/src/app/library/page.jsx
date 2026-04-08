@@ -45,7 +45,11 @@ export default function ContentLibrary() {
   async function loadSources() {
     try {
       const data = await apiFetch('/api/v1/knowledge/sources');
-      setSources(data.sources || []);
+      // Only show teacher-uploaded content, not system OER (OpenStax, LibreTexts)
+      const teacherSources = (data.sources || []).filter(
+        s => !['oer_textbook', 'openstax'].includes(s.upload_lane)
+      );
+      setSources(teacherSources);
     } catch (e) {
       console.error(e);
     } finally {
