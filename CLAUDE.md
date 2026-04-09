@@ -3,7 +3,7 @@
 ## What This Project Is
 Lulia is an AI-powered LMS that replaces Teachers Pay Teachers. Teachers upload curriculum, approve a weekly plan, and the system generates everything: lesson plans, worksheets, task cards, interactive activities, live games, videos, and more — all standards-aligned, TpT-quality, never repeated.
 
-**Current status**: Phases 1–16 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
+**Current status**: Phases 1–22 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
 
 ## Architecture Reference
 The complete architecture document is at `docs/architecture-v3.3.docx`. Read the relevant skills in `.claude/skills/` before starting any work — they contain patterns, code examples, and key decisions.
@@ -47,16 +47,23 @@ Additional docs:
 17. Class Tabs: each teaching assignment (grade + subject) has its own scoped context. RAG search filters by `class_id` + `teacher` scope + system OER fallback. Per-class intelligence tracks standards covered, vocabulary, activity ratings, misconceptions, pacing.
 18. Standards Alignment: all 62K standards are embedded in pgvector. Chunks get dense-retrieval + Claude Haiku judgment to assign `alignment_scores` (strong/partial), `reading_level`, `grade_bands`. Retrieval by standard code + grade band.
 19. Canva + Google OAuth are parked until AWS deployment. Features built with local fallbacks (Carbone PDF, built-in slides). Submit both for review once production URL is live.
+20. Pedagogy Director: 16-expert matrix (4 grade bands × 4 subjects) routes every work order to a developmental expert. Merged YAML packs (`grade_bands/` base + `subjects/` overlay) are the source of truth. The director emits a Pedagogy Brief via Sonnet that the Assignment, Planning, and Video crews honor as authoritative constraints. Deep-merge semantics: `_overrides` sections merge into their target (so overlays can extend base video/lesson defaults without losing inherited fields). QA Agent has a deterministic post-check that rejects any bracketed image references in question_text.
+21. Structured visuals: LLMs emit a `visual` object on each question instead of bracketed text like `[Image: ten-frame]`. The visual renderer converts 19 canonical types (ten_frame, number_bond, fraction_bar, array, bar_model, area_model, number_line, coordinate_grid, function_table, equation_box, base_ten_blocks, counting_objects, data_table, labeled_diagram, letter_box, word_box, handwriting_lines, picture_choice) into inline SVG. Theme-aware via CSS variables. Unknown types fall through to a labeled placeholder so the system never breaks.
 
 ## Project Structure
 ```
 src/lms_agents/
 ├── config/          # Agent YAML, tasks YAML, pricing, course_components.json
+│   └── pedagogy_packs/             # Phase 22: 16-expert matrix YAMLs
+│       ├── grade_bands/            #   k2.yaml, g35.yaml, g68.yaml, g912.yaml
+│       └── subjects/               #   {k2,g35,g68,g912}_{math,ela,science,social}.yaml
 ├── crews/           # 5 agent crews: assignment, planning, grading, analytics, video
 ├── routers/         # 30+ FastAPI route handlers
 ├── tools/           # 25+ shared tools (RAG, embedding, TTS, Stripe, credit manager, etc.)
 │   ├── content_ingestion_core.py   # Shared chunk→embed→tag→store pipeline
-│   └── content_sources/            # Source adapters (openstax, libretexts, future sources)
+│   ├── content_sources/            # Source adapters (openstax, libretexts, future sources)
+│   ├── pedagogy_director.py        # Phase 22: pack loader, router, brief generator
+│   └── visual_renderer.py          # Phase 22: 19 visual types, inline SVG
 ├── templates/       # 22 output templates + 5 puzzle generators + shared themes
 ├── websocket/       # WebSocket game server
 ├── worker/          # Background worker
@@ -124,6 +131,7 @@ data/content/        # Local OER content storage (gitignored, S3 in prod)
 | 19 | Class Tabs + Per-Class Intelligence: class_id FK on knowledge_sources/videos/templates, CRUD router, RAG scoping, per-class standards/vocab/ratings tracking, auto-extraction from assignments, AI context prompts |
 | 20 | Design Studio SCRAPPED. Replaced with generation-first assignment flow. Carbone.io integrated for PDF rendering. Google Slides + Forms pages added. Canva OAuth built but parked (needs AWS). |
 | 21 | Google Slides/Forms pages, Canva Connect API OAuth flow (OC-AZ1rX8nIER1H), video pipeline fix (hardcoded grade/subject bug), Content Library hides system OER, Sidebar updated |
+| 22 | Pedagogy Director + 16-expert matrix (K-2/3-5/6-8/9-12 × math/ELA/science/social), 20 YAML pedagogy packs (~5,800 lines), brief generator wired into Assignment/Planning/Video crews. Structured visuals: 19 inline-SVG visual types (ten_frame, number_bond, fraction_bar, array, bar_model, area_model, number_line, coordinate_grid, function_table, equation_box, base_ten_blocks, counting_objects, data_table, labeled_diagram, letter_box, word_box, handwriting_lines, picture_choice). Deterministic QA bracket-detector. Fixed hardcoded grade_level='4' bug in planning_crew.approve_plan. All 4 grade bands live-verified against Anthropic API. |
 
 ## Local Development
 
