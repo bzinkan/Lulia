@@ -42,8 +42,11 @@ Additional docs:
 12. Credits are atomic — `SELECT FOR UPDATE` prevents race conditions.
 13. Interactive activities are self-contained HTML files (React via CDN, no build step).
 14. Live games use Redis for state + WebSocket for real-time sync.
-15. OER content ingestion uses a shared framework (`content_ingestion_core.py`). Source adapters (OpenStax, LibreTexts, future) implement extraction only — chunking, embedding, tagging, storage handled by core.
-16. Design Studio uses two-level subject system: Category → Course. Components are tiered: Universal (always visible), Category-specific, Course-specific. Loaded from `config/course_components.json`.
+15. OER content ingestion uses a shared framework (`content_ingestion_core.py`). Source adapters (OpenStax, LibreTexts, LoC, future) implement extraction only — chunking, embedding, tagging, storage handled by core.
+16. Design Studio was SCRAPPED. Assignment generation is the primary content creation flow. PDF export uses Carbone.io for rendering.
+17. Class Tabs: each teaching assignment (grade + subject) has its own scoped context. RAG search filters by `class_id` + `teacher` scope + system OER fallback. Per-class intelligence tracks standards covered, vocabulary, activity ratings, misconceptions, pacing.
+18. Standards Alignment: all 62K standards are embedded in pgvector. Chunks get dense-retrieval + Claude Haiku judgment to assign `alignment_scores` (strong/partial), `reading_level`, `grade_bands`. Retrieval by standard code + grade band.
+19. Canva + Google OAuth are parked until AWS deployment. Features built with local fallbacks (Carbone PDF, built-in slides). Submit both for review once production URL is live.
 
 ## Project Structure
 ```
@@ -71,9 +74,13 @@ dashboard/
 └── src/lib/         # API client, admin client
 
 scripts/             # DB init, standards import, seed data, Lulings generation, Stripe listener
-├── ingest.py        # Unified CLI: ingest.py openstax sync-all | libretexts | status
+├── ingest.py        # Unified CLI: ingest.py openstax | libretexts | loc | status
 ├── ingest_openstax.py   # OpenStax-specific CLI (backwards compat)
-└── ingest_libretexts.py # LibreTexts-specific CLI (backwards compat)
+├── ingest_libretexts.py # LibreTexts-specific CLI (backwards compat)
+├── align_standards.py   # Standards embedding + chunk alignment CLI
+├── migrate_class_tabs.py        # class_id columns migration
+├── migrate_class_intelligence.py # class_intelligence table migration
+└── migrate_canva.py             # canva OAuth columns migration
 docs/                # DEVELOPMENT.md, STRIPE_SETUP.md, PRE_AWS_CHECKLIST.md
 tests/               # pytest critical path tests (15 tests)
 data/content/        # Local OER content storage (gitignored, S3 in prod)
@@ -112,8 +119,11 @@ data/content/        # Local OER content storage (gitignored, S3 in prod)
 | 14-14.5 | Chat sidebar, Onboarding wizard, Sharing/Remix, Feature flags, Support tickets, Announcements |
 | 15 | Stripe billing (5 tiers, credit system, webhooks, atomic charging) |
 | 16 | Local polish (tests, seed data, docs, tablet responsive) |
-| 17 | Design Studio v2: two-level subject (Category→Course), 157 renderers, specialist editors (math toolbar, geometry shapes, coordinate plane equations), image panel (Wikimedia/Pixabay search + upload + library), standards panel (AI suggest), course_components.json config |
-| 18 | OER Content Ingestion Framework: shared core pipeline, OpenStax adapter (82 books, CNXML parsing, git clone), LibreTexts adapter (K-12 Playwright scraping), unified CLI, RAG knowledge base (7K+ chunks, growing to 100K+) |
+| 17 | OER Content Ingestion Framework: shared core pipeline, OpenStax adapter (82 books, CNXML parsing), LibreTexts adapter (Playwright scraping), LoC adapter (primary sources), unified CLI, 40K+ RAG chunks |
+| 18 | Standards Alignment Agent: 62K standards embedded to pgvector, two-step chunk alignment (dense retrieval + Claude Haiku judgment), reading_level + grade_bands metadata, retrieve_for_standard() API |
+| 19 | Class Tabs + Per-Class Intelligence: class_id FK on knowledge_sources/videos/templates, CRUD router, RAG scoping, per-class standards/vocab/ratings tracking, auto-extraction from assignments, AI context prompts |
+| 20 | Design Studio SCRAPPED. Replaced with generation-first assignment flow. Carbone.io integrated for PDF rendering. Google Slides + Forms pages added. Canva OAuth built but parked (needs AWS). |
+| 21 | Google Slides/Forms pages, Canva Connect API OAuth flow (OC-AZ1rX8nIER1H), video pipeline fix (hardcoded grade/subject bug), Content Library hides system OER, Sidebar updated |
 
 ## Local Development
 
