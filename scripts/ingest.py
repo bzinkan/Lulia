@@ -7,6 +7,8 @@ Usage:
   python scripts/ingest.py openstax sync-all [--content-dir ...] [--max-books 5]
   python scripts/ingest.py libretexts --library k12 [--max-pages 20]
   python scripts/ingest.py libretexts --library all
+  python scripts/ingest.py loc --topic "Civil War" [--max-items 20]
+  python scripts/ingest.py loc --all-curated
   python scripts/ingest.py status
 """
 import argparse
@@ -228,9 +230,39 @@ def handle_libretexts(args):
 # CLI
 # ---------------------------------------------------------------------------
 
+def handle_loc(args):
+    """Library of Congress primary source ingestion."""
+    from src.lms_agents.tools.content_sources import loc
+
+    if getattr(args, "list_topics", False):
+        print("Curated LoC topics:")
+        for name, meta in loc.CURATED_TOPICS.items():
+            print(f"  {name}  (grade {meta['grade_band']}, {meta['subject']})")
+        return
+
+    if getattr(args, "all_curated", False):
+        result = loc.ingest_all_curated()
+        log.info(f"All curated topics complete: {result}")
+        return
+
+    if args.topic:
+        result = loc.ingest_topic(
+            topic_name=args.topic,
+            query=args.query,
+            grade=args.grade,
+            subject=args.subject,
+            max_items=args.max_items,
+        )
+        log.info(f"Topic '{args.topic}' complete: {result}")
+        return
+
+    log.error("Specify --topic, --all-curated, or --list-topics")
+
+
 SOURCES = {
     "openstax": handle_openstax,
     "libretexts": handle_libretexts,
+    "loc": handle_loc,
     "status": handle_status,
 }
 
@@ -262,6 +294,16 @@ def main():
     p_lt.add_argument("--max-pages", type=int, default=50, help="Max leaf pages per subject")
     p_lt.add_argument("--list", dest="list_subjects", action="store_true", help="List available libraries and subjects")
     p_lt.add_argument("--delay", type=float, default=2.0, help="Seconds between page fetches")
+
+    # loc (Library of Congress)
+    p_loc = subparsers.add_parser("loc", help="Library of Congress primary source ingestion")
+    p_loc.add_argument("--topic", help="Topic name to ingest (e.g., 'Civil War')")
+    p_loc.add_argument("--query", help="Custom search query (defaults to topic name)")
+    p_loc.add_argument("--grade", default="8", help="Grade level for tagging")
+    p_loc.add_argument("--subject", default="Social Studies", help="Subject for tagging")
+    p_loc.add_argument("--max-items", type=int, default=20, help="Max items to ingest per topic")
+    p_loc.add_argument("--all-curated", action="store_true", help="Ingest all 15 curated US history topics")
+    p_loc.add_argument("--list-topics", action="store_true", help="List curated topics")
 
     args = parser.parse_args()
     SOURCES[args.source](args)
