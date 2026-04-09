@@ -271,6 +271,12 @@ def run_content_agent(
         f"When a Pedagogy Brief is provided, every field in it is AUTHORITATIVE — "
         f"honor vocabulary caps, banned terms, layout directives, assessment modes, "
         f"and scaffolding requirements without exception. "
+        f"When the brief includes `reference_exemplar_guidance`, TREAT THE EXEMPLAR "
+        f"SHAPE AS A TEMPLATE: match the question count, feature mix, scaffold pattern, "
+        f"and structural shape of the referenced exemplar. Generate FRESH content — do "
+        f"not copy verbatim — but stay in the same structural shape. The goal is "
+        f"for your output to look like it came from the same teacher who made the "
+        f"reference, not a generic AI worksheet. "
         f"When a question needs a visual (ten-frame, number line, fraction bar, etc.), "
         f"emit a STRUCTURED visual object on the question — never write bracketed text "
         f"like '[Image: ...]' or '[Picture: ...]' inside question_text. The visual "
@@ -636,6 +642,76 @@ def _fetch_class_intel_prompt(work_order: dict) -> str | None:
         return None
 
 
+def _fetch_reference_exemplars(work_order: dict, curriculum_output: dict) -> list | None:
+    """
+    Pre-fetch reference exemplars from the teacher archive + K-8 reference
+    library so the Pedagogy Director can match real structural shapes.
+
+    This is the core of reference-grounded generation: instead of letting
+    the Content Agent hallucinate what a "2nd grade math worksheet" should
+    look like, we retrieve real examples and tell the agent to match their
+    shape with fresh content.
+    """
+    try:
+        from src.lms_agents.tools.reference_retrieval import find_reference_exemplars
+
+        subject = work_order.get("subject", "")
+        grade = work_order.get("grade_level", "")
+        template_id = work_order.get("output_template_id", "worksheet")
+
+        # Build a topic query from the standards descriptions — that's what
+        # the teacher actually wants to teach. Falls back to subject+grade.
+        standards = curriculum_output.get("standards", []) or []
+        if standards:
+            topic_query = " ".join(
+                s.get("description", "") for s in standards[:3]
+            )[:500]
+        else:
+            topic_query = f"{subject} grade {grade}"
+
+        # Map the requested output template to a canonical artifact_type.
+        # If we don't know, leave None and the retriever will match any shape.
+        artifact_type_map = {
+            "worksheet": "worksheet",
+            "task_cards": "task_cards",
+            "exit_ticket": "assessment",
+            "quiz_test": "assessment",
+            "morning_work": "worksheet",
+            "reading_comprehension": "reading_passage",
+            "lab_activity": "lab_report",
+            "graphic_organizer": "graphic_organizer",
+            "study_guide": "reference_text",
+            "flashcards": "other",
+            "bingo": "game",
+            "word_search": "game",
+            "crossword": "game",
+        }
+        artifact_type = artifact_type_map.get(template_id)
+
+        exemplars = find_reference_exemplars(
+            topic_query=topic_query,
+            grade=grade,
+            subject=subject,
+            artifact_type=artifact_type,
+            teacher_id=work_order.get("teacher_id"),
+            top_k=3,
+        )
+        if exemplars:
+            log.info(
+                f"[AssignmentCrew] Found {len(exemplars)} reference exemplars "
+                f"(lanes: {set(e.get('upload_lane') for e in exemplars)})"
+            )
+        else:
+            log.info(
+                f"[AssignmentCrew] No reference exemplars found for "
+                f"grade={grade} subject={subject} artifact={artifact_type}"
+            )
+        return exemplars or None
+    except Exception as e:
+        log.warning(f"[AssignmentCrew] Reference exemplar lookup failed (non-fatal): {e}")
+        return None
+
+
 def run_assignment_crew(work_order: dict) -> dict:
     """
     Run the full 6-step assignment generation crew.
@@ -658,11 +734,13 @@ def run_assignment_crew(work_order: dict) -> dict:
     # Pre-fetch the inputs the director needs so its brief can be grounded.
     kb_chunks = _fetch_kb_chunks_for_brief(work_order, curriculum_output)
     class_intel_prompt = _fetch_class_intel_prompt(work_order)
+    reference_exemplars = _fetch_reference_exemplars(work_order, curriculum_output)
     pedagogy_brief = generate_brief(
         work_order=work_order,
         curriculum_output=curriculum_output,
         kb_chunks=kb_chunks,
         class_intel_prompt=class_intel_prompt,
+        reference_exemplars=reference_exemplars,
         client=client,
     )
     if pedagogy_brief is None:

@@ -3,7 +3,7 @@
 ## What This Project Is
 Lulia is an AI-powered LMS that replaces Teachers Pay Teachers. Teachers upload curriculum, approve a weekly plan, and the system generates everything: lesson plans, worksheets, task cards, interactive activities, live games, videos, and more — all standards-aligned, TpT-quality, never repeated.
 
-**Current status**: Phases 1–22 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
+**Current status**: Phases 1–23 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
 
 ## Architecture Reference
 The complete architecture document is at `docs/architecture-v3.3.docx`. Read the relevant skills in `.claude/skills/` before starting any work — they contain patterns, code examples, and key decisions.
@@ -49,6 +49,7 @@ Additional docs:
 19. Canva + Google OAuth are parked until AWS deployment. Features built with local fallbacks (Carbone PDF, built-in slides). Submit both for review once production URL is live.
 20. Pedagogy Director: 16-expert matrix (4 grade bands × 4 subjects) routes every work order to a developmental expert. Merged YAML packs (`grade_bands/` base + `subjects/` overlay) are the source of truth. The director emits a Pedagogy Brief via Sonnet that the Assignment, Planning, and Video crews honor as authoritative constraints. Deep-merge semantics: `_overrides` sections merge into their target (so overlays can extend base video/lesson defaults without losing inherited fields). QA Agent has a deterministic post-check that rejects any bracketed image references in question_text.
 21. Structured visuals: LLMs emit a `visual` object on each question instead of bracketed text like `[Image: ten-frame]`. The visual renderer converts 19 canonical types (ten_frame, number_bond, fraction_bar, array, bar_model, area_model, number_line, coordinate_grid, function_table, equation_box, base_ten_blocks, counting_objects, data_table, labeled_diagram, letter_box, word_box, handwriting_lines, picture_choice) into inline SVG. Theme-aware via CSS variables. Unknown types fall through to a labeled placeholder so the system never breaks.
+22. Reference-grounded generation: every assignment request retrieves real exemplar artifacts (worksheets, slide decks, lesson plans) from the `teacher_archive` / `teacher_reference` / `loc` lanes whose structural shape the Content Agent matches with fresh content. Chunks carry a `reference_metadata` JSONB column populated by Claude Haiku (`reference_analyzer.py`) with artifact_type, visual_density, structural_features, scaffolding_features, question_count_estimate, and a one-sentence content_shape_description. The `reference_retrieval.find_reference_exemplars()` function layers structural filters on top of semantic search with grade-band-aware lane priority (K-2/3-5 exclude openstax; teacher_archive > teacher_reference > oer_textbook > openstax). The Pedagogy Brief's new `reference_exemplar_guidance` section tells the Content Agent which exemplar's shape to match and how. Goal: Lulia does not produce generic AI slop that looks the same K-12 — every output is shape-matched to a real reference the target teacher would recognize.
 
 ## Project Structure
 ```
@@ -63,7 +64,9 @@ src/lms_agents/
 │   ├── content_ingestion_core.py   # Shared chunk→embed→tag→store pipeline
 │   ├── content_sources/            # Source adapters (openstax, libretexts, future sources)
 │   ├── pedagogy_director.py        # Phase 22: pack loader, router, brief generator
-│   └── visual_renderer.py          # Phase 22: 19 visual types, inline SVG
+│   ├── visual_renderer.py          # Phase 22: 19 visual types, inline SVG
+│   ├── reference_analyzer.py       # Phase 23: Haiku classifier for artifact shape
+│   └── reference_retrieval.py      # Phase 23: find_reference_exemplars()
 ├── templates/       # 22 output templates + 5 puzzle generators + shared themes
 ├── websocket/       # WebSocket game server
 ├── worker/          # Background worker
@@ -92,6 +95,25 @@ docs/                # DEVELOPMENT.md, STRIPE_SETUP.md, PRE_AWS_CHECKLIST.md
 tests/               # pytest critical path tests (15 tests)
 data/content/        # Local OER content storage (gitignored, S3 in prod)
 ```
+
+## Content Source Locations
+
+All ingested content lives in two places: raw files (where applicable) and the `knowledge_sources` / `knowledge_chunks` tables in Postgres. Every source is identified by its `upload_lane` value. Teacher-scoped lanes are gated by `teacher_id` + `scope='teacher'` so RAG search only surfaces them to the owning teacher.
+
+| Source | `upload_lane` | Raw files | Ingestion command |
+|--------|---------------|-----------|-------------------|
+| **OpenStax** | `openstax` | Host: `data/content/openstax/` (gitignored, S3 in prod). Cloned as full git repos. Catalog in `openstax_catalog` table. | `docker compose exec api python scripts/ingest.py openstax` |
+| **LibreTexts** | `libretexts` | None — Playwright scrapes pages, chunks go straight to DB. | `docker compose exec api python scripts/ingest.py libretexts` |
+| **Library of Congress** | `loc` | None — JSON API → chunks go straight to DB. Curated topic list in `src/lms_agents/tools/content_sources/loc.py`. | `docker compose exec api python scripts/ingest.py loc --all-curated` |
+| **teacher_archive** (Brian's own teaching materials) | `teacher_archive`, `scope='teacher'` | Host: `C:/Users/zinka/OneDrive/Desktop/Lulia Reference Material/Teaching/`. Bind-mounted read-only into api container at `/refs/Teaching/` via `docker-compose.yml`. | `docker compose exec api python scripts/ingest_local_references.py --folder teaching` |
+| **teacher_reference** (free K-8 reference samples) | `teacher_reference`, `scope='teacher'` | Host: `C:/Users/zinka/OneDrive/Desktop/Lulia Reference Material/K-8 material/`. Bind-mounted at `/refs/K-8 material/`. | `docker compose exec api python scripts/ingest_local_references.py --folder k8` |
+
+Quick check of what's in the KB today:
+```bash
+docker compose exec api python scripts/ingest.py status
+```
+
+The ingestion pipeline is idempotent — each source gets a deterministic `name` and re-running any command will skip already-ingested items. To re-ingest a single source, delete its row from `knowledge_sources` (cascade will clear chunks) and re-run.
 
 ## Skills (Read Before Coding)
 - `crewai-lms` — Agent definitions, crews, multi-model routing, work order pattern
@@ -132,6 +154,7 @@ data/content/        # Local OER content storage (gitignored, S3 in prod)
 | 20 | Design Studio SCRAPPED. Replaced with generation-first assignment flow. Carbone.io integrated for PDF rendering. Google Slides + Forms pages added. Canva OAuth built but parked (needs AWS). |
 | 21 | Google Slides/Forms pages, Canva Connect API OAuth flow (OC-AZ1rX8nIER1H), video pipeline fix (hardcoded grade/subject bug), Content Library hides system OER, Sidebar updated |
 | 22 | Pedagogy Director + 16-expert matrix (K-2/3-5/6-8/9-12 × math/ELA/science/social), 20 YAML pedagogy packs (~5,800 lines), brief generator wired into Assignment/Planning/Video crews. Structured visuals: 19 inline-SVG visual types (ten_frame, number_bond, fraction_bar, array, bar_model, area_model, number_line, coordinate_grid, function_table, equation_box, base_ten_blocks, counting_objects, data_table, labeled_diagram, letter_box, word_box, handwriting_lines, picture_choice). Deterministic QA bracket-detector. Fixed hardcoded grade_level='4' bug in planning_crew.approve_plan. All 4 grade bands live-verified against Anthropic API. |
+| 23 | Reference-grounded generation: `reference_metadata` JSONB column on `knowledge_chunks` (migration, GIN + partial indexes). `reference_analyzer.py` classifies sources via Haiku into artifact_type + structural/scaffolding features + content_shape_description. `reference_retrieval.py` finds real worksheets/slide decks/lesson plans by structural shape from `teacher_archive` / `teacher_reference` lanes with grade-band-aware lane priority (K-2/3-5 exclude openstax). Pedagogy Brief extended with `reference_exemplar_guidance` section. Assignment Crew pre-fetches exemplars and passes them to the director. Content Agent system prompt updated to treat exemplar shape as authoritative template. A/B test (`test_reference_grounded_generation.py`) validated QA score delta +27 vs un-grounded baseline on 6-8 Earth Science rock cycle fixture. |
 
 ## Local Development
 

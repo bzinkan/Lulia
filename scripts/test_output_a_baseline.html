@@ -1,0 +1,442 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=Fredoka:wght@400;500;600&display=swap');
+:root {
+  --t-primary: #F97316; --t-primary-light: #FB923C;
+  --t-primary-lighter: #FDBA74; --t-primary-lightest: #FED7AA;
+  --t-primary-bg: #FFF7ED; --t-primary-dark: #EA580C;
+  --t-primary-darkest: #9A3412;
+  --t-heading-font: 'DM Serif Display', serif; --t-body-font: 'DM Sans', sans-serif;
+  --t-bg: #FFFFFF; --t-bg-tint: #FEF9F2;
+  --t-text: #1C1917; --t-text-secondary: #78716C;
+  --t-text-muted: #A8A29E; --t-border: #E7E5E4;
+  --t-border-light: #F5F5F4;
+  --t-success: #16A34A; --t-success-bg: #DCFCE7;
+}
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: var(--t-body-font);
+        font-size: 14px;
+        color: var(--t-text);
+        line-height: 1.6;
+        background: var(--t-bg);
+      }
+      .page {
+        width: 8.5in;
+        min-height: 11in;
+        padding: 0.6in 0.7in;
+        margin: 0 auto;
+        position: relative;
+      }
+      h1, h2, h3 { font-family: var(--t-heading-font); }
+      h1 { font-size: 22px; margin-bottom: 4px; }
+      h2 { font-size: 16px; margin-bottom: 8px; color: var(--t-primary-darkest); }
+      h3 { font-size: 13px; margin-bottom: 4px; }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid var(--t-primary);
+        padding-bottom: 10px;
+        margin-bottom: 16px;
+      }
+      .header-left h1 { color: var(--t-text); }
+      .header-left .subtitle { font-size: 12px; color: var(--t-text-secondary); margin-top: 2px; }
+      .header-right {
+        text-align: right;
+        font-size: 12px;
+        color: var(--t-text-secondary);
+      }
+      .header-right .field-line {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 4px;
+        justify-content: flex-end;
+      }
+      .header-right .field-label { font-weight: 600; color: var(--t-primary-darkest); font-size: 11px; }
+      .header-right .field-blank {
+        border-bottom: 1px solid var(--t-border);
+        width: 140px;
+        display: inline-block;
+        height: 18px;
+      }
+      .standards-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .standard-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: var(--t-primary-bg);
+        color: var(--t-primary-darkest);
+        border: 1px solid var(--t-primary-lighter);
+        font-weight: 500;
+      }
+      .instructions {
+        background: var(--t-primary-bg);
+        border-left: 3px solid var(--t-primary);
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--t-primary-darkest);
+        margin-bottom: 16px;
+        border-radius: 0 8px 8px 0;
+      }
+      .question {
+        margin-bottom: 14px;
+        page-break-inside: avoid;
+      }
+      .question-number {
+        font-weight: 700;
+        color: var(--t-primary);
+        margin-right: 6px;
+      }
+      .question-text { font-size: 13px; color: var(--t-text); }
+      .answer-line {
+        border-bottom: 1px solid var(--t-border);
+        height: 24px;
+        margin-top: 6px;
+        margin-left: 20px;
+      }
+      .answer-lines-multi {
+        margin-top: 6px;
+        margin-left: 20px;
+      }
+      .answer-lines-multi .line {
+        border-bottom: 1px solid var(--t-border);
+        height: 22px;
+      }
+      .mc-options {
+        margin-top: 4px;
+        margin-left: 20px;
+        font-size: 13px;
+      }
+      .mc-options .option { margin-bottom: 2px; }
+      .mc-options .option-letter { font-weight: 600; color: var(--t-primary-darkest); margin-right: 8px; }
+      .word-bank {
+        border: 1px solid var(--t-border);
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        background: var(--t-bg-tint);
+      }
+      .word-bank-title { font-size: 11px; font-weight: 600; color: var(--t-primary-darkest); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+      .word-bank-words { display: flex; flex-wrap: wrap; gap: 8px; }
+      .word-bank-word { font-size: 13px; color: var(--t-text); padding: 2px 10px; background: white; border-radius: 6px; border: 1px solid var(--t-primary-lighter); }
+      .difficulty-badge {
+        display: inline-block;
+        font-size: 9px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+        margin-left: 6px;
+        text-transform: uppercase;
+      }
+      .diff-easy { background: #DCFCE7; color: #16A34A; }
+      .diff-medium { background: #FEF3C7; color: #D97706; }
+      .diff-hard { background: #FEF2F2; color: #EF4444; }
+      .points { font-size: 10px; color: var(--t-text-muted); float: right; }
+      .answer-key-answer { color: var(--t-success); font-weight: 600; }
+      .footer {
+        position: absolute;
+        bottom: 0.4in;
+        left: 0.7in;
+        right: 0.7in;
+        text-align: center;
+        font-size: 9px;
+        color: var(--t-text-muted);
+        border-top: 1px solid var(--t-border-light);
+        padding-top: 6px;
+      }
+      /* Print */
+      @media print {
+        body { background: white; }
+        .page { padding: 0.5in 0.6in; margin: 0; box-shadow: none; }
+        .no-print { display: none; }
+        @page { margin: 0; size: letter; }
+      }
+      /* Card grid */
+      .card-grid {
+        display: grid;
+        gap: 12px;
+      }
+      .card-grid-6 { grid-template-columns: repeat(2, 1fr); }
+      .card-grid-8 { grid-template-columns: repeat(2, 1fr); }
+      .card {
+        border: 1px solid var(--t-border);
+        border-radius: 12px;
+        padding: 14px;
+        page-break-inside: avoid;
+        position: relative;
+      }
+      .card-number {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--t-primary);
+        background: var(--t-primary-bg);
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .cut-line {
+        border-top: 1px dashed #D6D3D1;
+        margin: 8px 0;
+      }
+      /* Bingo */
+      .bingo-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        border: 2px solid var(--t-primary);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .bingo-cell {
+        border: 1px solid var(--t-border);
+        padding: 10px 4px;
+        text-align: center;
+        font-size: 11px;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .bingo-header {
+        background: var(--t-primary);
+        color: white;
+        font-family: var(--t-heading-font);
+        font-size: 18px;
+        font-weight: 700;
+        padding: 8px;
+      }
+      .bingo-free {
+        background: var(--t-primary-bg);
+        font-weight: 700;
+        color: var(--t-primary);
+        font-size: 14px;
+      }
+      /* Passage */
+      .passage {
+        background: var(--t-bg-tint);
+        border: 1px solid var(--t-border);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .passage .line-number {
+        display: inline-block;
+        width: 24px;
+        text-align: right;
+        margin-right: 10px;
+        color: var(--t-text-muted);
+        font-size: 10px;
+        user-select: none;
+      }
+      .vocab-sidebar {
+        background: #FFF7ED;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 12px;
+      }
+      .vocab-sidebar .vocab-word { font-weight: 600; color: var(--t-primary-darkest); }
+      .vocab-sidebar .vocab-def { color: var(--t-text-secondary); margin-left: 4px; }
+      /* Two-column for reading comp */
+      .two-col { display: grid; grid-template-columns: 1fr 200px; gap: 16px; }
+      /* Half-page */
+      .half-page { min-height: 5.25in; max-height: 5.5in; overflow: hidden; }
+      .half-divider { border-top: 2px dashed var(--t-border); margin: 8px 0; }
+      /* Graphic organizer */
+      .go-venn { display: flex; justify-content: center; gap: 0; margin: 20px 0; }
+      .go-circle {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        border: 2px solid #F97316;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        font-size: 11px;
+        text-align: center;
+      }
+      .go-circle:nth-child(2) { margin-left: -40px; }
+      .go-tchart {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border: 2px solid var(--t-primary);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .go-tchart-header {
+        background: var(--t-primary-bg);
+        padding: 8px;
+        font-weight: 600;
+        text-align: center;
+        border-bottom: 2px solid var(--t-primary);
+        font-family: var(--t-heading-font);
+      }
+      .go-tchart-cell {
+        padding: 12px;
+        min-height: 200px;
+        border-right: 1px solid #E7E5E4;
+      }
+      .go-kwl {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        border: 2px solid var(--t-primary);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .study-topic {
+        background: #FFF7ED;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+      .study-vocab { font-weight: 600; color: var(--t-primary); }
+      .study-example {
+        background: var(--t-bg-tint);
+        border-left: 3px solid var(--t-primary-lighter);
+        padding: 8px 12px;
+        margin: 8px 0;
+        font-size: 12px;
+        border-radius: 0 8px 8px 0;
+      }
+      
+.question-visual {
+  margin: 8px 0 12px 28px;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.question-visual svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.visual-label {
+  font-size: 0.85em;
+  color: var(--t-text-secondary, #78716C);
+  font-style: italic;
+}
+.visual-placeholder {
+  border: 2px dashed var(--t-border, #E7E5E4);
+  background: var(--t-bg-tint, #FEF9F2);
+  padding: 12px 16px;
+  border-radius: 8px;
+  color: var(--t-text-secondary, #78716C);
+  font-size: 0.9em;
+  font-style: italic;
+}
+.visual-placeholder strong {
+  display: block;
+  font-style: normal;
+  color: var(--t-text, #1C1917);
+  margin-bottom: 4px;
+}
+
+    </style>
+</head>
+<body><div class="page">
+  <div class="header">
+    <div class="header-left"><h1>Modeling Earth's Rock Cycle: Materials and Energy Flow</h1><div class="subtitle">Standards-Aligned Assessment</div></div>
+    <div class="header-right">
+      <div class="field-line"><span class="field-label">Name:</span><span class="field-blank"></span></div>
+      <div class="field-line"><span class="field-label">Date:</span><span class="field-blank"></span></div>
+      <div class="field-line"><span class="field-label">Class:</span><span class="field-blank"></span></div>
+    </div>
+  </div>
+  <div class="standards-bar"><span class="standard-badge">MS-ESS2-1</span></div>
+  <div class="instructions">Scientists use models to understand how Earth's materials cycle through different processes. In this activity, you will construct and analyze models of the rock cycle to explain how rocks transform from one type to another. Use evidence from the models to support your explanations.</div>
+  
+  
+        <div class="question">
+          <div><span class="question-number">1.</span><span class="question-text">WORKED EXAMPLE: Look at this rock cycle model. A sedimentary rock undergoes heat and pressure deep underground. The heat and pressure cause the rock's minerals to change and form new crystals without melting. What type of rock forms? Answer: Metamorphic rock. The process of heat and pressure changing a rock's structure without melting is called metamorphism, which creates metamorphic rocks.</span></div>
+          <div class="question-visual"><div class="visual-placeholder"><strong>Diagram: rock cycle transformation</strong><div>Teacher: insert printed or projected diagram here.</div><ul style="margin:6px 0 0 18px;font-size:0.9em;color:var(--t-text-secondary, #78716C);"><li style="margin:2px 0;">sedimentary rock</li><li style="margin:2px 0;">heat + pressure</li><li style="margin:2px 0;">metamorphic rock</li></ul></div><div class="visual-label">Rock Cycle Model Example</div></div>
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">2.</span><span class="question-text">Emma finds a rock made of layers of sand particles that were pressed together. What type of rock did Emma find?</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">3.</span><span class="question-text">Diego observes cooled lava that formed crystals as it hardened. This rock formed through which process?</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">4.</span><span class="question-text">Kai notices that granite breaks down into smaller pieces when exposed to wind and rain. What process is breaking down the granite?</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">5.</span><span class="question-text">Aisha finds a rock that shows evidence of extreme heat and pressure changing its original structure. The rock has bands of different minerals. What type of rock is this?</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">6.</span><span class="question-text">Use the graphic organizer below to trace how a piece of granite can become a sedimentary rock. Fill in the missing processes and explain what happens at each step.</span></div>
+          <div class="question-visual"><table class="visual-table" style="border-collapse:collapse;font-size:14px;"><thead><tr><th>Starting Rock</th><th>Process 1</th><th>Process 2</th><th>Process 3</th><th>Process 4</th><th>Final Rock</th></tr></thead><tbody><tr><td>Granite</td><td>?</td><td>?</td><td>?</td><td>?</td><td>Sedimentary</td></tr></tbody></table><style>.visual-table th,.visual-table td{border:2px solid var(--t-text, #1C1917);padding:6px 12px;text-align:center;}.visual-table th{background:var(--t-primary-lightest, #FED7AA);}</style><div class="visual-label">Rock Transformation Graphic Organizer</div></div>
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">7.</span><span class="question-text">Marcus studies a volcanic eruption where magma reaches the surface. Explain what happens to the magma and what type of rock forms when it cools quickly.</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">8.</span><span class="question-text">Luna observes layers of rock that have been folded and tilted by forces in Earth's crust. What process caused this deformation of the rock layers?</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">9.</span><span class="question-text">Ethan creates a model showing how energy flows through the rock cycle. Use the graphic organizer to identify three energy sources that drive rock cycle processes and explain how each one works.</span></div>
+          <div class="question-visual"><table class="visual-table" style="border-collapse:collapse;font-size:14px;"><thead><tr><th>Energy Source</th><th>How It Works</th><th>Rock Processes It Drives</th></tr></thead><tbody><tr><td>?</td><td>?</td><td>?</td></tr><tr><td>?</td><td>?</td><td>?</td></tr><tr><td>?</td><td>?</td><td>?</td></tr></tbody></table><style>.visual-table th,.visual-table td{border:2px solid var(--t-text, #1C1917);padding:6px 12px;text-align:center;}.visual-table th{background:var(--t-primary-lightest, #FED7AA);}</style><div class="visual-label">Energy Sources in Rock Cycle</div></div>
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">10.</span><span class="question-text">Zoe finds sedimentary rock layers in a canyon wall. The bottom layer contains marine fossils, while the top layer has desert sand patterns. What does this evidence tell us about how this area changed over time?</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">11.</span><span class="question-text">Use the graphic organizer to analyze how the three main rock types can transform into each other. Complete the diagram by filling in the processes that connect each rock type.</span></div>
+          <div class="question-visual"><div class="visual-placeholder"><strong>Diagram: rock cycle</strong><div>Teacher: insert printed or projected diagram here.</div><ul style="margin:6px 0 0 18px;font-size:0.9em;color:var(--t-text-secondary, #78716C);"><li style="margin:2px 0;">Igneous</li><li style="margin:2px 0;">Metamorphic</li><li style="margin:2px 0;">Sedimentary</li><li style="margin:2px 0;">Process A</li><li style="margin:2px 0;">Process B</li><li style="margin:2px 0;">Process C</li><li style="margin:2px 0;">Process D</li><li style="margin:2px 0;">Process E</li><li style="margin:2px 0;">Process F</li></ul></div><div class="visual-label">Rock Cycle Transformation Diagram</div></div>
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">12.</span><span class="question-text">Diego models a mountain-building event where sedimentary rocks are buried deep and experience intense heat and pressure. Use the graphic organizer to predict and explain what happens to these rocks over thousands of years.</span></div>
+          <div class="question-visual"><table class="visual-table" style="border-collapse:collapse;font-size:14px;"><thead><tr><th>Time Period</th><th>Conditions</th><th>Rock Type</th><th>Evidence You&#x27;d See</th></tr></thead><tbody><tr><td>Start</td><td>Surface conditions</td><td>Sedimentary</td><td>Layers, fossils</td></tr><tr><td>1000s years</td><td>Deep burial</td><td>?</td><td>?</td></tr><tr><td>More time</td><td>Extreme conditions</td><td>?</td><td>?</td></tr></tbody></table><style>.visual-table th,.visual-table td{border:2px solid var(--t-text, #1C1917);padding:6px 12px;text-align:center;}.visual-table th{background:var(--t-primary-lightest, #FED7AA);}</style><div class="visual-label">Mountain Building Rock Changes</div></div>
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">13.</span><span class="question-text">Emma discovers that a region has both active volcanoes and evidence of ancient sea floors now found in mountain peaks. Construct a model to explain how both igneous and sedimentary rocks can be found in the same mountain range. Include the role of plate tectonics in your explanation.</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">14.</span><span class="question-text">Kai studies a granite formation that shows evidence of multiple transformation cycles. The granite has metamorphic bands and nearby sedimentary deposits. Trace two possible pathways this granite could follow to become a different rock type, explaining the energy sources and processes involved.</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">15.</span><span class="question-text">SELF-ASSESSMENT: Review your work on this rock cycle modeling activity. Rate yourself on each skill below (1=needs work, 2=developing, 3=proficient): (a) I can identify the three main rock types and how they form, (b) I can explain the processes that transform rocks from one type to another, (c) I can trace energy flow through the rock cycle, (d) I can use evidence to support my explanations about rock formation. Choose one area where you want to improve and write one specific thing you will do to strengthen that skill.</span></div>
+          
+          <div class="answer-line"></div>
+        </div>
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>

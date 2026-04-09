@@ -270,6 +270,13 @@ _BRIEF_SCHEMA = """{
     "pacing_note": "<short note or empty string>"
   },
 
+  "reference_exemplar_guidance": {
+    "primary_exemplar_source": "<source name of the reference exemplar the Content Agent should match, or null>",
+    "shape_to_match": "<short description of the structural shape — question count, feature mix, scaffold pattern — pulled directly from the exemplar, or null>",
+    "exemplar_count": <int — how many reference exemplars were available>,
+    "notes_on_shape_matching": "<1-2 sentences telling the Content Agent how to honor the reference shape while generating fresh content>"
+  },
+
   "hard_bans_inherited": ["<ban>", ...],
 
   "pedagogy_notes": "<2-4 sentences explaining the key developmental choices for this specific work order — why this template, why these constraints, what a veteran teacher of this grade would want to see>"
@@ -281,6 +288,7 @@ def _build_user_prompt(
     curriculum_output: dict,
     kb_chunks: Optional[list],
     class_intel_prompt: Optional[str],
+    reference_exemplars: Optional[list] = None,
 ) -> str:
     """Build the user message for the Sonnet brief generator."""
     standards_text = "\n".join(
@@ -304,6 +312,25 @@ def _build_user_prompt(
     else:
         class_section = "\n\nCLASS INTELLIGENCE: (none — no prior class context available)\n"
 
+    exemplar_section = ""
+    if reference_exemplars:
+        from src.lms_agents.tools.reference_retrieval import format_exemplars_for_prompt
+        exemplar_section = "\n\n" + format_exemplars_for_prompt(reference_exemplars) + "\n"
+        exemplar_section += (
+            "\nIMPORTANT: Use the reference exemplars above to populate the "
+            "`reference_exemplar_guidance` section of your brief. Pick the "
+            "exemplar from the highest-priority lane as the `primary_exemplar_source` "
+            "and describe its structural shape in `shape_to_match`. The Content "
+            "Agent will match this shape when generating the assignment.\n"
+        )
+    else:
+        exemplar_section = (
+            "\n\nREFERENCE EXEMPLARS: (none found in the library for this topic "
+            "+ grade band — the Content Agent will generate from pedagogy rules alone)\n"
+            "\nIn the brief, set reference_exemplar_guidance.primary_exemplar_source "
+            "to null and exemplar_count to 0.\n"
+        )
+
     return f"""Generate a Pedagogy Brief for the following assignment request.
 
 WORK ORDER:
@@ -317,6 +344,7 @@ ALIGNED STANDARDS (respect the three-tier hierarchy — these are authoritative)
 {standards_text}
 {kb_section}
 {class_section}
+{exemplar_section}
 
 Your task: produce a single JSON object matching exactly this schema. Fill every field. Use the pack as your source of truth. Do not include markdown fences or any prose outside the JSON.
 
@@ -362,6 +390,7 @@ def generate_brief(
     curriculum_output: dict,
     kb_chunks: Optional[list] = None,
     class_intel_prompt: Optional[str] = None,
+    reference_exemplars: Optional[list] = None,
     client: Optional[anthropic.Anthropic] = None,
 ) -> Optional[dict]:
     """
@@ -372,6 +401,9 @@ def generate_brief(
         curriculum_output: output from the Curriculum Agent (standards + metadata)
         kb_chunks: optional list of RAG KB chunks from teacher's uploaded curriculum
         class_intel_prompt: optional AI context string from class_intelligence tool
+        reference_exemplars: optional list of reference exemplars from the
+            reference_retrieval module — real worksheets/slide decks/etc. from
+            the teacher lanes whose structural shape the Content Agent will match
         client: optional pre-initialized Anthropic client
 
     Returns:
@@ -407,7 +439,9 @@ def generate_brief(
         grade_band=grade_band,
         pack_yaml=pack_yaml,
     )
-    user = _build_user_prompt(work_order, curriculum_output, kb_chunks, class_intel_prompt)
+    user = _build_user_prompt(
+        work_order, curriculum_output, kb_chunks, class_intel_prompt, reference_exemplars
+    )
 
     try:
         resp = client.messages.create(
@@ -429,10 +463,15 @@ def generate_brief(
     # Tag the brief with its source pack for traceability downstream
     brief["_pack_id"] = pack_id
     brief["_grade_band"] = grade_band
+    # Attach the raw exemplars to the brief so downstream agents can access
+    # the full excerpts + metadata, not just the summarized guidance.
+    if reference_exemplars:
+        brief["_reference_exemplars"] = reference_exemplars
 
     log.info(
         f"[PedagogyDirector] Brief generated: template={brief.get('template_recommendation', {}).get('primary', '?')}, "
-        f"max_problems={brief.get('layout_directives', {}).get('max_problems_per_page', '?')}"
+        f"max_problems={brief.get('layout_directives', {}).get('max_problems_per_page', '?')}, "
+        f"exemplars={len(reference_exemplars) if reference_exemplars else 0}"
     )
     return brief
 
