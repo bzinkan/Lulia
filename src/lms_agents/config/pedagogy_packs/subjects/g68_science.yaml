@@ -1,0 +1,386 @@
+# Grade 6-8 Science Subject Overlay
+#
+# Inherits from: grade_bands/g68.yaml
+# Covers: NGSS middle school Physical, Life, Earth/Space Science, and
+#         Engineering Design.
+#
+# 6-8 science is where formal science instruction begins. Students engage
+# in genuine investigations with controlled variables, develop models of
+# unobservable systems (cells, atoms, plate tectonics, energy transfer),
+# analyze data quantitatively, and construct evidence-based explanations.
+# Vocabulary expands dramatically: students learn the formal names for
+# processes they observed in 3-5 (photosynthesis, mitosis, weathering)
+# AND learn entirely new abstract concepts (atoms, energy, ecosystems
+# as systems). The Claim-Evidence-Reasoning structure becomes routine.
+#
+# Source authorities:
+#   - Next Generation Science Standards (NGSS) Middle School
+#   - A Framework for K-12 Science Education (NRC)
+#   - Ambitious Science Teaching (Windschitl et al.)
+#   - Disciplinary Literacy in Science (Shanahan)
+#   - NSTA Position Statement on Middle School Science
+#   - Page Keeley Science Formative Assessment Probes
+
+id: g68_science
+extends: g68
+subject: science
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Core Pedagogical Stance
+# ---------------------------------------------------------------------------
+pedagogical_stance:
+  primary_mode: "phenomena_based_three_dimensional"
+  rule: >
+    Middle school science is three-dimensional: every lesson integrates a
+    Disciplinary Core Idea (DCI), a Science and Engineering Practice (SEP),
+    and a Crosscutting Concept (CCC). Students engage with phenomena,
+    develop explanations, build and revise models, and use evidence to
+    support claims. Vocabulary is taught alongside the phenomenon — never
+    as isolated definitions. Quantitative reasoning increases substantially.
+    Students should encounter authentic data, not just textbook diagrams.
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+# Note: many states use integrated or strand-based middle school sequences.
+# This progression follows the NGSS middle school bands (MS-PS, MS-LS,
+# MS-ESS, MS-ETS) without prescribing a specific year for each.
+content_progression:
+  middle_school_overall:
+    physical_science:
+      - "structure_and_properties_of_matter_atomic_model_intro"
+      - "chemical_reactions_and_conservation_of_matter"
+      - "thermal_energy_and_temperature"
+      - "forces_and_motion_newtons_laws_intro"
+      - "types_of_interactions_gravity_electric_magnetic"
+      - "energy_kinetic_and_potential"
+      - "energy_transfer_and_conservation"
+      - "wave_properties_amplitude_wavelength_frequency"
+      - "electromagnetic_radiation_spectrum_intro"
+      - "information_technologies_signals"
+    life_science:
+      - "cells_as_basic_unit_of_life"
+      - "structure_function_in_cells_organelles"
+      - "body_systems_and_their_interactions"
+      - "growth_development_and_reproduction_of_organisms"
+      - "matter_and_energy_in_organisms_photosynthesis_cellular_respiration"
+      - "interdependent_relationships_in_ecosystems"
+      - "cycling_of_matter_and_flow_of_energy_in_ecosystems"
+      - "ecosystem_dynamics_resilience_and_stability"
+      - "natural_selection_and_adaptation_intro"
+      - "evidence_of_common_ancestry_fossils_anatomy"
+      - "inheritance_and_variation_genetic_basics"
+    earth_space:
+      - "earth_s_place_in_the_universe_solar_system_galaxy"
+      - "earth_sun_moon_system_seasons_eclipses_lunar_phases"
+      - "history_of_earth_geologic_time"
+      - "earth_s_systems_atmosphere_hydrosphere_geosphere_biosphere"
+      - "rock_cycle_and_plate_tectonics"
+      - "weather_and_climate_systems"
+      - "human_impacts_on_earth_systems"
+      - "natural_resources_and_human_sustainability"
+    engineering:
+      - "define_criteria_and_constraints_of_design_problem"
+      - "evaluate_competing_design_solutions"
+      - "develop_a_model_to_generate_data_for_iterative_testing"
+
+# ---------------------------------------------------------------------------
+# Three-Dimensional Learning Requirement
+# ---------------------------------------------------------------------------
+three_dimensional_learning:
+  required: true
+  rule: >
+    Every lesson must integrate all three NGSS dimensions: a Disciplinary
+    Core Idea (the WHAT), a Science and Engineering Practice (the HOW),
+    and a Crosscutting Concept (the LENS). Worksheets should make all
+    three visible to students.
+  science_and_engineering_practices:
+    - "asking_questions_and_defining_problems"
+    - "developing_and_using_models"
+    - "planning_and_carrying_out_investigations"
+    - "analyzing_and_interpreting_data"
+    - "using_mathematics_and_computational_thinking"
+    - "constructing_explanations_and_designing_solutions"
+    - "engaging_in_argument_from_evidence"
+    - "obtaining_evaluating_and_communicating_information"
+  crosscutting_concepts:
+    - "patterns"
+    - "cause_and_effect_mechanism_and_explanation"
+    - "scale_proportion_and_quantity"
+    - "systems_and_system_models"
+    - "energy_and_matter_flows_cycles_and_conservation"
+    - "structure_and_function"
+    - "stability_and_change"
+
+# ---------------------------------------------------------------------------
+# Investigation Requirement
+# ---------------------------------------------------------------------------
+investigation_requirement:
+  required_frequency: "regular_weekly_at_minimum"
+  rule: >
+    Students should engage in hands-on or interactive investigations as a
+    routine part of science class — not occasional events. Lab simulations
+    and high-quality data sets are acceptable substitutes when the real
+    investigation is impractical. Always pair the experience with a science
+    notebook entry that includes question, procedure, data, analysis, and
+    explanation. Variables should be explicitly identified and controlled.
+  common_g68_investigations:
+    - "build_circuits_with_resistors_and_meters"
+    - "chemical_reaction_with_mass_measurement_pre_post"
+    - "density_of_solids_and_liquids_with_lab_equipment"
+    - "heat_transfer_calorimetry_simple"
+    - "spring_constant_and_hookes_law_intro"
+    - "microscope_use_with_prepared_slides_and_wet_mounts"
+    - "owl_pellet_dissection_with_food_web_analysis"
+    - "model_of_cell_membrane_or_organelle_function"
+    - "pillbug_or_planarian_behavior_choice_chamber"
+    - "yeast_fermentation_co2_production"
+    - "rock_classification_with_streak_hardness_acid_test"
+    - "stream_table_for_erosion_and_deposition"
+    - "weather_data_analysis_from_real_sources"
+    - "earth_sun_moon_modeling_with_globes_and_lights"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g68_sci_lab_report_structured"
+      description: "Question, hypothesis, materials, procedure, data table, analysis, conclusion"
+      max_items: 1
+    - id: "g68_sci_data_analysis"
+      description: "Authentic data set with analysis questions and graphical representation"
+      max_items: 1
+    - id: "g68_sci_claim_evidence_reasoning"
+      description: "Full CER scaffold for explanation construction"
+      max_items: 3
+    - id: "g68_sci_model_construction"
+      description: "Build and label a model of a system or process; explain"
+      max_items: 1
+    - id: "g68_sci_concept_map"
+      description: "Connect related concepts with labeled relationships"
+      max_items: 1
+    - id: "g68_sci_phenomenon_analysis"
+      description: "Observe phenomenon, ask questions, propose explanation"
+      max_items: 1
+    - id: "g68_sci_compare_systems"
+      description: "Two systems compared with analysis questions"
+      max_items: 1
+    - id: "g68_sci_engineering_design_challenge"
+      description: "Define problem, criteria, constraints, design, test, iterate"
+      max_items: 1
+    - id: "g68_sci_argumentation_from_evidence"
+      description: "Multiple sources, take a position, support with evidence"
+      max_items: 1
+    - id: "g68_sci_vocabulary_in_context"
+      description: "Science terms used in sentences with diagrams or context"
+      max_items: 12
+    - id: "g68_sci_practice_problems"
+      description: "Quantitative practice with formulas and unit analysis"
+      max_items: 12
+  banned_templates:
+    - "memorize_definitions_only"
+    - "fill_in_vocab_with_no_phenomenon"
+    - "high_school_ap_lab_format"               # too much
+    - "elementary_color_and_label"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 35
+    tier_2_pct: 30
+    tier_3_pct: 35                              # heavy domain-specific load
+  allowed_tier_3_terms_by_grade:
+    middle_school_general:
+      - "atom"
+      - "element"
+      - "compound"
+      - "molecule"
+      - "chemical reaction"
+      - "physical change"
+      - "chemical change"
+      - "conservation of mass"
+      - "density"
+      - "mass"
+      - "volume"
+      - "force"
+      - "Newton's first law"
+      - "Newton's second law"
+      - "Newton's third law"
+      - "kinetic energy"
+      - "potential energy"
+      - "thermal energy"
+      - "work"
+      - "wave"
+      - "frequency"
+      - "amplitude"
+      - "wavelength"
+      - "electromagnetic spectrum"
+      - "cell"
+      - "organelle"
+      - "nucleus"
+      - "mitochondria"
+      - "chloroplast"
+      - "photosynthesis"
+      - "cellular respiration"
+      - "ecosystem"
+      - "biotic"
+      - "abiotic"
+      - "producer"
+      - "consumer"
+      - "decomposer"
+      - "food web"
+      - "trophic level"
+      - "natural selection"
+      - "adaptation"
+      - "inheritance"
+      - "trait"
+      - "gene"
+      - "allele"
+      - "DNA"
+      - "geosphere"
+      - "atmosphere"
+      - "hydrosphere"
+      - "biosphere"
+      - "plate tectonics"
+      - "continental drift"
+      - "rock cycle"
+      - "weathering"
+      - "erosion"
+      - "deposition"
+      - "climate"
+      - "weather"
+      - "solar system"
+      - "galaxy"
+      - "lunar phase"
+      - "eclipse"
+      - "season"
+      - "design solution"
+      - "criteria"
+      - "constraint"
+      - "iteration"
+  banned_terms:
+    - "quantum mechanics"
+    - "string theory"
+    - "general relativity_full_math"
+    - "organic chemistry_advanced_naming"
+    - "biochemistry_pathway_full"
+    - "genetic engineering_with_lab_protocols"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides — 5E model with NGSS framing
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 55
+  model: "5E_with_three_dimensional_framing"
+  structure:
+    - phase: "engage"
+      duration_min: 7
+      description: "Anchoring phenomenon, demonstration, or driving question"
+    - phase: "explore"
+      duration_min: 18
+      description: "Hands-on investigation, data collection, or model building"
+    - phase: "explain"
+      duration_min: 12
+      description: "Discussion, vocabulary connection, model revision"
+    - phase: "elaborate"
+      duration_min: 10
+      description: "Apply to new situation or extend with reading"
+    - phase: "evaluate_and_close"
+      duration_min: 8
+      description: "Formative check, exit ticket, or CER prompt"
+  manipulatives_required: true
+  safety_review_required_for_investigations: true
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 5
+  length_max: 10
+  show_real_phenomenon_when_possible: true
+  animation_acceptable_for_unobservable_systems: true   # cell, atom, plate tectonics
+  must_use_evidence_language: true
+  data_visualizations_when_relevant: true
+  pause_for_prediction_or_analysis_moments: 2
+  examples_per_video: 2
+
+# ---------------------------------------------------------------------------
+# Safety Rules
+# ---------------------------------------------------------------------------
+safety_rules:
+  banned_activities_without_strict_protocols:
+    - "concentrated_acids_or_bases"
+    - "open_flame_unsupervised"
+    - "high_voltage_electrical"
+    - "biohazard_materials"
+    - "preserved_specimens_from_unknown_sources"
+  required_practices:
+    - "safety_goggles_for_chemical_or_projectile_work"
+    - "closed_toe_shoes"
+    - "tied_back_long_hair"
+    - "no_eating_or_drinking_in_lab"
+    - "review_msds_for_chemicals_used"
+    - "proper_disposal_of_lab_materials"
+  living_organism_rules:
+    - "humane_treatment_of_all_living_things"
+    - "consent_for_dissection_with_alternatives"
+    - "proper_care_of_classroom_organisms"
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "claim_evidence_reasoning_response"
+    - "data_table_with_analysis_and_conclusion"
+    - "model_with_explanation"
+    - "design_an_investigation"
+    - "argue_from_evidence_with_counterargument"
+    - "interpret_graph_or_data_set"
+    - "explain_phenomenon_using_scientific_principles"
+    - "engineering_design_with_iteration"
+  banned:
+    - "memorize_and_define_only"
+    - "rapid_fire_vocab_recall"
+    - "fill_in_the_word_with_no_context"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["6", "7", "8"]
+  alignment_metadata_required:
+    - "disciplinary_core_idea"                  # DCI
+    - "science_and_engineering_practice"        # SEP
+    - "crosscutting_concept"                    # CCC
+    - "specific_performance_expectation_code"
+  default_frameworks_supported:
+    - "NGSS"
+    - "TEKS-Science"
+    - "Virginia-SOL-Science"
+    - "Florida-SSS-Science"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g68_science_curricula_recognized:
+    - "Amplify Science 6-8"
+    - "OpenSciEd 6-8"
+    - "Inspire Science (McGraw Hill)"
+    - "FOSS Middle School"
+    - "Discovery Education Science Techbook"
+    - "STEMscopes Middle School"
+    - "Carolina Building Blocks of Science"
+    - "Pearson Interactive Science"
+    - "BSCS Middle School Science"
+  when_curriculum_uploaded:
+    match_anchoring_phenomena: true
+    match_terminology: true
+    respect_storyline_sequence: true

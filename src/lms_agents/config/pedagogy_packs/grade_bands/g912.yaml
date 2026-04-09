@@ -1,0 +1,365 @@
+# Grade 9-12 (High School) — Developmental Pedagogy Base
+#
+# This is the developmental foundation inherited by all 9-12 subject overlays.
+# It defines HOW content should be presented for 14-18 year olds.
+#
+# 9-12 is the widest ability range in K-12: students span from those still
+# strengthening 8th-grade skills to those working at college level. The base
+# pack assumes "general high school" as the default and allows subject
+# overlays to differentiate by course level (Algebra 1 vs Geometry vs
+# Pre-Calc vs AP Calc; Biology vs AP Biology; etc.).
+#
+# Cognitively, students are fully formal operational: hypothetical reasoning,
+# abstract symbol manipulation, and metacognition are reliable. The work is
+# discipline-specific rigor, college and career preparation, and authentic
+# performance. Identity formation continues but is more stable than middle
+# school. Students are preparing to be adults — treat them as such.
+#
+# Source authorities:
+#   - College Board AP frameworks (CED documents)
+#   - CCSS-Math high school standards
+#   - CCSS-ELA 9-10 and 11-12 grade bands
+#   - NGSS High School
+#   - C3 Framework for Social Studies
+#   - Carol Dweck mindset research (continues into high school)
+#   - Daniel Willingham cognitive science
+#   - National Academy of Sciences "How People Learn II"
+#   - Jay McTighe Understanding by Design
+
+id: g912
+grade_band: "9-12"
+grade_levels: ["9", "10", "11", "12"]
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Developmental Profile
+# ---------------------------------------------------------------------------
+developmental_profile:
+  cognitive_stage: "formal_operational_consolidating"
+  cognitive_notes: >
+    Students reliably engage in hypothetical-deductive reasoning, abstract
+    symbol manipulation, systems thinking, and metacognition. They can
+    evaluate competing arguments, weigh trade-offs, and synthesize across
+    sources. Capacity is consistent across domains (unlike 6-8). Students
+    can produce extended analytical work, conduct independent research,
+    and engage in genuine intellectual disagreement. The frontier is
+    discipline-specific reasoning (thinking like a historian, scientist,
+    mathematician, literary critic) rather than general cognitive growth.
+
+  attention_span:
+    sustained_independent_min: 45
+    whole_group_listening_min: 25     # before mandatory shift; lectures up to 45 min ok with note-taking
+    full_lesson_max_min: 90           # block schedules common in HS
+
+  motor_skills:
+    fine_motor_development: "fully_developed"
+    keyboarding_expected: true
+    typed_writing_default: true
+    handwritten_acceptable_for_math_science_notes_or_in_class_work: true
+
+  reading_level:
+    lexile_range: "1050L-1385L"        # 9-10 grade band 1050-1335; 11-CCR 1185-1385
+    decoding_stage: "advanced_proficient"
+    transition_complete: "students_read_to_analyze_argue_synthesize"
+    implications:
+      - "Multi-source synthesis is routine"
+      - "Primary source documents and academic articles tackled with scaffolding"
+      - "Discipline-specific reading strategies emphasized"
+      - "Text complexity matters more than text length"
+
+  social_emotional:
+    primary_developmental_task: "identity_consolidation_and_future_orientation"
+    autonomy: "central_to_motivation"
+    peer_interaction: "important_but_more_stable_than_middle_school"
+    emotional_regulation: "more_stable_but_stress_high"
+    risk_tolerance: "elevated_with_better_judgment"
+    implications:
+      - "Treat students as emerging adults — respect their reasoning"
+      - "Choice and voice substantially increase engagement and ownership"
+      - "Real-world relevance and college/career connections matter"
+      - "Mental health awareness — academic stress is a major issue"
+      - "Avoid talking down or being condescending"
+      - "Avoid forced enthusiasm or 'cool teacher' affectations"
+      - "Identity-affirming content matters but with more sophistication"
+
+  executive_function:
+    working_memory_items: 7
+    task_initiation: "reliable_with_clear_purpose"
+    self_monitoring: "developed_when_stakes_visible"
+    organization: "varies_widely_continued_support_helps"
+    long_term_planning: "developing_with_explicit_instruction"
+    implications:
+      - "Multi-week projects with milestones are standard"
+      - "Rubrics with 4-8 criteria support self-assessment"
+      - "Time management explicitly taught for college readiness"
+      - "Independent research projects are appropriate"
+
+  language_stage:
+    receptive_vocabulary_words: "50000-100000"
+    expressive_sentence_length_avg_words: 17
+    tier_distribution_required:
+      tier_1_pct: 30      # everyday high-frequency
+      tier_2_pct: 40      # cross-curricular academic (analyze, evaluate, synthesize)
+      tier_3_pct: 30      # domain-specific — subject overlays may extend further
+
+# ---------------------------------------------------------------------------
+# Course-Level Differentiation Support
+# ---------------------------------------------------------------------------
+course_level_differentiation:
+  rule: >
+    9-12 spans the widest ability and course range in K-12. The Pedagogy
+    Director should infer course level from the work order's subject and
+    grade combination, then adjust complexity, vocabulary, and depth
+    accordingly. Subject overlays specify course-level scaffolds.
+  recognized_course_levels:
+    - "general"           # standard graduation track
+    - "honors"            # accelerated, more depth
+    - "ap_or_ib"          # college-level rigor
+    - "dual_enrollment"   # actual college course
+    - "remediation_or_intervention"  # below grade level support
+    - "credit_recovery"   # alternative path to credit
+  default_assumption: "general"
+
+# ---------------------------------------------------------------------------
+# Layout & Visual Rules
+# ---------------------------------------------------------------------------
+layout_rules:
+  font:
+    primary_family: "professional_sans_or_serif"   # Inter, Open Sans, Georgia, Times
+    min_size_pt: 10
+    body_size_pt: 11
+    heading_size_pt: 16
+    line_spacing: 1.4
+    letter_case_rules:
+      - "Standard sentence case throughout"
+      - "Title case for headings"
+      - "Avoid ALL CAPS body text"
+
+  page_density:
+    max_problems_per_page: 30
+    min_problems_per_page: 5
+    min_whitespace_pct: 15
+    answer_box_min_height_in: 0.3
+    show_your_work_space_required_for_multi_step: true
+    typed_response_space_default: true
+
+  imagery:
+    image_required_per_question: false
+    image_recommended_per_section: false
+    image_style: "diagram_chart_data_visualization_photograph_infographic_primary_source"
+    banned_styles:
+      - "childish_cartoon_for_serious_content"
+      - "stock_photo_irrelevant_filler"
+      - "anything_juvenile_or_condescending"
+    representation_requirements:
+      diversity_required: true
+      professional_and_respectful: true
+      shows_diverse_experts_in_field_when_real_people_referenced: true
+
+  color:
+    palette: "peach_and_amber_warm_primary"
+    high_contrast_text_bg: true
+    professional_clean_minimal: true
+
+  mascot:
+    lulings_mascot_required: false
+    placement: "branding_only_if_used"
+    role: "minimal_or_absent"
+
+# ---------------------------------------------------------------------------
+# Instruction & Scaffolding Rules
+# ---------------------------------------------------------------------------
+instructions:
+  max_words_per_instruction: 50
+  max_sentences_per_instruction_block: 5
+  numbered_steps_for_multi_step: true
+  teacher_read_aloud_default: false
+  scaffolds_required:
+    - "rubric_visible_for_complex_tasks"
+    - "model_response_or_exemplar"
+    - "vocabulary_callout_for_discipline_specific_terms"
+    - "metacognitive_prompts"
+  scaffolds_optional_by_course_level:
+    - "graphic_organizer_for_general_track"
+    - "sentence_starters_for_intervention"
+    - "extension_prompts_for_honors_or_ap"
+
+# ---------------------------------------------------------------------------
+# Assessment Modes
+# ---------------------------------------------------------------------------
+assessment_modes:
+  preferred:
+    - "constructed_response_short_to_extended"
+    - "analytical_essay"
+    - "argumentative_essay_with_counterclaim_and_rebuttal"
+    - "research_paper_with_citations"
+    - "lab_report_with_error_analysis"
+    - "discipline_specific_problem_solving"
+    - "performance_task_or_authentic_assessment"
+    - "socratic_seminar_or_structured_discussion"
+    - "primary_source_analysis_with_corroboration"
+    - "presentation_with_visual_or_data"
+    - "project_based_with_iteration"
+  acceptable:
+    - "multiple_choice_with_4_to_5_options"
+    - "constructed_response_with_evidence"
+    - "matching_with_explanation"
+    - "fill_in_the_blank_with_word_bank_for_intervention"
+  banned:
+    - "ranking_students_publicly"
+    - "trick_questions_designed_to_mislead"
+    - "double_negatives"
+    - "all_caps_test_stem_language_unless_modeling_test_format"
+    - "speed_drill_high_stakes"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Pacing
+# ---------------------------------------------------------------------------
+lesson_plan_defaults:
+  total_duration_min: 55
+  block_schedule_alternative_min: 90
+  structure:
+    - phase: "warm_up_or_do_now"
+      duration_min: 5
+      description: "Activation, vocabulary, retrieval, or hook"
+    - phase: "direct_instruction_or_mini_lecture"
+      duration_min: 15
+      description: "Concept introduction with model or worked example"
+    - phase: "guided_practice_or_discourse"
+      duration_min: 12
+      description: "Structured collaboration, partner discourse, scaffolded application"
+    - phase: "independent_or_collaborative_application"
+      duration_min: 18
+      description: "Worksheet, lab, project work, analysis, or research"
+    - phase: "exit_or_synthesis"
+      duration_min: 5
+      description: "Formative check, reflection, or preview"
+  block_schedule_structure:
+    - phase: "warm_up_or_do_now"
+      duration_min: 8
+    - phase: "direct_instruction_or_mini_lecture"
+      duration_min: 20
+    - phase: "guided_practice_or_discourse"
+      duration_min: 18
+    - phase: "independent_or_collaborative_application"
+      duration_min: 32
+    - phase: "synthesis_share_or_close"
+      duration_min: 12
+  transitions_every_min: 22
+  needs_manipulatives: false
+  homework_expected: true
+
+# ---------------------------------------------------------------------------
+# Video Specifications
+# ---------------------------------------------------------------------------
+video_defaults:
+  length_min: 6
+  length_max: 15
+  narrator_style: "professional_engaging_documentary"
+  narrator_pace_wpm: 165
+  on_screen_visual_required_pct: 70
+  mascot_required: false
+  music_background: "subtle_modern_low_volume"
+  caption_style: "standard_synchronized"
+  scene_cadence_sec: 25
+  call_and_response_moments: 0
+  concepts_per_video: 2
+  real_world_application_required: true
+  citations_when_referencing_research: true
+
+# ---------------------------------------------------------------------------
+# Hard Bans
+# ---------------------------------------------------------------------------
+hard_bans:
+  - "graphic_violence_or_gore"
+  - "sarcasm_or_irony_directed_at_students"
+  - "talking_down_or_baby_talk"
+  - "stereotype_threat_framing"
+  - "publicly_comparing_students"
+  - "trick_questions"
+  - "double_negatives"
+  - "explicit_sexual_content"
+  - "substance_use_glorification"
+  - "religious_proselytization"
+  - "current_partisan_political_attacks"
+  - "cynical_or_nihilistic_framing"
+  - "dismissive_or_condescending_tone"
+
+# ---------------------------------------------------------------------------
+# Required Content Diversity
+# ---------------------------------------------------------------------------
+diversity_requirements:
+  character_name_rotation_required: true
+  cultural_representation_required: true
+  family_structure_variety_required: true
+  ability_representation_required: true
+  diverse_role_models_required: true        # in math/science/social, show diverse experts
+  no_stereotyping: true
+  realistic_high_school_age_when_relevant: true
+
+# ---------------------------------------------------------------------------
+# Identity Affirmation Rules
+# ---------------------------------------------------------------------------
+identity_affirmation:
+  rule: >
+    High schoolers continue identity formation but with more sophistication
+    than middle school. Provide both mirrors (students see themselves) and
+    windows (students see beyond their experience). Frame growth as ongoing
+    capacity development, not fixed talent. Acknowledge that students are
+    preparing for adult lives — be candid about real-world implications
+    without being preachy. Avoid forced positivity that ignores genuine
+    challenges; avoid cynicism that erodes agency.
+  required_practices:
+    - "diverse_named_examples_in_problems_and_contexts"
+    - "diverse_experts_in_videos_when_real_people_referenced"
+    - "diverse_authors_and_voices_in_text_selection"
+    - "growth_mindset_language_throughout"
+    - "real_world_connections_to_college_career_civic_life"
+
+# ---------------------------------------------------------------------------
+# College and Career Readiness
+# ---------------------------------------------------------------------------
+college_career_readiness:
+  rule: >
+    9-12 work should explicitly prepare students for life after high school.
+    This means academic skills (analytical writing, research, discipline-
+    specific thinking) AND practical skills (time management, source
+    evaluation, communication, collaboration). Authentic tasks beat
+    artificial ones whenever possible.
+  emphasized_skills:
+    - "analytical_writing_with_evidence"
+    - "source_evaluation_and_citation"
+    - "discipline_specific_reasoning"
+    - "data_literacy_and_quantitative_reasoning"
+    - "collaboration_and_communication"
+    - "time_management_and_self_direction"
+    - "civic_reasoning"
+
+# ---------------------------------------------------------------------------
+# Parent Communication Calibration
+# ---------------------------------------------------------------------------
+parent_communication:
+  reading_level_lexile_max: 1300
+  jargon_acceptable_with_context: true
+  always_include:
+    - "specific_skills_demonstrated"
+    - "growth_observed_not_just_grades"
+    - "college_career_connections"
+    - "how_to_support_independence_at_home"
+
+# ---------------------------------------------------------------------------
+# Integration Hooks
+# ---------------------------------------------------------------------------
+integration_hooks:
+  standards_system:
+    respects_three_tier_hierarchy: true
+    passes_through_standard_codes: true
+    course_level_aware: true                  # Algebra 1 vs AP Calc requires different standards retrieval
+  rag_kb:
+    honors_has_kb_coverage_flag: true
+    grounds_in_teacher_curriculum: true
+  class_tabs:
+    honors_class_intelligence: true
+    scoped_by_class_id: true
+  generation_history:
+    no_repeat_check_required: true

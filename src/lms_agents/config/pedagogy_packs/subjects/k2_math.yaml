@@ -1,0 +1,365 @@
+# K-2 Math Subject Overlay
+#
+# Inherits from: grade_bands/k2.yaml
+# Merge rule: this file overrides or extends k2 base fields. Fields not
+# specified here inherit directly from the K-2 base. Fields ending in
+# `_override` or `_overrides` replace the corresponding base field entirely.
+# All other fields are additive.
+#
+# Source authorities:
+#   - NCTM Principles to Actions
+#   - CCSS-M K-2 Progressions (Counting & Cardinality, OA, NBT, MD, G)
+#   - Graham Fletcher progression videos
+#   - Jo Boaler / youcubed visual math research
+#   - Bridges in Mathematics and Eureka Math scope & sequence
+
+id: k2_math
+extends: k2
+subject: math
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+content_progression:
+  kindergarten:
+    in_scope:
+      - "counting_to_100_by_1s_and_10s"
+      - "cardinality_one_to_one_correspondence"
+      - "number_recognition_0_to_20"
+      - "compare_numbers_to_10"
+      - "compose_decompose_numbers_to_10"
+      - "add_subtract_within_10_using_objects"
+      - "2d_and_3d_shape_recognition"
+      - "measurable_attributes_length_weight"
+      - "sort_classify_objects"
+    out_of_scope:
+      - "place_value_beyond_teens"
+      - "fractions"
+      - "multiplication_division"
+      - "negative_numbers"
+      - "money_computation"
+      - "standard_measurement_units"
+
+  first_grade:
+    in_scope:
+      - "add_subtract_within_20_fluency_within_10"
+      - "word_problems_within_20_one_step"
+      - "count_to_120"
+      - "place_value_tens_and_ones"
+      - "compare_two_digit_numbers"
+      - "measure_length_non_standard_and_inches"
+      - "tell_time_hour_half_hour"
+      - "partition_shapes_halves_fourths"
+      - "data_up_to_3_categories"
+    out_of_scope:
+      - "multi_digit_addition_with_regrouping"
+      - "fractions_beyond_shares_of_shapes"
+      - "multiplication_as_operation"
+      - "money_beyond_coin_recognition"
+
+  second_grade:
+    in_scope:
+      - "add_subtract_within_100_fluency_within_20"
+      - "word_problems_within_100_one_and_two_step"
+      - "place_value_to_1000"
+      - "skip_count_by_5s_10s_100s"
+      - "money_coins_and_dollar_bills"
+      - "measure_length_standard_units"
+      - "tell_time_5_minute_intervals"
+      - "picture_and_bar_graphs_up_to_4_categories"
+      - "arrays_foundation_for_multiplication"
+      - "partition_shapes_halves_thirds_fourths"
+    out_of_scope:
+      - "formal_multiplication_division_algorithms"
+      - "fractions_as_numbers_on_number_line"
+      - "multi_digit_subtraction_with_zeros_across"
+
+# ---------------------------------------------------------------------------
+# Concrete-Representational-Abstract (CRA) Requirement
+# ---------------------------------------------------------------------------
+cra_progression:
+  required: true
+  rule: >
+    Every new concept must be introduced with a CONCRETE manipulative,
+    practiced with a REPRESENTATIONAL image (drawing, ten-frame, number line),
+    and only then connected to the ABSTRACT symbol. A worksheet targeting
+    a new concept must show all three stages. Review worksheets may use
+    representational-only.
+  concrete_manipulatives:
+    - "two_color_counters"
+    - "linking_cubes"
+    - "ten_frames"
+    - "rekenreks"
+    - "base_ten_blocks"
+    - "number_paths_and_number_lines"
+    - "dominoes"
+    - "dice"
+    - "play_money_pennies_nickels_dimes_quarters"
+  representational_visuals:
+    - "ten_frame_filled"
+    - "number_bond_diagram"
+    - "part_part_whole_mat"
+    - "open_number_line"
+    - "tally_marks"
+    - "simple_bar_graph"
+    - "array_of_dots"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "k2_math_picture_count"
+      description: "Count the objects, write the number"
+      max_items: 6
+    - id: "k2_math_ten_frame_fill"
+      description: "Show the number on a ten-frame"
+      max_items: 6
+    - id: "k2_math_number_bond"
+      description: "Part-part-whole with visuals"
+      max_items: 4
+    - id: "k2_math_equation_match"
+      description: "Match equation to picture"
+      max_items: 6
+    - id: "k2_math_color_by_number"
+      description: "Solve, color matching region"
+      max_items: 10       # higher because motivating + low cognitive load
+    - id: "k2_math_cut_and_paste_sort"
+      description: "Sort shapes, numbers, or equations"
+      max_items: 8
+    - id: "k2_math_word_problem_with_picture"
+      description: "Single-step story problem with full illustration"
+      max_items: 3
+    - id: "k2_math_roll_and_solve"
+      description: "Dice-based fluency practice game"
+      max_items: 12       # game format — higher volume ok
+  banned_templates:
+    - "essay_prompt"
+    - "dense_text_passage"
+    - "multi_step_word_problem_no_visual"    # until late 2nd grade
+    - "bare_computation_over_8_items"
+    - "standardized_multiple_choice_format"
+
+# ---------------------------------------------------------------------------
+# Layout Overrides (replace K-2 base where specified)
+# ---------------------------------------------------------------------------
+layout_overrides:
+  equation_rendering:
+    orientation_preferred: "vertical_stacked"
+    operator_size_pt: 36
+    equation_spacing_in: 0.75
+    answer_line_style: "thick_box"
+    place_value_column_alignment: true       # critical for 1st-2nd regrouping intro
+  problem_numbering:
+    style: "large_circle_with_digit"
+    min_diameter_in: 0.5
+
+# ---------------------------------------------------------------------------
+# Math Vocabulary — opens Tier 3 slot that base K-2 closed
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 75
+    tier_2_pct: 15
+    tier_3_pct: 10
+  allowed_tier_3_terms_by_grade:
+    kindergarten:
+      - "add"
+      - "plus"
+      - "more"
+      - "total"
+      - "altogether"
+      - "subtract"
+      - "take away"
+      - "minus"
+      - "less"
+      - "fewer"
+      - "equal"
+      - "same"
+      - "ten-frame"
+      - "number bond"
+      - "count on"
+      - "sort"
+      - "category"
+      - "circle"
+      - "square"
+      - "triangle"
+      - "rectangle"
+      - "hexagon"
+      - "cube"
+      - "sphere"
+    first_grade:
+      - "sum"
+      - "difference"
+      - "ones"
+      - "tens"
+      - "place value"
+      - "digit"
+      - "greater than"
+      - "less than"
+      - "compare"
+      - "half"
+      - "fourth"
+      - "quarter"
+      - "inch"
+      - "foot"
+      - "centimeter"
+      - "hour"
+      - "half hour"
+    second_grade:
+      - "hundreds"
+      - "thousand"
+      - "array"
+      - "row"
+      - "column"
+      - "equal groups"
+      - "skip count"
+      - "pictograph"
+      - "bar graph"
+      - "data"
+      - "penny"
+      - "nickel"
+      - "dime"
+      - "quarter"
+      - "dollar"
+      - "cent"
+      - "estimate"
+  banned_terms:
+    - "algorithm"
+    - "distributive property"               # can show as array-splitting, not name it
+    - "commutative"                          # show it, don't name it
+    - "associative"
+    - "numerator"
+    - "denominator"                          # until 3rd grade
+    - "variable"
+    - "inverse operation"
+    - "regrouping"                           # 1st grade: say "trade" or "bundle"
+
+# ---------------------------------------------------------------------------
+# Word Problem Contexts
+# ---------------------------------------------------------------------------
+word_problem_contexts:
+  allowed:
+    - "toys_and_collections"
+    - "pets_and_animals"
+    - "snacks_fruit_crackers_cookies"
+    - "siblings_and_family"
+    - "classroom_supplies_crayons_pencils"
+    - "playground_and_recess"
+    - "seasonal_leaves_snowflakes_flowers"
+    - "simple_shopping_with_coins"           # 2nd grade only
+  banned:
+    - "money_beyond_dollar_amounts"
+    - "driving_mileage_gas"
+    - "adult_jobs_salaries_taxes"
+    - "sports_statistics_averages"
+    - "cooking_with_fractions"
+    - "time_calculations_across_hours"       # until late 2nd grade
+  character_name_rules:
+    diverse_name_rotation_required: true
+    example_name_pool:
+      - "Maya"
+      - "Jamal"
+      - "Sofia"
+      - "Aarav"
+      - "Luna"
+      - "Kai"
+      - "Priya"
+      - "Mateo"
+      - "Zoe"
+      - "Omar"
+      - "Nia"
+      - "Wei"
+      - "Leilani"
+      - "Diego"
+      - "Amara"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides — math block structure
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 30                     # math block slightly longer than base
+  structure:
+    - phase: "number_talk"
+      duration_min: 5
+      description: "Mental math routine — dot image, ten-frame flash, subitize"
+    - phase: "mini_lesson"
+      duration_min: 8
+      description: "CRA introduction with manipulative model"
+    - phase: "guided_practice"
+      duration_min: 7
+      description: "Shared work with manipulatives (We do)"
+    - phase: "movement_break"
+      duration_min: 2
+      description: "Counting song or math movement (jump to 20, skip-count hops)"
+    - phase: "independent_or_partner"
+      duration_min: 6
+      description: "Hands-on task, worksheet, or math game (You do)"
+    - phase: "share_and_close"
+      duration_min: 2
+      description: "One student shares strategy; preview tomorrow"
+  manipulatives_required: true
+  math_journal_optional: true                # 2nd grade only
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 2
+  length_max: 4
+  must_show_manipulative_on_screen: true
+  narrator_counts_aloud: true
+  pause_for_student_response_moments: 3
+  examples_per_video: 2                      # modeled example + one we-do together
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "write_the_number"
+    - "draw_answer_on_ten_frame"
+    - "circle_matching_equation"
+    - "color_by_sum_or_difference"
+    - "cut_and_paste_sorting"
+    - "verbal_counting_observation"
+  exit_ticket_format:
+    max_items: 2
+    must_include_visual: true
+    must_be_completable_in_min: 3
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true        # Custom > State > National — never override
+  retrieval_grade_band_filter: ["K", "1", "2"]
+  alignment_metadata_required:
+    - "strand"                               # CC, OA, NBT, MD, G
+    - "cluster"
+    - "specific_standard_code"
+  default_frameworks_supported:
+    - "CCSS-Math"
+    - "TEKS-Math"
+    - "Virginia-SOL-Math"
+    - "Florida-BEST-Math"
+    - "Texas-TEKS-Math"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_k2_math_curricula_recognized:
+    - "Eureka Math (EngageNY)"
+    - "Bridges in Mathematics"
+    - "Investigations 3"
+    - "enVision Math"
+    - "Saxon Math"
+    - "Go Math"
+    - "Illustrative Mathematics K-5"
+  when_curriculum_uploaded:
+    match_terminology: true                  # "number bond" vs "part-part-whole"
+    match_manipulative_vocabulary: true
+    match_lesson_structure_if_detectable: true

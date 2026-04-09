@@ -1,0 +1,401 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=Fredoka:wght@400;500;600&display=swap');
+:root {
+  --t-primary: #F97316; --t-primary-light: #FB923C;
+  --t-primary-lighter: #FDBA74; --t-primary-lightest: #FED7AA;
+  --t-primary-bg: #FFF7ED; --t-primary-dark: #EA580C;
+  --t-primary-darkest: #9A3412;
+  --t-heading-font: 'DM Serif Display', serif; --t-body-font: 'DM Sans', sans-serif;
+  --t-bg: #FFFFFF; --t-bg-tint: #FEF9F2;
+  --t-text: #1C1917; --t-text-secondary: #78716C;
+  --t-text-muted: #A8A29E; --t-border: #E7E5E4;
+  --t-border-light: #F5F5F4;
+  --t-success: #16A34A; --t-success-bg: #DCFCE7;
+}
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: var(--t-body-font);
+        font-size: 14px;
+        color: var(--t-text);
+        line-height: 1.6;
+        background: var(--t-bg);
+      }
+      .page {
+        width: 8.5in;
+        min-height: 11in;
+        padding: 0.6in 0.7in;
+        margin: 0 auto;
+        position: relative;
+      }
+      h1, h2, h3 { font-family: var(--t-heading-font); }
+      h1 { font-size: 22px; margin-bottom: 4px; }
+      h2 { font-size: 16px; margin-bottom: 8px; color: var(--t-primary-darkest); }
+      h3 { font-size: 13px; margin-bottom: 4px; }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid var(--t-primary);
+        padding-bottom: 10px;
+        margin-bottom: 16px;
+      }
+      .header-left h1 { color: var(--t-text); }
+      .header-left .subtitle { font-size: 12px; color: var(--t-text-secondary); margin-top: 2px; }
+      .header-right {
+        text-align: right;
+        font-size: 12px;
+        color: var(--t-text-secondary);
+      }
+      .header-right .field-line {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 4px;
+        justify-content: flex-end;
+      }
+      .header-right .field-label { font-weight: 600; color: var(--t-primary-darkest); font-size: 11px; }
+      .header-right .field-blank {
+        border-bottom: 1px solid var(--t-border);
+        width: 140px;
+        display: inline-block;
+        height: 18px;
+      }
+      .standards-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .standard-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: var(--t-primary-bg);
+        color: var(--t-primary-darkest);
+        border: 1px solid var(--t-primary-lighter);
+        font-weight: 500;
+      }
+      .instructions {
+        background: var(--t-primary-bg);
+        border-left: 3px solid var(--t-primary);
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--t-primary-darkest);
+        margin-bottom: 16px;
+        border-radius: 0 8px 8px 0;
+      }
+      .question {
+        margin-bottom: 14px;
+        page-break-inside: avoid;
+      }
+      .question-number {
+        font-weight: 700;
+        color: var(--t-primary);
+        margin-right: 6px;
+      }
+      .question-text { font-size: 13px; color: var(--t-text); }
+      .answer-line {
+        border-bottom: 1px solid var(--t-border);
+        height: 24px;
+        margin-top: 6px;
+        margin-left: 20px;
+      }
+      .answer-lines-multi {
+        margin-top: 6px;
+        margin-left: 20px;
+      }
+      .answer-lines-multi .line {
+        border-bottom: 1px solid var(--t-border);
+        height: 22px;
+      }
+      .mc-options {
+        margin-top: 4px;
+        margin-left: 20px;
+        font-size: 13px;
+      }
+      .mc-options .option { margin-bottom: 2px; }
+      .mc-options .option-letter { font-weight: 600; color: var(--t-primary-darkest); margin-right: 8px; }
+      .word-bank {
+        border: 1px solid var(--t-border);
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        background: var(--t-bg-tint);
+      }
+      .word-bank-title { font-size: 11px; font-weight: 600; color: var(--t-primary-darkest); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+      .word-bank-words { display: flex; flex-wrap: wrap; gap: 8px; }
+      .word-bank-word { font-size: 13px; color: var(--t-text); padding: 2px 10px; background: white; border-radius: 6px; border: 1px solid var(--t-primary-lighter); }
+      .difficulty-badge {
+        display: inline-block;
+        font-size: 9px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+        margin-left: 6px;
+        text-transform: uppercase;
+      }
+      .diff-easy { background: #DCFCE7; color: #16A34A; }
+      .diff-medium { background: #FEF3C7; color: #D97706; }
+      .diff-hard { background: #FEF2F2; color: #EF4444; }
+      .points { font-size: 10px; color: var(--t-text-muted); float: right; }
+      .answer-key-answer { color: var(--t-success); font-weight: 600; }
+      .footer {
+        position: absolute;
+        bottom: 0.4in;
+        left: 0.7in;
+        right: 0.7in;
+        text-align: center;
+        font-size: 9px;
+        color: var(--t-text-muted);
+        border-top: 1px solid var(--t-border-light);
+        padding-top: 6px;
+      }
+      /* Print */
+      @media print {
+        body { background: white; }
+        .page { padding: 0.5in 0.6in; margin: 0; box-shadow: none; }
+        .no-print { display: none; }
+        @page { margin: 0; size: letter; }
+      }
+      /* Card grid */
+      .card-grid {
+        display: grid;
+        gap: 12px;
+      }
+      .card-grid-6 { grid-template-columns: repeat(2, 1fr); }
+      .card-grid-8 { grid-template-columns: repeat(2, 1fr); }
+      .card {
+        border: 1px solid var(--t-border);
+        border-radius: 12px;
+        padding: 14px;
+        page-break-inside: avoid;
+        position: relative;
+      }
+      .card-number {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--t-primary);
+        background: var(--t-primary-bg);
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .cut-line {
+        border-top: 1px dashed #D6D3D1;
+        margin: 8px 0;
+      }
+      /* Bingo */
+      .bingo-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        border: 2px solid var(--t-primary);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .bingo-cell {
+        border: 1px solid var(--t-border);
+        padding: 10px 4px;
+        text-align: center;
+        font-size: 11px;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .bingo-header {
+        background: var(--t-primary);
+        color: white;
+        font-family: var(--t-heading-font);
+        font-size: 18px;
+        font-weight: 700;
+        padding: 8px;
+      }
+      .bingo-free {
+        background: var(--t-primary-bg);
+        font-weight: 700;
+        color: var(--t-primary);
+        font-size: 14px;
+      }
+      /* Passage */
+      .passage {
+        background: var(--t-bg-tint);
+        border: 1px solid var(--t-border);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .passage .line-number {
+        display: inline-block;
+        width: 24px;
+        text-align: right;
+        margin-right: 10px;
+        color: var(--t-text-muted);
+        font-size: 10px;
+        user-select: none;
+      }
+      .vocab-sidebar {
+        background: #FFF7ED;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 12px;
+      }
+      .vocab-sidebar .vocab-word { font-weight: 600; color: var(--t-primary-darkest); }
+      .vocab-sidebar .vocab-def { color: var(--t-text-secondary); margin-left: 4px; }
+      /* Two-column for reading comp */
+      .two-col { display: grid; grid-template-columns: 1fr 200px; gap: 16px; }
+      /* Half-page */
+      .half-page { min-height: 5.25in; max-height: 5.5in; overflow: hidden; }
+      .half-divider { border-top: 2px dashed var(--t-border); margin: 8px 0; }
+      /* Graphic organizer */
+      .go-venn { display: flex; justify-content: center; gap: 0; margin: 20px 0; }
+      .go-circle {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        border: 2px solid #F97316;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        font-size: 11px;
+        text-align: center;
+      }
+      .go-circle:nth-child(2) { margin-left: -40px; }
+      .go-tchart {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border: 2px solid var(--t-primary);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .go-tchart-header {
+        background: var(--t-primary-bg);
+        padding: 8px;
+        font-weight: 600;
+        text-align: center;
+        border-bottom: 2px solid var(--t-primary);
+        font-family: var(--t-heading-font);
+      }
+      .go-tchart-cell {
+        padding: 12px;
+        min-height: 200px;
+        border-right: 1px solid #E7E5E4;
+      }
+      .go-kwl {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        border: 2px solid var(--t-primary);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .study-topic {
+        background: #FFF7ED;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+      .study-vocab { font-weight: 600; color: var(--t-primary); }
+      .study-example {
+        background: var(--t-bg-tint);
+        border-left: 3px solid var(--t-primary-lighter);
+        padding: 8px 12px;
+        margin: 8px 0;
+        font-size: 12px;
+        border-radius: 0 8px 8px 0;
+      }
+      
+.question-visual {
+  margin: 8px 0 12px 28px;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.question-visual svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.visual-label {
+  font-size: 0.85em;
+  color: var(--t-text-secondary, #78716C);
+  font-style: italic;
+}
+.visual-placeholder {
+  border: 2px dashed var(--t-border, #E7E5E4);
+  background: var(--t-bg-tint, #FEF9F2);
+  padding: 12px 16px;
+  border-radius: 8px;
+  color: var(--t-text-secondary, #78716C);
+  font-size: 0.9em;
+  font-style: italic;
+}
+.visual-placeholder strong {
+  display: block;
+  font-style: normal;
+  color: var(--t-text, #1C1917);
+  margin-bottom: 4px;
+}
+
+    </style>
+</head>
+<body><div class="page">
+  <div class="header">
+    <div class="header-left"><h1>Grade 1 Math: Counting & Adding</h1><div class="subtitle">Standards-Aligned Assessment</div></div>
+    <div class="header-right">
+      <div class="field-line"><span class="field-label">Name:</span><span class="field-blank"></span></div>
+      <div class="field-line"><span class="field-label">Date:</span><span class="field-blank"></span></div>
+      <div class="field-line"><span class="field-label">Class:</span><span class="field-blank"></span></div>
+    </div>
+  </div>
+  <div class="standards-bar"><span class="standard-badge">1.OA.6</span></div>
+  <div class="instructions">Use the ten-frames and pictures to help you solve each problem.</div>
+  
+  
+        <div class="question">
+          <div><span class="question-number">1.</span><span class="question-text">Maya has 5 cookies. How many cookies does Maya have?</span></div>
+          <div class="question-visual"><svg width="192" height="84" viewBox="0 0 192 84" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="36" height="36" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><circle cx="24" cy="24" r="12" fill="var(--t-bg, #FFFFFF)" stroke="none"/><rect x="42" y="6" width="36" height="36" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><circle cx="60" cy="24" r="12" fill="var(--t-bg, #FFFFFF)" stroke="none"/><rect x="78" y="6" width="36" height="36" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><circle cx="96" cy="24" r="12" fill="var(--t-bg, #FFFFFF)" stroke="none"/><rect x="114" y="6" width="36" height="36" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><circle cx="132" cy="24" r="12" fill="var(--t-bg, #FFFFFF)" stroke="none"/><rect x="150" y="6" width="36" height="36" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><circle cx="168" cy="24" r="12" fill="var(--t-bg, #FFFFFF)" stroke="none"/><rect x="6" y="42" width="36" height="36" fill="var(--t-bg, #FFFFFF)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><rect x="42" y="42" width="36" height="36" fill="var(--t-bg, #FFFFFF)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><rect x="78" y="42" width="36" height="36" fill="var(--t-bg, #FFFFFF)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><rect x="114" y="42" width="36" height="36" fill="var(--t-bg, #FFFFFF)" stroke="var(--t-text, #1C1917)" stroke-width="2"/><rect x="150" y="42" width="36" height="36" fill="var(--t-bg, #FFFFFF)" stroke="var(--t-text, #1C1917)" stroke-width="2"/></svg><div class="visual-label">Maya&#x27;s cookies</div></div>
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">2.</span><span class="question-text">What is 7 + 3?</span></div>
+          <div class="question-visual"><svg width="200" height="130" viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
+  <line x1="100" y1="50" x2="55" y2="100" stroke="var(--t-text, #1C1917)" stroke-width="2"/>
+  <line x1="100" y1="50" x2="145" y2="100" stroke="var(--t-text, #1C1917)" stroke-width="2"/>
+  <circle cx="100" cy="30" r="28" fill="var(--t-primary-lightest, #FED7AA)" stroke="var(--t-text, #1C1917)" stroke-width="2"/>
+  <text x="100" y="38" text-anchor="middle" font-size="22" font-weight="bold" fill="var(--t-text, #1C1917)">10</text>
+  <circle cx="55" cy="100" r="28" fill="var(--t-bg, #FFFFFF)" stroke="var(--t-text, #1C1917)" stroke-width="2"/>
+  <text x="55" y="108" text-anchor="middle" font-size="22" font-weight="bold" fill="var(--t-text, #1C1917)">7</text>
+  <circle cx="145" cy="100" r="28" fill="var(--t-bg, #FFFFFF)" stroke="var(--t-text, #1C1917)" stroke-width="2"/>
+  <text x="145" y="108" text-anchor="middle" font-size="22" font-weight="bold" fill="var(--t-text, #1C1917)">3</text>
+</svg></div>
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">3.</span><span class="question-text">Count the stars below.</span></div>
+          <div class="question-visual"><svg width="220" height="40" viewBox="0 0 220 40" xmlns="http://www.w3.org/2000/svg"><polygon points="20.0,6.0 24.1,14.3 33.3,15.7 26.7,22.2 28.2,31.3 20.0,27.0 11.8,31.3 13.3,22.2 6.7,15.7 15.9,14.3" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="1"/><polygon points="56.0,6.0 60.1,14.3 69.3,15.7 62.7,22.2 64.2,31.3 56.0,27.0 47.8,31.3 49.3,22.2 42.7,15.7 51.9,14.3" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="1"/><polygon points="92.0,6.0 96.1,14.3 105.3,15.7 98.7,22.2 100.2,31.3 92.0,27.0 83.8,31.3 85.3,22.2 78.7,15.7 87.9,14.3" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="1"/><polygon points="128.0,6.0 132.1,14.3 141.3,15.7 134.7,22.2 136.2,31.3 128.0,27.0 119.8,31.3 121.3,22.2 114.7,15.7 123.9,14.3" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="1"/><polygon points="164.0,6.0 168.1,14.3 177.3,15.7 170.7,22.2 172.2,31.3 164.0,27.0 155.8,31.3 157.3,22.2 150.7,15.7 159.9,14.3" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="1"/><polygon points="200.0,6.0 204.1,14.3 213.3,15.7 206.7,22.2 208.2,31.3 200.0,27.0 191.8,31.3 193.3,22.2 186.7,15.7 195.9,14.3" fill="var(--t-primary, #F97316)" stroke="var(--t-text, #1C1917)" stroke-width="1"/></svg></div>
+          <div class="answer-line"></div>
+        </div>
+        <div class="question">
+          <div><span class="question-number">4.</span><span class="question-text">Solve:</span></div>
+          <div class="question-visual"><svg width="130" height="130" viewBox="0 0 130 130" xmlns="http://www.w3.org/2000/svg">
+  <text x="100" y="42" text-anchor="end" font-size="36" font-family="monospace" font-weight="600" fill="var(--t-text, #1C1917)">7</text>
+  <text x="40" y="84" text-anchor="middle" font-size="36" font-family="monospace" fill="var(--t-text, #1C1917)">+</text>
+  <text x="100" y="84" text-anchor="end" font-size="36" font-family="monospace" font-weight="600" fill="var(--t-text, #1C1917)">5</text>
+  <line x1="20" y1="98" x2="115" y2="98" stroke="var(--t-text, #1C1917)" stroke-width="3"/>
+</svg></div>
+          <div class="answer-line"></div>
+        </div>
+  <div class="footer">Generated by Lulia AI</div>
+</div></body></html>

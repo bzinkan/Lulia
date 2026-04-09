@@ -1,0 +1,548 @@
+# Grade 9-12 Science Subject Overlay
+#
+# Inherits from: grade_bands/g912.yaml
+# Covers: NGSS High School + discipline-specialized courses
+#         (Biology, Chemistry, Physics, Earth/Environmental, AP variants).
+#
+# 9-12 science is highly discipline-specialized. Most schools sequence
+# Biology → Chemistry → Physics, with Earth/Environmental, AP courses,
+# and electives layered in. Students engage in genuine scientific inquiry,
+# quantitative analysis, formal lab reports with error analysis, and
+# discipline-specific reasoning. AP courses prepare students for the
+# College Board exams with college-level rigor. Vocabulary explodes with
+# discipline-specific Tier 3 terms.
+#
+# Source authorities:
+#   - Next Generation Science Standards (NGSS) High School
+#   - College Board AP Biology, Chemistry, Physics 1/2/C, Environmental Science CEDs
+#   - A Framework for K-12 Science Education (NRC)
+#   - Ambitious Science Teaching (Windschitl et al.)
+#   - NSTA Position Statement on High School Science
+#   - Disciplinary Literacy in Science (Shanahan)
+#   - Modeling Instruction (American Modeling Teachers Association)
+
+id: g912_science
+extends: g912
+subject: science
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Course Coverage
+# ---------------------------------------------------------------------------
+courses_supported:
+  biology:
+    typical_grade: "9_or_10"
+    in_scope:
+      - "biochemistry_macromolecules"
+      - "cell_structure_and_function_advanced"
+      - "cell_membrane_transport"
+      - "cellular_respiration_full_pathway"
+      - "photosynthesis_full_pathway"
+      - "cell_cycle_mitosis_meiosis"
+      - "DNA_structure_replication_protein_synthesis"
+      - "genetics_mendelian_and_modern"
+      - "natural_selection_and_evolution"
+      - "evidence_for_evolution"
+      - "phylogeny_and_classification"
+      - "ecology_population_community_ecosystem"
+      - "biogeochemical_cycles"
+      - "human_body_systems_anatomy_physiology_intro"
+    out_of_scope:
+      - "graduate_level_molecular_biology"
+      - "advanced_immunology_research"
+
+  chemistry:
+    typical_grade: "10_or_11"
+    in_scope:
+      - "atomic_structure_and_periodic_table"
+      - "electron_configuration"
+      - "chemical_bonding_ionic_covalent_metallic"
+      - "naming_compounds_and_writing_formulas"
+      - "stoichiometry_and_chemical_equations"
+      - "states_of_matter_and_gas_laws"
+      - "solutions_and_concentration"
+      - "acids_and_bases_pH"
+      - "thermochemistry"
+      - "kinetics_intro"
+      - "equilibrium_intro"
+      - "redox_reactions_intro"
+      - "organic_chemistry_introduction"
+    out_of_scope:
+      - "advanced_organic_chemistry_synthesis"
+      - "biochemistry_advanced"
+      - "physical_chemistry_advanced"
+
+  physics:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "kinematics_one_and_two_dimensional"
+      - "newtons_laws_and_forces"
+      - "circular_motion_and_gravitation"
+      - "energy_work_and_power"
+      - "momentum_and_impulse"
+      - "simple_harmonic_motion_and_waves"
+      - "sound_and_light"
+      - "geometric_optics"
+      - "thermodynamics_intro"
+      - "electricity_and_magnetism_intro"
+      - "modern_physics_intro_relativity_quantum"
+    out_of_scope:
+      - "advanced_quantum_mechanics"
+      - "general_relativity_full_math"
+      - "particle_physics_advanced"
+
+  earth_and_environmental:
+    typical_grade: "9_or_elective"
+    in_scope:
+      - "earths_systems_geosphere_atmosphere_hydrosphere_biosphere"
+      - "plate_tectonics_full_mechanism"
+      - "rock_cycle_and_minerals"
+      - "weather_and_climate_systems"
+      - "climate_change_evidence_and_impacts"
+      - "earth_in_solar_system_and_universe"
+      - "natural_resources_and_sustainability"
+      - "human_impact_on_environment"
+      - "ecosystem_dynamics_advanced"
+      - "biodiversity_and_conservation"
+
+  ap_biology:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "evolution_natural_selection_speciation_phylogeny"
+      - "energy_dynamics_and_metabolism"
+      - "molecular_genetics_and_gene_expression"
+      - "cell_communication_and_signaling"
+      - "ecology_and_population_dynamics"
+      - "ap_biology_lab_inquiry_practices"
+
+  ap_chemistry:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "atomic_structure_and_properties_advanced"
+      - "molecular_and_ionic_compound_structure_and_properties"
+      - "intermolecular_forces_and_properties"
+      - "chemical_reactions_advanced"
+      - "kinetics_advanced"
+      - "thermodynamics_advanced"
+      - "equilibrium_advanced"
+      - "acids_and_bases_advanced"
+      - "applications_of_thermodynamics"
+
+  ap_physics_1_and_2:
+    typical_grade: "10_through_12"
+    in_scope:
+      - "kinematics_and_dynamics"
+      - "circular_motion_gravitation"
+      - "energy_momentum"
+      - "rotational_motion"
+      - "simple_harmonic_motion"
+      - "fluids_thermodynamics_electrostatics_circuits_magnetism_optics"
+
+  ap_environmental_science:
+    typical_grade: "10_through_12"
+    in_scope:
+      - "living_world_ecosystems_biodiversity"
+      - "populations"
+      - "earth_systems_and_resources"
+      - "land_and_water_use"
+      - "energy_resources_and_consumption"
+      - "atmospheric_pollution"
+      - "aquatic_and_terrestrial_pollution"
+      - "global_change"
+
+# ---------------------------------------------------------------------------
+# Three-Dimensional Learning
+# ---------------------------------------------------------------------------
+three_dimensional_learning:
+  required: true
+  rule: >
+    NGSS three-dimensional learning continues at high school: every lesson
+    integrates a Disciplinary Core Idea + Science and Engineering Practice
+    + Crosscutting Concept. AP courses integrate the AP Science Practices
+    in addition to or instead of NGSS practices. Students engage in
+    authentic scientific inquiry, including question generation, study
+    design, data analysis, and explanation construction.
+
+# ---------------------------------------------------------------------------
+# Investigation Requirement
+# ---------------------------------------------------------------------------
+investigation_requirement:
+  required_frequency: "regular_weekly_or_more"
+  rule: >
+    Hands-on or interactive investigations are central to high school
+    science. Lab work should include question, hypothesis (when
+    appropriate), procedure, data collection, analysis with quantitative
+    methods, error analysis, and conclusion supported by evidence.
+    Simulations and high-quality data sets are acceptable substitutes
+    when the real investigation is impractical or unsafe. AP courses
+    require lab notebooks and inquiry-based investigations.
+  common_g912_investigations:
+    biology:
+      - "diffusion_and_osmosis_with_dialysis_tubing"
+      - "enzyme_activity_with_catalase_or_amylase"
+      - "cellular_respiration_with_co2_indicator"
+      - "photosynthesis_with_floating_leaf_disks"
+      - "DNA_extraction_from_strawberries_or_cheek_cells"
+      - "genetics_with_drosophila_or_corn_kernels"
+      - "natural_selection_simulation_with_beans_or_fish"
+      - "ecology_field_study_or_quadrat_sampling"
+    chemistry:
+      - "flame_tests_for_metal_ions"
+      - "stoichiometry_with_precipitation_reactions"
+      - "gas_law_demonstrations"
+      - "titration_acid_base"
+      - "kinetics_with_iodine_clock_reaction"
+      - "calorimetry"
+      - "electrochemistry_simple_cells"
+    physics:
+      - "kinematics_with_motion_sensors_or_video_analysis"
+      - "newtons_second_law_with_carts_and_force_sensors"
+      - "circular_motion_with_rotating_platform"
+      - "energy_conservation_with_pendulum_or_spring"
+      - "wave_demonstrations_ripple_tank_or_strings"
+      - "circuits_with_resistors_meters_and_power_supplies"
+      - "geometric_optics_with_lenses_and_mirrors"
+    earth_environmental:
+      - "rock_and_mineral_identification"
+      - "topographic_map_analysis"
+      - "weather_data_analysis_from_real_sources"
+      - "water_quality_testing"
+      - "ecosystem_field_study"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g912_sci_formal_lab_report"
+      description: "Question, hypothesis, materials, procedure, data, analysis, error, conclusion"
+      max_items: 1
+    - id: "g912_sci_data_analysis_quantitative"
+      description: "Real data set with calculations, graphs, statistical analysis"
+      max_items: 1
+    - id: "g912_sci_claim_evidence_reasoning_full"
+      description: "Full CER with multiple lines of evidence and counter-explanation"
+      max_items: 3
+    - id: "g912_sci_problem_set_quantitative"
+      description: "Calculation-heavy practice with formulas and unit analysis"
+      max_items: 18
+    - id: "g912_sci_concept_application"
+      description: "Apply core ideas to novel situations or real-world contexts"
+      max_items: 8
+    - id: "g912_sci_model_construction_and_use"
+      description: "Build, use, and revise models of systems or processes"
+      max_items: 1
+    - id: "g912_sci_argumentation_from_evidence"
+      description: "Multiple data sources, take a position, defend with evidence"
+      max_items: 1
+    - id: "g912_sci_research_or_literature_review"
+      description: "Investigate a topic with peer-reviewed sources"
+      max_items: 1
+    - id: "g912_sci_engineering_design_project"
+      description: "Define, design, build, test, iterate, communicate"
+      max_items: 1
+    - id: "g912_sci_ap_style_frq"
+      description: "AP-style free-response question with rubric"
+      max_items: 4
+    - id: "g912_sci_practice_problems"
+      description: "Mixed practice with quantitative and conceptual items"
+      max_items: 20
+  banned_templates:
+    - "memorize_definitions_only"
+    - "fill_in_vocab_with_no_phenomenon"
+    - "elementary_color_and_label"
+    - "k2_picture_match"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 25
+    tier_2_pct: 25
+    tier_3_pct: 50                              # very heavy domain-specific load
+  allowed_tier_3_terms:
+    biology:
+      - "macromolecule"
+      - "carbohydrate"
+      - "lipid"
+      - "protein"
+      - "nucleic acid"
+      - "enzyme"
+      - "substrate"
+      - "active site"
+      - "ATP"
+      - "ADP"
+      - "glycolysis"
+      - "Krebs cycle"
+      - "electron transport chain"
+      - "Calvin cycle"
+      - "thylakoid"
+      - "stroma"
+      - "chlorophyll"
+      - "mitochondrion"
+      - "endoplasmic reticulum"
+      - "ribosome"
+      - "Golgi apparatus"
+      - "DNA"
+      - "RNA"
+      - "transcription"
+      - "translation"
+      - "codon"
+      - "amino acid"
+      - "polypeptide"
+      - "mitosis"
+      - "meiosis"
+      - "homologous chromosomes"
+      - "crossing over"
+      - "phenotype"
+      - "genotype"
+      - "allele"
+      - "dominant"
+      - "recessive"
+      - "Punnett square"
+      - "natural selection"
+      - "fitness"
+      - "speciation"
+      - "phylogeny"
+      - "ecosystem"
+      - "biome"
+      - "trophic level"
+      - "carrying capacity"
+    chemistry:
+      - "atom"
+      - "element"
+      - "isotope"
+      - "ion"
+      - "cation"
+      - "anion"
+      - "electron configuration"
+      - "valence electron"
+      - "ionic bond"
+      - "covalent bond"
+      - "metallic bond"
+      - "polar"
+      - "nonpolar"
+      - "electronegativity"
+      - "Lewis structure"
+      - "VSEPR"
+      - "molecular geometry"
+      - "stoichiometry"
+      - "mole"
+      - "Avogadro's number"
+      - "molar mass"
+      - "limiting reactant"
+      - "percent yield"
+      - "balanced equation"
+      - "endothermic"
+      - "exothermic"
+      - "enthalpy"
+      - "entropy"
+      - "Gibbs free energy"
+      - "equilibrium constant"
+      - "Le Chatelier's principle"
+      - "pH"
+      - "pOH"
+      - "Brønsted-Lowry"
+      - "Lewis acid"
+      - "redox"
+      - "oxidation"
+      - "reduction"
+      - "half reaction"
+    physics:
+      - "displacement"
+      - "velocity"
+      - "acceleration"
+      - "force"
+      - "Newton's first law"
+      - "Newton's second law"
+      - "Newton's third law"
+      - "free body diagram"
+      - "friction"
+      - "normal force"
+      - "tension"
+      - "centripetal force"
+      - "centripetal acceleration"
+      - "torque"
+      - "moment of inertia"
+      - "angular velocity"
+      - "kinetic energy"
+      - "potential energy"
+      - "work"
+      - "power"
+      - "momentum"
+      - "impulse"
+      - "elastic collision"
+      - "inelastic collision"
+      - "amplitude"
+      - "wavelength"
+      - "frequency"
+      - "period"
+      - "interference"
+      - "diffraction"
+      - "refraction"
+      - "voltage"
+      - "current"
+      - "resistance"
+      - "Ohm's law"
+      - "magnetic field"
+      - "electromagnetic induction"
+    earth_environmental:
+      - "lithosphere"
+      - "asthenosphere"
+      - "convection current"
+      - "subduction"
+      - "divergent boundary"
+      - "convergent boundary"
+      - "transform boundary"
+      - "igneous"
+      - "sedimentary"
+      - "metamorphic"
+      - "weathering"
+      - "erosion"
+      - "deposition"
+      - "albedo"
+      - "greenhouse effect"
+      - "carbon cycle"
+      - "nitrogen cycle"
+      - "biodiversity"
+      - "keystone species"
+      - "succession"
+      - "carrying capacity"
+      - "ecological footprint"
+      - "anthropogenic"
+  banned_terms:
+    - "graduate_level_molecular_biology_jargon"
+    - "research_grade_organic_synthesis"
+    - "advanced_quantum_field_theory"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 55
+  block_schedule_alternative_min: 90
+  model: "5E_or_AP_lab_inquiry_when_appropriate"
+  structure:
+    - phase: "engage"
+      duration_min: 7
+      description: "Phenomenon, demonstration, driving question, or current event"
+    - phase: "explore_or_investigate"
+      duration_min: 18
+      description: "Hands-on lab, simulation, data collection, or modeling"
+    - phase: "explain_with_concept_development"
+      duration_min: 12
+      description: "Discussion, vocabulary, model revision, formal explanation"
+    - phase: "elaborate_or_apply"
+      duration_min: 13
+      description: "Apply to new situation, extend with reading, or solve problems"
+    - phase: "evaluate_and_close"
+      duration_min: 5
+      description: "Formative check, exit ticket, or CER prompt"
+  manipulatives_required: true
+  safety_review_required_for_investigations: true
+  homework_expected: true
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 6
+  length_max: 15
+  show_real_phenomenon_when_possible: true
+  animation_acceptable_for_unobservable_systems: true
+  must_use_evidence_language: true
+  data_visualizations_when_relevant: true
+  proper_scientific_notation_required: true
+  ap_style_examples_for_ap_courses: true
+
+# ---------------------------------------------------------------------------
+# Safety Rules
+# ---------------------------------------------------------------------------
+safety_rules:
+  banned_activities_without_strict_protocols:
+    - "concentrated_acids_or_bases_without_PPE"
+    - "open_flame_unsupervised"
+    - "high_voltage_electrical_unsupervised"
+    - "biohazard_materials"
+    - "hazardous_chemicals_without_msds_review"
+  required_practices:
+    - "safety_goggles_for_chemical_or_lab_work"
+    - "lab_apron_when_chemicals_used"
+    - "closed_toe_shoes"
+    - "tied_back_long_hair"
+    - "no_eating_or_drinking_in_lab"
+    - "review_msds_for_chemicals_used"
+    - "proper_disposal_of_lab_materials"
+    - "emergency_procedures_known"
+  living_organism_rules:
+    - "humane_treatment_of_all_living_things"
+    - "consent_for_dissection_with_alternatives"
+    - "iacuc_compliance_when_applicable"
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "formal_lab_report_with_error_analysis"
+    - "claim_evidence_reasoning_response_full"
+    - "data_analysis_with_quantitative_calculation"
+    - "model_with_explanation_and_revision"
+    - "design_an_investigation_with_controls"
+    - "argue_from_evidence_with_counterargument"
+    - "ap_style_free_response"
+    - "research_or_literature_synthesis"
+    - "engineering_design_with_iteration"
+  banned:
+    - "memorize_and_define_only"
+    - "rapid_fire_vocab_recall"
+    - "fill_in_the_word_with_no_context"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["9", "10", "11", "12"]
+  course_level_aware: true
+  alignment_metadata_required:
+    - "disciplinary_core_idea"
+    - "science_and_engineering_practice"
+    - "crosscutting_concept"
+    - "specific_performance_expectation_code"
+    - "course_level"
+  default_frameworks_supported:
+    - "NGSS-HS"
+    - "TEKS-Science"
+    - "Virginia-SOL-Science"
+    - "Florida-SSS-Science"
+    - "AP-Biology-CED"
+    - "AP-Chemistry-CED"
+    - "AP-Physics-1-CED"
+    - "AP-Physics-2-CED"
+    - "AP-Environmental-Science-CED"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g912_science_curricula_recognized:
+    - "Modeling Instruction (AMTA)"
+    - "BSCS Biology"
+    - "Campbell Biology (AP Bio)"
+    - "Pearson Chemistry"
+    - "Zumdahl Chemistry"
+    - "OpenStax Chemistry"
+    - "OpenStax Biology"
+    - "OpenStax Physics"
+    - "Holt Physics"
+    - "Giancoli Physics"
+    - "Tarbuck Earth Science"
+    - "Living Earth (Stile)"
+    - "Inspire Science HS (McGraw Hill)"
+  when_curriculum_uploaded:
+    match_anchoring_phenomena: true
+    match_terminology: true
+    respect_storyline_or_unit_sequence: true

@@ -1,0 +1,544 @@
+# Grade 9-12 Social Studies Subject Overlay
+#
+# Inherits from: grade_bands/g912.yaml
+# Covers: World History, US History, US Government & Civics, Economics,
+#         Geography, Psychology, Sociology, plus AP variants and electives.
+#
+# 9-12 social studies is highly course-specialized. Students engage in
+# rigorous historical thinking (sourcing, contextualization, corroboration,
+# close reading), evaluate competing arguments, write extended analytical
+# essays with evidence, and conduct research with primary and secondary
+# sources. AP courses prepare students for College Board exams. Civic
+# reasoning prepares students for adult participation in democracy.
+#
+# Source authorities:
+#   - C3 Framework for Social Studies State Standards
+#   - NCSS National Curriculum Standards for Social Studies
+#   - College Board AP US History, World History, US Government, Comparative Government,
+#     European History, Macroeconomics, Microeconomics, Human Geography, Psychology CEDs
+#   - Reading Like a Historian (Stanford History Education Group)
+#   - National Council for History Education
+#   - Facing History and Ourselves
+#   - Teaching Tolerance / Learning for Justice
+#   - James W. Loewen "Lies My Teacher Told Me"
+#   - Howard Zinn "A People's History of the United States" (with critical framing)
+
+id: g912_social
+extends: g912
+subject: social_studies
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Course Coverage
+# ---------------------------------------------------------------------------
+courses_supported:
+  world_history:
+    typical_grade: "9_or_10"
+    in_scope:
+      - "early_civilizations_through_classical_age"
+      - "post_classical_world_500_to_1450"
+      - "early_modern_world_1450_to_1750"
+      - "industrial_and_imperial_age_1750_to_1900"
+      - "twentieth_century_world_wars_decolonization_cold_war"
+      - "contemporary_world_globalization_age_appropriate"
+      - "non_western_civilizations_central_not_supplemental"
+
+  us_history:
+    typical_grade: "10_or_11"
+    in_scope:
+      - "indigenous_nations_and_european_contact"
+      - "colonial_america_and_road_to_revolution"
+      - "revolution_and_constitution"
+      - "early_republic_and_jeffersonian_era"
+      - "antebellum_period_and_reform_movements"
+      - "slavery_and_its_systemic_impacts"
+      - "civil_war_and_reconstruction"
+      - "industrialization_immigration_urbanization"
+      - "progressive_era_and_imperialism"
+      - "world_wars_and_great_depression"
+      - "civil_rights_movement_1950s_70s"
+      - "cold_war_era"
+      - "modern_america_post_1980_age_appropriate"
+
+  us_government_and_civics:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "foundations_of_us_government_political_philosophy"
+      - "constitution_and_bill_of_rights_in_depth"
+      - "federalism"
+      - "branches_of_government_powers_checks_and_balances"
+      - "congress_legislative_process"
+      - "presidency_and_executive_power"
+      - "judiciary_and_supreme_court_landmark_cases"
+      - "civil_liberties_and_civil_rights"
+      - "political_participation_voting_parties_interest_groups_media"
+      - "policy_making_and_implementation"
+      - "civic_engagement_and_responsibility"
+
+  economics:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "scarcity_choice_opportunity_cost"
+      - "supply_and_demand_market_equilibrium"
+      - "elasticity"
+      - "consumer_and_producer_behavior"
+      - "market_structures_perfect_competition_monopoly_oligopoly"
+      - "labor_markets"
+      - "macroeconomic_indicators_gdp_unemployment_inflation"
+      - "fiscal_policy_and_monetary_policy"
+      - "international_trade_and_exchange_rates"
+      - "personal_finance_basics"
+
+  geography:
+    typical_grade: "9_or_elective"
+    in_scope:
+      - "physical_geography_landforms_climate_regions"
+      - "human_geography_population_culture_migration"
+      - "political_geography_states_borders_conflicts"
+      - "economic_geography_resources_development"
+      - "urban_geography"
+      - "environmental_geography_human_environment_interaction"
+
+  psychology:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "history_and_methods_of_psychology"
+      - "biological_bases_of_behavior"
+      - "sensation_and_perception"
+      - "learning"
+      - "cognition_and_memory"
+      - "developmental_psychology"
+      - "personality"
+      - "social_psychology"
+      - "abnormal_psychology"
+      - "treatment_of_psychological_disorders"
+
+  ap_us_history:
+    typical_grade: "11"
+    in_scope:
+      - "9_chronological_periods_pre_1491_to_present"
+      - "thematic_learning_objectives_ngs_pol_ethnic_envir_geog_culture_econ_id"
+      - "historical_thinking_skills_apush"
+      - "document_based_questions_dbq"
+      - "long_essay_question_leq"
+
+  ap_world_history_modern:
+    typical_grade: "10_or_11"
+    in_scope:
+      - "the_global_tapestry_1200_to_1450"
+      - "networks_of_exchange_1200_to_1450"
+      - "land_based_empires_1450_to_1750"
+      - "transoceanic_interconnections_1450_to_1750"
+      - "revolutions_1750_to_1900"
+      - "consequences_of_industrialization_1750_to_1900"
+      - "global_conflict_1900_to_present"
+      - "cold_war_and_decolonization_1900_to_present"
+      - "globalization_1900_to_present"
+
+  ap_us_government_and_politics:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "foundations_of_american_democracy"
+      - "interactions_among_branches_of_government"
+      - "civil_liberties_and_civil_rights"
+      - "american_political_ideologies_and_beliefs"
+      - "political_participation"
+      - "required_supreme_court_cases"
+      - "required_foundational_documents"
+
+  ap_macroeconomics:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "basic_economic_concepts"
+      - "economic_indicators_and_business_cycle"
+      - "national_income_and_price_determination"
+      - "financial_sector"
+      - "long_run_consequences_of_stabilization_policies"
+      - "open_economy_international_trade_and_finance"
+
+  ap_microeconomics:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "basic_economic_concepts"
+      - "supply_and_demand"
+      - "production_cost_and_perfect_competition_model"
+      - "imperfect_competition"
+      - "factor_markets"
+      - "market_failure_and_role_of_government"
+
+  ap_human_geography:
+    typical_grade: "9_through_12"
+    in_scope:
+      - "thinking_geographically"
+      - "population_and_migration_patterns_and_processes"
+      - "cultural_patterns_and_processes"
+      - "political_patterns_and_processes"
+      - "agriculture_and_rural_land_use_patterns_and_processes"
+      - "cities_and_urban_land_use_patterns_and_processes"
+      - "industrial_and_economic_development_patterns_and_processes"
+
+# ---------------------------------------------------------------------------
+# Content Sensitivity Rules — strict at 9-12
+# ---------------------------------------------------------------------------
+content_sensitivity:
+  required_inclusive_representation:
+    cultural_backgrounds: "broad_global_diversity_required"
+    indigenous_voices: "centered_when_relevant_and_throughout_us_history"
+    enslaved_peoples: "humane_complete_treatment_with_named_individuals"
+    immigration_stories: "diverse_humanizing_complex"
+    abilities: "natural_inclusion"
+    family_structures: "diverse"
+    gender_representation: "balanced_with_attention_to_historical_marginalization"
+    lgbtq_inclusion: "appropriate_when_relevant_to_history_and_contemporary_issues"
+
+  historical_treatment:
+    rule: >
+      Tell the truth at college-prep rigor. High school students can handle
+      complexity and ambiguity. Do not mythologize, do not minimize harm,
+      do not flatten any people group into a single story. Always include
+      multiple perspectives and use active voice for harm. Acknowledge
+      ongoing impacts of historical injustices. Avoid both myth-making
+      and cynical "no heroes" framing — present complex humans in complex
+      situations making consequential choices.
+    banned_simplifications:
+      - "founding_fathers_unblemished_with_no_contradictions_about_slavery"
+      - "westward_expansion_as_inevitable_progress"
+      - "manifest_destiny_uncritical"
+      - "lost_cause_mythology"
+      - "civil_war_states_rights_without_acknowledging_slavery"
+      - "first_thanksgiving_harmony_myth"
+      - "columbus_hero_discovery_narrative"
+      - "passive_voice_for_violence_done_to_marginalized_groups"
+      - "single_story_of_any_culture_continent_or_people"
+      - "colorblind_or_post_racial_framing_of_us_history"
+    required_inclusions:
+      - "indigenous_perspectives_throughout_us_history_not_only_at_contact"
+      - "honest_complete_account_of_chattel_slavery_and_its_legacies"
+      - "diverse_contributors_to_us_and_world_history_centered_not_supplemental"
+      - "civil_rights_history_extending_beyond_mlk_to_movements_and_ongoing_struggles"
+      - "ongoing_impacts_of_historical_injustices_today"
+      - "resistance_and_agency_of_marginalized_peoples"
+      - "complexity_and_contradictions_in_all_historical_actors"
+
+  current_events_and_political_topics:
+    rule: >
+      High school social studies routinely addresses contemporary political
+      topics. Present multiple legitimate perspectives, distinguish facts
+      from opinions, model evidence-based reasoning, and avoid partisan
+      framing or attacks. Help students develop civic reasoning skills
+      without telling them what to think.
+    required_practices:
+      - "multiple_perspectives_on_contested_issues"
+      - "distinguish_facts_from_opinions_and_speculation"
+      - "model_evaluation_of_sources"
+      - "respect_diverse_political_viewpoints_while_holding_to_factual_accuracy"
+
+  banned_topics:
+    - "graphic_violence_or_torture_imagery"
+    - "current_partisan_political_attacks"
+    - "religious_proselytization_of_any_faith"
+    - "war_glorification"
+    - "explicit_descriptions_of_sexual_violence"
+    - "conspiracy_theories_presented_as_credible"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g912_soc_primary_source_analysis_full"
+      description: "Document with full sourcing, context, close reading, corroboration, significance"
+      max_items: 1
+    - id: "g912_soc_dbq_full"
+      description: "Document-based question with multiple sources and structured essay response"
+      max_items: 1
+    - id: "g912_soc_long_essay_question"
+      description: "AP-style long essay question with thesis, evidence, analysis, complexity"
+      max_items: 1
+    - id: "g912_soc_short_answer_question"
+      description: "AP-style SAQ with stimulus and prompts"
+      max_items: 4
+    - id: "g912_soc_argumentative_essay"
+      description: "Take a position with claim, evidence from sources, counter-argument, rebuttal"
+      max_items: 1
+    - id: "g912_soc_research_paper_workshop"
+      description: "Topic, sources, notes, citations, draft sections"
+      max_items: 1
+    - id: "g912_soc_compare_systems_or_civilizations"
+      description: "Two systems compared with thesis-driven analysis"
+      max_items: 1
+    - id: "g912_soc_data_or_chart_analysis"
+      description: "Quantitative data or chart with interpretation and inference"
+      max_items: 1
+    - id: "g912_soc_supreme_court_case_brief"
+      description: "Case facts, issue, holding, reasoning, significance"
+      max_items: 1
+    - id: "g912_soc_socratic_seminar_prep"
+      description: "Compelling question, evidence gathering, response notes"
+      max_items: 1
+    - id: "g912_soc_civic_action_research"
+      description: "Identify issue, research perspectives, propose evidence-based action"
+      max_items: 1
+    - id: "g912_soc_concept_practice"
+      description: "Vocabulary or conceptual practice with context and application"
+      max_items: 16
+  banned_templates:
+    - "memorize_dates_only_worksheet"
+    - "single_perspective_history_narrative"
+    - "elementary_color_and_label"
+    - "fill_in_with_no_source_or_context"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 25
+    tier_2_pct: 35
+    tier_3_pct: 40
+  allowed_tier_3_terms:
+    historical_thinking:
+      - "primary source"
+      - "secondary source"
+      - "sourcing"
+      - "contextualization"
+      - "corroboration"
+      - "close reading"
+      - "historiography"
+      - "perspective"
+      - "bias"
+      - "credibility"
+      - "argument"
+      - "evidence"
+      - "interpretation"
+      - "synthesis"
+      - "thesis"
+      - "counter-argument"
+      - "complexity"
+    civics_and_government:
+      - "constitution"
+      - "amendment"
+      - "federalism"
+      - "separation of powers"
+      - "checks and balances"
+      - "judicial review"
+      - "due process"
+      - "civil liberties"
+      - "civil rights"
+      - "Bill of Rights"
+      - "majority rule"
+      - "minority rights"
+      - "popular sovereignty"
+      - "representative democracy"
+      - "republic"
+      - "democracy"
+      - "ratification"
+      - "ideology"
+      - "political party"
+      - "interest group"
+      - "lobbying"
+      - "policy"
+      - "legislation"
+      - "executive order"
+      - "veto"
+      - "filibuster"
+      - "cloture"
+      - "appropriations"
+    economics:
+      - "scarcity"
+      - "opportunity cost"
+      - "supply"
+      - "demand"
+      - "elasticity"
+      - "market equilibrium"
+      - "price ceiling"
+      - "price floor"
+      - "perfect competition"
+      - "monopoly"
+      - "oligopoly"
+      - "monopolistic competition"
+      - "GDP"
+      - "inflation"
+      - "deflation"
+      - "unemployment rate"
+      - "fiscal policy"
+      - "monetary policy"
+      - "Federal Reserve"
+      - "interest rate"
+      - "exchange rate"
+      - "trade deficit"
+      - "comparative advantage"
+      - "absolute advantage"
+      - "externality"
+      - "public good"
+    world_history:
+      - "civilization"
+      - "empire"
+      - "colonization"
+      - "imperialism"
+      - "industrialization"
+      - "revolution"
+      - "nationalism"
+      - "globalization"
+      - "diaspora"
+      - "feudalism"
+      - "absolutism"
+      - "enlightenment"
+      - "totalitarianism"
+      - "decolonization"
+    us_history_specific:
+      - "abolition"
+      - "emancipation"
+      - "Reconstruction"
+      - "Jim Crow"
+      - "segregation"
+      - "manifest destiny"
+      - "Progressive Era"
+      - "Great Migration"
+      - "New Deal"
+      - "civil rights movement"
+      - "Cold War"
+      - "containment"
+      - "détente"
+      - "sovereignty"
+    geography:
+      - "absolute location"
+      - "relative location"
+      - "spatial pattern"
+      - "diffusion"
+      - "cultural landscape"
+      - "demographic transition"
+      - "urbanization"
+      - "megacity"
+      - "primate city"
+      - "globalization"
+      - "core-periphery"
+    psychology:
+      - "cognitive"
+      - "behavioral"
+      - "psychoanalytic"
+      - "humanistic"
+      - "biological perspective"
+      - "neuron"
+      - "synapse"
+      - "neurotransmitter"
+      - "classical conditioning"
+      - "operant conditioning"
+      - "schema"
+      - "cognitive dissonance"
+      - "attribution"
+      - "stereotype"
+      - "in-group"
+      - "out-group"
+  banned_terms:
+    - "graduate_level_critical_theory_jargon"
+    - "post_structuralist_marxist_theory_advanced"
+    - "esoteric_specialist_terminology"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 55
+  block_schedule_alternative_min: 90
+  structure:
+    - phase: "compelling_question_or_hook"
+      duration_min: 6
+      description: "Big inquiry question, image, primary source, or current event connection"
+    - phase: "build_knowledge_with_text_or_source"
+      duration_min: 18
+      description: "Read, view, or analyze sources with historical thinking moves"
+    - phase: "structured_discourse_or_collaboration"
+      duration_min: 12
+      description: "Discussion, debate, or collaborative analysis"
+    - phase: "apply_or_create"
+      duration_min: 14
+      description: "Writing response, organizer, argument, or research task"
+    - phase: "synthesis_and_close"
+      duration_min: 5
+      description: "Synthesis discussion, exit ticket, return to compelling question"
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 6
+  length_max: 15
+  primary_sources_visible_when_referenced: true
+  diverse_perspectives_required: true
+  no_glorification_of_violence: true
+  cite_sources_visually: true
+  on_screen_text_for_key_terms_dates_concepts: true
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "primary_source_analysis_essay"
+    - "argumentative_essay_with_counter_argument"
+    - "dbq_response"
+    - "long_essay_question"
+    - "short_answer_question_ap_style"
+    - "research_paper_with_thesis"
+    - "compare_perspectives_essay"
+    - "supreme_court_case_analysis"
+    - "policy_proposal_with_evidence"
+    - "civic_action_project"
+  banned:
+    - "memorize_dates_test"
+    - "single_correct_perspective_test"
+    - "rapid_fire_facts_recall_competition"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["9", "10", "11", "12"]
+  course_level_aware: true
+  alignment_metadata_required:
+    - "discipline"
+    - "strand_or_theme"
+    - "specific_standard_code"
+    - "course_level"
+  default_frameworks_supported:
+    - "C3-Framework"
+    - "NCSS"
+    - "TEKS-Social-Studies"
+    - "Virginia-SOL-Social-Studies"
+    - "Florida-SSS-Social-Studies"
+    - "AP-US-History-CED"
+    - "AP-World-History-CED"
+    - "AP-US-Government-CED"
+    - "AP-Macroeconomics-CED"
+    - "AP-Microeconomics-CED"
+    - "AP-Human-Geography-CED"
+    - "AP-Psychology-CED"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g912_social_curricula_recognized:
+    - "American Pageant (APUSH)"
+    - "American Yawp (open source)"
+    - "Give Me Liberty (Foner)"
+    - "Out of Many"
+    - "World History (AMSCO for AP)"
+    - "Ways of the World (Strayer for AP)"
+    - "Reading Like a Historian (SHEG)"
+    - "Facing History and Ourselves units"
+    - "DBQ Project"
+    - "iCivics"
+    - "American Government and Politics Today"
+    - "Magruder's American Government"
+    - "Krugman Economics for AP"
+    - "Mankiw Economics"
+    - "Myers Psychology for AP"
+  when_curriculum_uploaded:
+    match_thematic_sequence: true
+    match_terminology: true
+    use_provided_primary_sources_when_named: true
+    honor_local_state_requirements: true

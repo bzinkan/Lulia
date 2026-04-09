@@ -1,0 +1,256 @@
+# K-2 Grade Band — Developmental Pedagogy Base
+#
+# This is the developmental foundation inherited by all K-2 subject overlays
+# (k2_math, k2_ela, k2_science, k2_social). It defines HOW content should be
+# presented for 5-8 year olds, independent of subject matter. Subject overlays
+# extend or override these values with subject-specific rules.
+#
+# Source authorities:
+#   - NAEYC Developmentally Appropriate Practice, 4th ed.
+#   - CCSSO Early Learning Standards Framework
+#   - Fountas & Pinnell literacy stages
+#   - Piaget cognitive development stages
+#   - Beck, McKeown & Kucan vocabulary tier framework
+
+id: k2
+grade_band: "K-2"
+grade_levels: ["K", "1", "2"]
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Developmental Profile
+# ---------------------------------------------------------------------------
+developmental_profile:
+  cognitive_stage: "pre_operational_to_early_concrete"
+  cognitive_notes: >
+    Thinking is concrete and tied to what students can see, touch, or act out.
+    Abstract symbols (letters, numbers, operations) must be anchored to
+    physical or pictorial referents. Egocentric perspective is still common
+    until mid-2nd grade. Conservation (understanding quantity stays the same
+    when rearranged) is still developing in K-1.
+
+  attention_span:
+    sustained_independent_min: 8        # K: ~5, 1st: ~8, 2nd: ~12
+    whole_group_listening_min: 12       # before a mandatory transition
+    full_lesson_max_min: 30             # including transitions
+
+  motor_skills:
+    fine_motor_development: "emerging"
+    can_write_sentences: "late_first_grade_and_up"
+    pencil_grip_still_forming: true
+    scissors_accuracy: "developing"
+    implications:
+      - "Minimize writing volume — favor circle, draw, color, cut-paste, point"
+      - "Answer boxes must be oversized (min 1 inch tall)"
+      - "Avoid tiny fill-in-the-blank lines"
+      - "Do not require erasing — provide fresh answer space instead"
+
+  reading_level:
+    lexile_range: "BR-450L"
+    fountas_pinnell_range: "A-M"
+    dra_range: "A-24"
+    decoding_stage: "pre_reader_to_transitional"
+    implications:
+      - "Kindergarten: assume pre-reader. Instructions must be teacher-read or pictographic."
+      - "1st grade: early decoders. CVC words, Dolch/Fry first 100 sight words."
+      - "2nd grade: transitional readers. Short paragraphs ok with visual support."
+
+  social_emotional:
+    play_stage: "parallel_to_cooperative"
+    emotional_regulation: "external_support_required"
+    peer_interaction: "learning_turn_taking_and_sharing"
+    implications:
+      - "Partner work is fine; groups of 3+ are developmentally hard in K."
+      - "Frustration tolerance is low — scaffold heavily, celebrate often."
+      - "Avoid competitive framing. Prefer cooperative or individual mastery framing."
+
+  executive_function:
+    working_memory_items: 2             # can hold ~2 instructions in mind
+    task_initiation: "needs_modeling"
+    self_monitoring: "minimal"
+    implications:
+      - "Never chain more than 2 instructions without a model."
+      - "Every activity needs a 'what does done look like?' exemplar."
+      - "Checklists should have 3 steps max, each with an icon."
+
+  language_stage:
+    receptive_vocabulary_words: "3000-6000"
+    expressive_sentence_length_avg_words: 6
+    tier_distribution_required:
+      tier_1_pct: 90      # everyday high-frequency
+      tier_2_pct: 10      # cross-curricular academic (exciting, adventure, explain)
+      tier_3_pct: 0       # domain-specific — only allowed when a subject overlay opens it
+
+# ---------------------------------------------------------------------------
+# Layout & Visual Rules (apply to every printed or digital output)
+# ---------------------------------------------------------------------------
+layout_rules:
+  font:
+    primary_family: "rounded_sans"          # Andika, Quicksand, Comic Neue
+    min_size_pt: 22
+    body_size_pt: 24
+    heading_size_pt: 32
+    line_spacing: 1.6
+    letter_case_rules:
+      - "Kindergarten: uppercase and lowercase both acceptable."
+      - "1-2: mixed-case sentence style. Avoid ALL CAPS sentences."
+      - "Never use cursive or decorative fonts for student-facing body text."
+
+  page_density:
+    max_problems_per_page: 8              # subject overlays may lower further
+    min_problems_per_page: 3
+    min_whitespace_pct: 40                # 40% of page must be negative space
+    answer_box_min_height_in: 1.0
+    answer_box_min_width_in: 1.0
+
+  imagery:
+    image_required_per_question: true
+    image_style: "friendly_cartoon_or_photograph"
+    banned_styles:
+      - "abstract_without_referent"
+      - "unlabeled_technical_diagram"
+      - "stock_photo_adult_context"
+    representation_requirements:
+      skin_tone_diversity: true
+      gender_balance: true
+      family_structure_variety: true
+
+  color:
+    palette: "peach_and_amber_warm_primary"  # aligned with Lulia design system
+    high_contrast_text_bg: true
+    avoid_rainbow_overload: true              # busy color hurts K-2 focus
+
+  mascot:
+    lulings_mascot_required: true
+    placement: "corner_or_speech_bubble"
+    role: "friendly_guide_not_teacher_substitute"
+
+# ---------------------------------------------------------------------------
+# Instruction & Scaffolding Rules
+# ---------------------------------------------------------------------------
+instructions:
+  max_words_per_instruction: 8
+  max_sentences_per_instruction_block: 2
+  pictographic_icon_required: true          # every instruction paired with an icon
+  teacher_read_aloud_default: true          # assume instructions will be read aloud
+  scaffolds_required:
+    - "word_bank"
+    - "sentence_starters"
+    - "visual_anchor_chart_reference"
+    - "model_example_first_item_completed"
+    - "color_coded_step_markers"
+
+# ---------------------------------------------------------------------------
+# Assessment Modes
+# ---------------------------------------------------------------------------
+assessment_modes:
+  preferred:
+    - "circle_the_answer"
+    - "draw_the_answer"
+    - "color_by_code"
+    - "cut_and_paste"
+    - "point_to_picture"
+    - "oral_response"
+    - "match_with_line"
+  acceptable:
+    - "single_word_fill_in"                 # late 1st + 2nd only
+    - "short_phrase_response"               # 2nd only
+  banned:
+    - "multi_paragraph_writing"
+    - "essay_prompt"
+    - "timed_tests"                         # developmentally inappropriate
+    - "cold_call_verbal_quiz"
+    - "ranking_or_comparison_grading"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Pacing (subject overlays may override)
+# ---------------------------------------------------------------------------
+lesson_plan_defaults:
+  total_duration_min: 25
+  structure:
+    - phase: "hook"
+      duration_min: 3
+      description: "Song, mascot greeting, mystery object, or read-aloud hook"
+    - phase: "mini_lesson"
+      duration_min: 7
+      description: "Whole-group modeling with manipulatives or visuals (I do)"
+    - phase: "guided_practice"
+      duration_min: 8
+      description: "Turn-and-talk, shared work, scaffolded (We do)"
+    - phase: "movement_break"
+      duration_min: 2
+      description: "Mandatory: stretch, song, or brain break"
+    - phase: "independent_or_partner"
+      duration_min: 5
+      description: "Oversized task, 3-6 items max (You do)"
+  transitions_every_min: 7
+  needs_manipulatives: true
+  whole_group_time_required: true
+
+# ---------------------------------------------------------------------------
+# Video Specifications (subject overlays may override)
+# ---------------------------------------------------------------------------
+video_defaults:
+  length_min: 3
+  length_max: 4
+  narrator_style: "warm_enthusiastic_sing_song"
+  narrator_pace_wpm: 120                    # slow; national avg is 150
+  on_screen_visual_required_pct: 100        # never a text-only frame
+  mascot_required: true
+  music_background: "gentle_instrumental_low_volume"
+  caption_style: "large_simple_matching_narration"
+  scene_cadence_sec: 6                      # new visual every 6 seconds max
+  call_and_response_moments: 2              # "Can you count with me?"
+  concepts_per_video: 1
+
+# ---------------------------------------------------------------------------
+# Hard Bans (apply regardless of subject)
+# ---------------------------------------------------------------------------
+hard_bans:
+  - "reading_passages_over_50_words_for_K"
+  - "reading_passages_over_100_words_for_1"
+  - "reading_passages_over_200_words_for_2"
+  - "abstract_concepts_without_concrete_anchor"
+  - "violence_or_scary_imagery"
+  - "adult_contexts_jobs_driving_taxes_bills"
+  - "sarcasm_or_irony"
+  - "cursive_fonts_for_student_reading"
+  - "standardized_test_stem_language"       # "which of the following best..."
+  - "negative_framing_questions"            # "which is NOT..."
+  - "double_negatives"
+
+# ---------------------------------------------------------------------------
+# Required Content Diversity
+# ---------------------------------------------------------------------------
+diversity_requirements:
+  character_name_rotation_required: true
+  cultural_representation_required: true
+  family_structure_variety_required: true
+  no_stereotyping: true
+
+# ---------------------------------------------------------------------------
+# Parent Communication Calibration
+# ---------------------------------------------------------------------------
+parent_communication:
+  reading_level_lexile_max: 700             # K-2 parent reports must be plain-language
+  jargon_banned: true
+  always_include:
+    - "what_child_can_do"
+    - "what_we_are_working_on"
+    - "how_to_help_at_home"
+
+# ---------------------------------------------------------------------------
+# Integration Hooks — where this pack plugs into the existing Lulia system
+# ---------------------------------------------------------------------------
+integration_hooks:
+  standards_system:
+    respects_three_tier_hierarchy: true      # Custom > State > National — never override
+    passes_through_standard_codes: true
+  rag_kb:
+    honors_has_kb_coverage_flag: true        # if teacher curriculum uploaded, ground in it
+    grounds_in_teacher_curriculum: true
+  class_tabs:
+    honors_class_intelligence: true          # respects vocab already taught, standards covered
+    scoped_by_class_id: true
+  generation_history:
+    no_repeat_check_required: true           # SHA-256 fingerprinting applies

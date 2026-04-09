@@ -14,6 +14,10 @@ import boto3
 from psycopg2.extras import Json
 
 from src.lms_agents.tools.db import get_connection
+from src.lms_agents.tools.pedagogy_director import (
+    format_brief_for_prompt,
+    generate_brief,
+)
 from src.lms_agents.tools.tts_generator import synthesize_speech, get_provider_for_voice, DEFAULT_VOICE
 from src.lms_agents.tools.voice_cloning import get_teacher_voice
 from src.lms_agents.tools.video_slide_renderer import render_slide
@@ -29,10 +33,15 @@ def run_video_script_agent(
     grade: str,
     subject: str,
     target_duration: int = 240,
+    pedagogy_brief: dict | None = None,
 ) -> dict:
     """
     Generate a structured video script from assignment content.
     Returns script JSON with scenes, narration, and slide content.
+
+    When a pedagogy_brief is provided, the script honors its video_spec
+    (duration window, narrator style/pace, mascot requirement, scene cadence,
+    on-screen visual rules, concepts per video).
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -42,14 +51,38 @@ def run_video_script_agent(
     questions = content.get("questions", [])
     title = content.get("title", "Lesson")
 
+    # Honor video_spec from brief — clamp target_duration to the brief's
+    # length window so K-2 doesn't get a 4-min video when the brief says 2.
+    brief_section = ""
+    if pedagogy_brief:
+        vspec = pedagogy_brief.get("video_spec", {}) or {}
+        length_min_sec = (vspec.get("length_min") or 0) * 60
+        length_max_sec = (vspec.get("length_max") or 0) * 60
+        if length_max_sec and target_duration > length_max_sec:
+            log.info(
+                f"[VideoScript] Brief caps duration at {length_max_sec}s "
+                f"(requested {target_duration}s) — capping"
+            )
+            target_duration = length_max_sec
+        if length_min_sec and target_duration < length_min_sec:
+            target_duration = length_min_sec
+        brief_section = "\n\n" + format_brief_for_prompt(pedagogy_brief) + "\n"
+
     resp = client.messages.create(
         model=SONNET,
         max_tokens=4096,
+        system=(
+            "You are an expert educational video scriptwriter. When a Pedagogy Brief "
+            "is provided, every field in its video_spec section is AUTHORITATIVE: "
+            "honor narrator style, pace, mascot requirement, scene cadence, on-screen "
+            "visual rules, and concepts per video without exception."
+        ),
         messages=[{"role": "user", "content": (
             f"Create a video script for a grade {grade} {subject} lesson.\n\n"
             f"Title: {title}\nStandards: {', '.join(standards[:5])}\n"
             f"Content: {json.dumps(questions[:6], indent=2)}\n"
-            f"Target duration: {target_duration} seconds\n\n"
+            f"Target duration: {target_duration} seconds\n"
+            f"{brief_section}\n"
             f"Generate a JSON object:\n"
             f'{{\n'
             f'  "title": "video title",\n'
@@ -64,8 +97,11 @@ def run_video_script_agent(
             f'    }}\n'
             f'  ]\n'
             f'}}\n\n'
-            f"Include 6-10 scenes: title, concepts, examples, practice, summary.\n"
+            f"Include scenes appropriate to the grade band: K-2 needs 4-8 short scenes "
+            f"with new visuals every 6 seconds, mascot present, call-and-response moments. "
+            f"Secondary needs 6-12 longer scenes with denser content.\n"
             f"Use natural speech with pauses. Grade-appropriate vocabulary.\n"
+            f"If a Pedagogy Brief was provided, every video_spec rule is mandatory.\n"
             f"Respond with ONLY the JSON."
         )}],
     )
@@ -166,9 +202,37 @@ def generate_video(
 
     tts_provider = get_provider_for_voice(voice_id, custom_voice, tier)
 
-    # 1. Generate script with actual grade and subject
+    # 1. Generate Pedagogy Brief for grade-band-appropriate video
+    pedagogy_brief = None
+    try:
+        pedagogy_brief = generate_brief(
+            work_order={
+                "grade_level": grade,
+                "subject": subject,
+                "output_template_id": "video",
+                "question_count": len(content.get("questions", [])),
+                "difficulty_distribution": {},
+            },
+            curriculum_output={
+                "standards": [{"code": s, "description": ""} for s in standards],
+                "subject": subject,
+                "grade_level": grade,
+            },
+            kb_chunks=None,
+            class_intel_prompt=None,
+        )
+        if pedagogy_brief:
+            log.info(
+                f"[Video] Brief generated: pack={pedagogy_brief.get('_pack_id')}, "
+                f"length={pedagogy_brief.get('video_spec', {}).get('length_min')}-"
+                f"{pedagogy_brief.get('video_spec', {}).get('length_max')} min"
+            )
+    except Exception as e:
+        log.warning(f"[Video] Brief generation failed (non-fatal): {e}")
+
+    # 2. Generate script with brief constraints
     log.info(f"[Video] Script agent: grade={grade}, subject={subject}")
-    script = run_video_script_agent(content, standards, grade, subject, target_duration)
+    script = run_video_script_agent(content, standards, grade, subject, target_duration, pedagogy_brief)
     scenes = script.get("scenes", [])
 
     # 2. TTS + Slides for each scene

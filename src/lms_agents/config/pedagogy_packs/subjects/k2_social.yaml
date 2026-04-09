@@ -1,0 +1,388 @@
+# K-2 Social Studies Subject Overlay
+#
+# Inherits from: grade_bands/k2.yaml
+# Covers: civics, geography, economics, and history at the K-2 level.
+# Follows the "expanding horizons" spiral: self → family → classroom →
+# neighborhood → community → state → country.
+#
+# Source authorities:
+#   - NCSS National Curriculum Standards for Social Studies
+#   - C3 Framework for Social Studies State Standards
+#   - NCSS Early Childhood Position Statement
+#   - Expanding Horizons curriculum tradition (with modern updates)
+
+id: k2_social
+extends: k2
+subject: social_studies
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Core Pedagogical Stance
+# ---------------------------------------------------------------------------
+pedagogical_stance:
+  primary_mode: "self_outward_exploration"
+  rule: >
+    K-2 social studies starts with what students already know (themselves,
+    their family, their classroom) and expands outward. Abstract concepts
+    (government structure, economic systems, historical eras) are introduced
+    only through concrete, personal, or local anchors. "Long ago" vs. "now"
+    is sufficient for K; decades and centuries emerge slowly by 2nd grade.
+  time_concept_progression:
+    kindergarten: "today_yesterday_tomorrow"
+    first_grade: "now_long_ago_past_present_future"
+    second_grade: "decades_and_sequencing_multiple_events_on_timeline"
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade (Expanding Horizons)
+# ---------------------------------------------------------------------------
+content_progression:
+  kindergarten:
+    in_scope:
+      civics:
+        - "classroom_rules_and_why_we_have_them"
+        - "taking_turns_and_sharing"
+        - "good_citizen_traits_honest_kind_helpful"
+        - "american_flag_and_national_symbols_simple"
+      geography:
+        - "classroom_and_school_map_simple"
+        - "inside_outside_near_far_directions"
+        - "my_home_and_neighborhood"
+      economics:
+        - "needs_vs_wants_basic"
+        - "things_come_from_somewhere_intro"
+      history:
+        - "self_family_family_traditions"
+        - "things_change_over_time_me_as_baby_now"
+      themes:
+        - "community_helpers_firefighter_doctor_teacher_mail_carrier"
+        - "holidays_and_celebrations_age_appropriate"
+    out_of_scope:
+      - "branches_of_government"
+      - "historical_dates"
+      - "world_geography_beyond_picture_references"
+      - "economic_systems_concepts"
+
+  first_grade:
+    in_scope:
+      civics:
+        - "rules_and_laws_why_we_need_them"
+        - "leaders_at_school_and_in_community"
+        - "voting_simple_classroom_decisions"
+        - "national_symbols_flag_eagle_statue_of_liberty"
+      geography:
+        - "map_symbols_and_legend"
+        - "cardinal_directions_north_south_east_west"
+        - "continents_oceans_introduction"
+        - "land_vs_water_on_maps"
+      economics:
+        - "goods_and_services"
+        - "producers_and_consumers_basic"
+        - "trade_as_exchange"
+        - "jobs_in_the_community"
+      history:
+        - "past_present_future"
+        - "then_and_now_comparisons_schools_homes_transportation"
+        - "family_history_stories_from_grandparents"
+        - "notable_figures_age_appropriate_mlk_lincoln_washington_level_friendly"
+    out_of_scope:
+      - "constitution_details"
+      - "world_history_narratives"
+      - "complex_economic_theory"
+      - "war_details"
+
+  second_grade:
+    in_scope:
+      civics:
+        - "local_government_mayor_city_council"
+        - "three_branches_very_simplified"
+        - "rights_and_responsibilities_of_citizens"
+        - "patriotic_songs_and_holidays"
+      geography:
+        - "reading_maps_with_scale_and_compass"
+        - "landforms_mountain_river_lake_ocean_desert_plain"
+        - "state_on_us_map"
+        - "cultures_around_the_world_intro"
+      economics:
+        - "saving_and_spending_money"
+        - "scarcity_basic"
+        - "supply_of_goods_simple"
+        - "specialization_people_do_different_jobs"
+      history:
+        - "timeline_creation_personal_and_class_events"
+        - "native_americans_regional_groups_respectful_intro"
+        - "american_symbols_and_their_stories"
+        - "biographies_of_historical_figures_diverse_set"
+    out_of_scope:
+      - "political_parties"
+      - "economic_policy"
+      - "detailed_military_history"
+      - "world_religions_comparative"
+
+# ---------------------------------------------------------------------------
+# Content Sensitivity Rules
+# ---------------------------------------------------------------------------
+content_sensitivity:
+  required_inclusive_representation:
+    family_structures:
+      - "two_parent"
+      - "single_parent"
+      - "grandparent_led"
+      - "blended"
+      - "adoptive"
+      - "foster"
+    cultural_backgrounds: "broad_global_diversity_required"
+    abilities: "natural_inclusion_not_inspiration_focus"
+    skin_tones: "diversity_required_in_all_illustrations"
+    home_languages: "acknowledge_multilingual_students"
+
+  historical_figures_treatment:
+    rule: >
+      Present historical figures with honesty appropriate to the age. Show
+      positive contributions, acknowledge context, never mythologize. Include
+      a diverse set in every unit — not one person per month. MLK Jr.,
+      Ruby Bridges, Cesar Chavez, Harriet Tubman, Jackie Robinson, Dolores
+      Huerta, Sonia Sotomayor, and others alongside Washington, Lincoln, etc.
+    banned_simplifications:
+      - "first_thanksgiving_happy_harmony_myth"
+      - "columbus_hero_discovery_narrative"
+      - "slavery_minimized_or_omitted_from_figures_who_enslaved"
+
+  holidays_and_celebrations:
+    allowed:
+      - "thanksgiving_gratitude_framing_not_myth"
+      - "mlk_day"
+      - "presidents_day"
+      - "memorial_day_community_remembrance"
+      - "veterans_day_community_remembrance"
+      - "independence_day_birthday_framing"
+      - "lunar_new_year"
+      - "diwali"
+      - "ramadan_eid_age_appropriate"
+      - "hanukkah"
+      - "juneteenth"
+      - "earth_day"
+    sensitivity_rules:
+      - "never_assume_all_students_celebrate_christmas"
+      - "religious_holidays_acknowledged_not_practiced_in_classroom"
+      - "opt_out_language_in_all_celebration_activities"
+
+  banned_topics:
+    - "graphic_violence"
+    - "detailed_war_imagery"
+    - "partisan_political_content"
+    - "controversial_current_events_without_teacher_framing"
+    - "adult_financial_concepts_taxes_mortgages_credit"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "k2_soc_all_about_me"
+      description: "Self-portrait + sentence frames about family, favorites"
+      max_items: 1
+    - id: "k2_soc_family_tree_simple"
+      description: "3-generation family tree with drawing boxes"
+      max_items: 1
+    - id: "k2_soc_community_helper_match"
+      description: "Match helper to tool or workplace"
+      max_items: 6
+    - id: "k2_soc_classroom_map_draw"
+      description: "Draw your classroom or bedroom from above with a simple key"
+      max_items: 1
+    - id: "k2_soc_needs_vs_wants_sort"
+      description: "Cut and paste pictures into two columns"
+      max_items: 8
+    - id: "k2_soc_then_and_now_tchart"
+      description: "Compare a topic across time periods with pictures"
+      max_items: 4
+    - id: "k2_soc_goods_and_services_sort"
+      description: "Sort pictures into two categories"
+      max_items: 8
+    - id: "k2_soc_map_with_symbols"
+      description: "Use a legend to identify features on a simple map"
+      max_items: 5
+    - id: "k2_soc_biography_poster_simple"
+      description: "Picture + 3 facts + why they matter to us today"
+      max_items: 1
+    - id: "k2_soc_timeline_my_life"
+      description: "Personal timeline with pictures of milestone ages"
+      max_items: 1
+    - id: "k2_soc_rules_and_why"
+      description: "Match a rule to why we have it"
+      max_items: 6
+  banned_templates:
+    - "multiple_choice_history_quiz"
+    - "memorize_dates_worksheet"
+    - "political_opinion_piece"
+    - "dense_informational_passage_no_visual"
+    - "complete_constitution_study"
+
+# ---------------------------------------------------------------------------
+# Vocabulary — opens Tier 3 for civics, geography, economics, history
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 80
+    tier_2_pct: 12
+    tier_3_pct: 8
+  allowed_tier_3_terms_by_grade:
+    kindergarten:
+      - "family"
+      - "home"
+      - "neighborhood"
+      - "school"
+      - "rules"
+      - "fair"
+      - "share"
+      - "helper"
+      - "community"
+      - "flag"
+      - "country"
+      - "need"
+      - "want"
+      - "today"
+      - "yesterday"
+      - "tomorrow"
+      - "long ago"
+    first_grade:
+      - "citizen"
+      - "leader"
+      - "vote"
+      - "law"
+      - "symbol"
+      - "map"
+      - "globe"
+      - "continent"
+      - "ocean"
+      - "north"
+      - "south"
+      - "east"
+      - "west"
+      - "good"
+      - "service"
+      - "producer"
+      - "consumer"
+      - "trade"
+      - "past"
+      - "present"
+      - "future"
+    second_grade:
+      - "government"
+      - "mayor"
+      - "branch"
+      - "responsibility"
+      - "right"
+      - "landform"
+      - "mountain"
+      - "river"
+      - "desert"
+      - "plain"
+      - "scale"
+      - "legend"
+      - "compass rose"
+      - "scarce"
+      - "save"
+      - "spend"
+      - "specialize"
+      - "culture"
+      - "tradition"
+      - "timeline"
+      - "decade"
+  banned_terms:
+    - "constitution"                            # too abstract for K-2 vocabulary work
+    - "amendment"
+    - "legislature"
+    - "judicial"
+    - "executive"                               # as a standalone term
+    - "federalism"
+    - "economy"                                 # as an abstract system
+    - "ideology"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 25
+  structure:
+    - phase: "hook"
+      duration_min: 3
+      description: "Photograph, artifact, personal story, or read-aloud cover"
+    - phase: "mini_lesson"
+      duration_min: 7
+      description: "Concept introduction with visual anchors and connections to self"
+    - phase: "shared_activity"
+      duration_min: 6
+      description: "Class map, sort, T-chart, or interactive discussion"
+    - phase: "movement_break"
+      duration_min: 2
+      description: "Song, patriotic song, or simple movement"
+    - phase: "apply"
+      duration_min: 5
+      description: "Individual or partner work — draw, label, sort, sequence"
+    - phase: "share"
+      duration_min: 2
+      description: "One student shares their work or a connection they made"
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 2
+  length_max: 4
+  real_world_photos_preferred_over_animation: true
+  narrator_connects_to_student_life: true           # "Have you ever...?"
+  historical_imagery_age_appropriate: true
+  no_reenactments_of_violence: true
+  diverse_representation_visible: true
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "draw_and_label"
+    - "sort_into_categories"
+    - "match_concept_to_picture"
+    - "sequence_events_on_timeline"
+    - "point_to_location_on_map"
+    - "explain_aloud_to_teacher_or_partner"
+    - "complete_sentence_frame"
+  banned:
+    - "memorize_and_recite_dates"
+    - "multiple_choice_history_test"
+    - "essay_on_historical_event"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["K", "1", "2"]
+  alignment_metadata_required:
+    - "discipline"                              # civics, geography, economics, history
+    - "strand_or_theme"
+    - "specific_standard_code"
+  default_frameworks_supported:
+    - "C3-Framework"
+    - "NCSS"
+    - "TEKS-Social-Studies"
+    - "Virginia-SOL-Social-Studies"
+    - "Florida-SSS-Social-Studies"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_k2_social_curricula_recognized:
+    - "Studies Weekly"
+    - "TCI Social Studies Alive"
+    - "MyWorld Interactive"
+    - "Core Knowledge History and Geography (CKHG)"
+    - "Impact Social Studies"
+    - "Harcourt Horizons"
+  when_curriculum_uploaded:
+    match_thematic_sequence: true
+    match_terminology: true
+    honor_local_state_requirements: true        # states mandate specific content at K-2

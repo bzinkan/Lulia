@@ -1,10 +1,15 @@
 """
-Assignment Generation Crew — 5-agent sequential chain.
+Assignment Generation Crew — 6-step sequential chain.
 
-Curriculum Agent → Content Agent → Rubric Agent → QA Agent → Format Agent
+Curriculum Agent → Pedagogy Director → Content Agent → Rubric Agent → QA Agent → Format Agent
 
 Uses the Anthropic SDK directly for each agent step. Each agent is a
 focused prompt that receives the previous agent's output as context.
+
+The Pedagogy Director is a grade-band expert that produces a Pedagogy Brief
+(developmentally correct spec) which the Content and QA agents both honor.
+If no pack exists for the requested grade band, the brief is None and the
+crew falls back to un-constrained generation.
 
 QA rejection loop: if QA rejects, Content re-runs with revision notes (max 2 retries).
 """
@@ -18,6 +23,10 @@ import anthropic
 from psycopg2.extras import Json, RealDictCursor
 
 from src.lms_agents.tools.db import get_connection
+from src.lms_agents.tools.pedagogy_director import (
+    format_brief_for_prompt,
+    generate_brief,
+)
 from src.lms_agents.tools.rag_search import search_kb
 
 log = logging.getLogger(__name__)
@@ -26,6 +35,29 @@ SONNET = "claude-sonnet-4-20250514"
 HAIKU = "claude-haiku-4-5-20251001"
 
 QA_MAX_RETRIES = 2
+
+# Pattern: matches bracketed image references like [Image: ten-frame], [Picture: cat], [Diagram: cell]
+_BRACKETED_IMAGE_RE = re.compile(
+    r"\[(?:image|picture|diagram|illustration|graphic|visual|drawing|figure|photo|chart)[^\]]*\]",
+    re.IGNORECASE,
+)
+
+
+def _detect_bracketed_visuals(content_output: dict) -> list[str]:
+    """
+    Scan question_text fields for bracketed visual descriptions like
+    "[Image: ten-frame with 5 dots]". Returns a list of offending question
+    references for the QA Agent's revision_notes. Empty list = clean.
+    """
+    violations = []
+    for q in content_output.get("questions", []) or []:
+        text = q.get("question_text", "") or ""
+        if not text:
+            continue
+        for match in _BRACKETED_IMAGE_RE.finditer(text):
+            qnum = q.get("question_number", "?")
+            violations.append(f"Question {qnum}: '{match.group(0)}'")
+    return violations
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -152,11 +184,17 @@ def run_content_agent(
     client: anthropic.Anthropic,
     work_order: dict,
     curriculum_output: dict,
+    pedagogy_brief: dict | None = None,
     revision_notes: str | None = None,
 ) -> dict:
     """
     Generate educational content shaped for the selected template.
     Searches RAG KB when has_kb_coverage is true.
+
+    If a pedagogy_brief is provided, its constraints are injected into the
+    prompt as authoritative. The Content Agent must honor every field in the
+    brief — developmental constraints, vocabulary caps, banned terms, layout
+    directives, and pedagogy notes.
     """
     log.info("[Content Agent] Generating content...")
 
@@ -168,6 +206,30 @@ def run_content_agent(
     subject = work_order.get("subject", "")
     grade = work_order.get("grade_level", "")
     teacher_id = work_order.get("teacher_id", "")
+
+    # If the pedagogy brief recommends a different template, honor it.
+    if pedagogy_brief:
+        recommended = pedagogy_brief.get("template_recommendation", {}).get("primary")
+        if recommended and recommended != template_id:
+            log.info(
+                f"[Content Agent] Pedagogy brief recommends template '{recommended}' "
+                f"over requested '{template_id}' — honoring brief"
+            )
+            template_id = recommended
+            # Mutate the work order so the Format Agent renders the right template
+            work_order["output_template_id"] = template_id
+
+        # Also honor the problems-per-page cap from the brief.
+        # Mutate the work order so the QA Agent's question_count check uses
+        # the effective (brief-capped) count instead of the original request.
+        max_problems = pedagogy_brief.get("layout_directives", {}).get("max_problems_per_page")
+        if max_problems and question_count > max_problems:
+            log.info(
+                f"[Content Agent] Pedagogy brief caps at {max_problems} problems/page "
+                f"(requested {question_count}) — capping"
+            )
+            question_count = max_problems
+            work_order["question_count"] = max_problems
 
     # Query Generation History for exclusion list
     history_exclusion = ""
@@ -197,10 +259,22 @@ def run_content_agent(
     if revision_notes:
         revision_section = f"\n\nREVISION REQUIRED — QA Agent feedback:\n{revision_notes}\nAddress ALL issues listed above.\n"
 
+    # Inject the Pedagogy Brief as authoritative constraints
+    brief_section = ""
+    if pedagogy_brief:
+        brief_section = "\n\n" + format_brief_for_prompt(pedagogy_brief) + "\n"
+
     system = (
         f"You are an expert educational content creator for grade {grade} {subject}. "
         f"You create content for the '{template_id}' template format. "
-        f"All content must align with the provided standards and be grade-appropriate."
+        f"All content must align with the provided standards and be grade-appropriate. "
+        f"When a Pedagogy Brief is provided, every field in it is AUTHORITATIVE — "
+        f"honor vocabulary caps, banned terms, layout directives, assessment modes, "
+        f"and scaffolding requirements without exception. "
+        f"When a question needs a visual (ten-frame, number line, fraction bar, etc.), "
+        f"emit a STRUCTURED visual object on the question — never write bracketed text "
+        f"like '[Image: ...]' or '[Picture: ...]' inside question_text. The visual "
+        f"renderer converts your structured data into actual SVG graphics."
     )
 
     user = f"""Create educational content for the following assignment:
@@ -214,6 +288,7 @@ DIFFICULTY DISTRIBUTION: {json.dumps(difficulty)}
 ALIGNED STANDARDS:
 {standards_text}
 {kb_context}
+{brief_section}
 {revision_section}
 {history_exclusion}
 
@@ -224,14 +299,61 @@ Generate a JSON object with this structure:
   "questions": [
     {{
       "question_number": 1,
-      "question_text": "the question",
+      "question_text": "the question (NEVER include bracketed image refs)",
       "answer": "the correct answer",
       "difficulty": "easy|medium|hard",
       "standard_code": "the standard this aligns to",
-      "explanation": "brief explanation of the answer"
+      "explanation": "brief explanation of the answer",
+      "visual": {{ "type": "...", ... }}
     }}
   ]
 }}
+
+=== STRUCTURED VISUALS — REQUIRED FOR VISUAL CONTENT ===
+
+NEVER write image descriptions in brackets inside question_text. Instead,
+attach an OPTIONAL `visual` object to the question. The renderer will convert
+it into an actual SVG image. If a question doesn't need a visual, omit the
+field entirely.
+
+If the Pedagogy Brief specifies "every_question_needs_image: true" (typical
+for K-2), every question MUST have a `visual` object.
+
+Available visual types and their schemas:
+
+K-2 math (use heavily for 1st-2nd grade math):
+  ten_frame:        {{"type": "ten_frame", "value": 5}}
+  number_bond:      {{"type": "number_bond", "whole": 10, "part1": 7, "part2": 3}}
+  counting_objects: {{"type": "counting_objects", "count": 6, "icon": "circle|square|star"}}
+  base_ten_blocks:  {{"type": "base_ten_blocks", "hundreds": 1, "tens": 2, "ones": 4}}
+  equation_box:     {{"type": "equation_box", "top": "24", "bottom": "17", "operator": "+"}}
+
+3-5 math:
+  fraction_bar:     {{"type": "fraction_bar", "numerator": 3, "denominator": 8}}
+  fraction_circle:  {{"type": "fraction_circle", "numerator": 1, "denominator": 4}}
+  array:            {{"type": "array", "rows": 4, "cols": 5}}
+  bar_model:        {{"type": "bar_model", "parts": [{{"label": "12", "size": 3}}, {{"label": "?", "size": 2}}], "total": "20"}}
+  area_model:       {{"type": "area_model", "row_parts": [20, 3], "col_parts": [10, 4]}}
+  number_line:      {{"type": "number_line", "min": 0, "max": 10, "interval": 1, "highlights": [3]}}
+
+6-12 math:
+  coordinate_grid:  {{"type": "coordinate_grid", "x_min": -5, "x_max": 5, "y_min": -5, "y_max": 5,
+                     "points": [{{"x": 2, "y": 3, "label": "A"}}], "lines": [{{"from": [-3, -2], "to": [3, 4]}}]}}
+  function_table:   {{"type": "function_table", "rows": [{{"x": 1, "y": 3}}, {{"x": 2, "y": 5}}], "x_label": "x", "y_label": "y"}}
+
+Science (any grade):
+  data_table:       {{"type": "data_table", "headers": ["Trial", "Mass"], "rows": [[1, "10g"], [2, "15g"]]}}
+  labeled_diagram:  {{"type": "labeled_diagram", "subject": "plant cell", "labels": ["nucleus", "cell wall"]}}
+
+ELA (K-2 heavy):
+  letter_box:       {{"type": "letter_box", "letter": "B", "case": "both"}}
+  word_box:         {{"type": "word_box", "word": "because"}}
+  handwriting_lines: {{"type": "handwriting_lines", "lines": 3}}
+  picture_choice:   {{"type": "picture_choice", "options": ["cat", "dog", "fish"]}}
+
+You may add an optional "label" string to any visual to caption it.
+
+=== END VISUALS ===
 
 IMPORTANT:
 - Generate exactly {question_count} questions
@@ -241,6 +363,11 @@ IMPORTANT:
 - For {template_id} format, ensure content fits the template structure
 - Ground content in the curriculum materials when provided
 - Vary question types (multiple choice, fill-in, short answer as appropriate)
+- If a PEDAGOGY BRIEF was provided above, every constraint is mandatory:
+  vocabulary tier caps, banned terms, word problem contexts, scaffolds,
+  sentence length, and assessment modes must ALL be honored
+- NEVER write "[Image: ...]" or "[Picture: ...]" or "[Diagram: ...]" in
+  question_text. Use the structured `visual` field instead.
 
 Respond with ONLY the JSON object."""
 
@@ -307,9 +434,14 @@ def run_qa_agent(
     curriculum_output: dict,
     content_output: dict,
     rubric_output: dict,
+    pedagogy_brief: dict | None = None,
 ) -> dict:
     """
     Audit content for accuracy, alignment, appropriateness, and answer key correctness.
+
+    When a pedagogy_brief is provided, adds a Pedagogy Compliance check that
+    validates the content against every authoritative rule in the brief
+    (vocab caps, banned terms, layout directives, scaffolds, assessment modes).
     """
     log.info("[QA Agent] Auditing content...")
 
@@ -317,10 +449,29 @@ def run_qa_agent(
         f"- {s['code']}: {s['description']}" for s in curriculum_output.get("standards", [])
     )
 
+    brief_section = ""
+    brief_check_line = ""
+    brief_check_schema_entry = ""
+    if pedagogy_brief:
+        brief_section = "\n\n" + format_brief_for_prompt(pedagogy_brief) + "\n"
+        brief_check_line = (
+            "\n8. PEDAGOGY COMPLIANCE: Does the content honor EVERY rule in the "
+            "Pedagogy Brief above? Check vocab tier caps, banned terms, word "
+            "problem contexts, scaffolds, assessment modes, and layout directives. "
+            "If ANY brief rule is violated, fail this check and reject."
+        )
+        brief_check_schema_entry = (
+            ',\n    "pedagogy_compliance": {"pass": true/false, "notes": "..."}'
+        )
+
     system = (
         "You are a meticulous educational quality auditor. "
         "You verify factual accuracy, standards alignment, grade appropriateness, "
-        "and answer key correctness. Be strict but fair."
+        "answer key correctness, and (when provided) compliance with the "
+        "authoritative Pedagogy Brief. Be strict but fair. "
+        "Reject any content that contains bracketed image references in question_text "
+        "(e.g. '[Image: ten-frame]' or '[Picture: cat]') — visuals must be in the "
+        "structured `visual` field, not text descriptions."
     )
 
     user = f"""Audit this generated educational content:
@@ -333,7 +484,7 @@ WORK ORDER:
 
 ALIGNED STANDARDS:
 {standards_text}
-
+{brief_section}
 GENERATED CONTENT:
 {json.dumps(content_output, indent=2)}
 
@@ -347,7 +498,7 @@ Check ALL of the following:
 4. ANSWER KEY CORRECTNESS: Is every answer in the key actually correct?
 5. QUESTION COUNT: Are there exactly {work_order.get('question_count')} questions?
 6. DIFFICULTY BALANCE: Does the mix match the requested distribution?
-7. BIAS/SENSITIVITY: Any issues with cultural sensitivity or bias?
+7. BIAS/SENSITIVITY: Any issues with cultural sensitivity or bias?{brief_check_line}
 
 Generate a JSON object:
 {{
@@ -360,13 +511,13 @@ Generate a JSON object:
     "answer_key_correctness": {{"pass": true/false, "notes": "..."}},
     "question_count": {{"pass": true/false, "notes": "..."}},
     "difficulty_balance": {{"pass": true/false, "notes": "..."}},
-    "bias_sensitivity": {{"pass": true/false, "notes": "..."}}
+    "bias_sensitivity": {{"pass": true/false, "notes": "..."}}{brief_check_schema_entry}
   }},
   "issues": ["list of specific issues found"],
   "revision_notes": "detailed instructions for Content Agent if not approved, or null if approved"
 }}
 
-Be strict on accuracy but reasonable on other criteria.
+Be strict on accuracy AND pedagogy compliance. Be reasonable on other criteria.
 Respond with ONLY the JSON object."""
 
     response = _call_claude(client, SONNET, system, user, max_tokens=2048)
@@ -374,6 +525,37 @@ Respond with ONLY the JSON object."""
 
     if result is None:
         result = {"approved": True, "score": 70, "issues": [], "revision_notes": None}
+
+    # Deterministic post-check: bracketed image references in question_text
+    # are an automatic rejection. The visual_renderer expects structured
+    # `visual` objects on questions, never text descriptions like "[Image: ...]".
+    bracket_violations = _detect_bracketed_visuals(content_output)
+    if bracket_violations:
+        result["approved"] = False
+        result.setdefault("checks", {})["visual_format"] = {
+            "pass": False,
+            "notes": f"Found {len(bracket_violations)} bracketed image reference(s) in question_text",
+        }
+        existing_issues = result.get("issues") or []
+        result["issues"] = existing_issues + [
+            f"Bracketed image reference in {v}" for v in bracket_violations
+        ]
+        existing_notes = result.get("revision_notes") or ""
+        bracket_revision = (
+            "REMOVE all bracketed image references from question_text. "
+            "Use the structured `visual` field on each question instead. "
+            f"Violations: {'; '.join(bracket_violations[:5])}"
+            + (f" (and {len(bracket_violations) - 5} more)" if len(bracket_violations) > 5 else "")
+        )
+        result["revision_notes"] = (
+            (existing_notes + "\n\n" + bracket_revision) if existing_notes else bracket_revision
+        )
+        # Cap the score so it can't claim high quality when this is broken
+        if result.get("score", 0) > 50:
+            result["score"] = 50
+        log.info(
+            f"[QA Agent] DETERMINISTIC CHECK FAILED: {len(bracket_violations)} bracketed visuals — forcing rejection"
+        )
 
     log.info(f"[QA Agent] Score: {result.get('score', '?')}, Approved: {result.get('approved', '?')}")
     return result
@@ -426,11 +608,39 @@ def run_format_agent(
 # Main Crew Orchestrator
 # ---------------------------------------------------------------------------
 
+def _fetch_kb_chunks_for_brief(work_order: dict, curriculum_output: dict) -> list | None:
+    """Pre-fetch RAG KB chunks so the Pedagogy Director can ground its brief."""
+    if not work_order.get("has_kb_coverage"):
+        return None
+    try:
+        subject = work_order.get("subject", "")
+        grade = work_order.get("grade_level", "")
+        standard_codes = [s["code"] for s in curriculum_output.get("standards", [])]
+        query = f"{subject} grade {grade} {' '.join(standard_codes)}"
+        return search_kb(query=query, subject=subject, grade=grade, top_k=5) or None
+    except Exception as e:
+        log.warning(f"[AssignmentCrew] RAG lookup for brief failed (non-fatal): {e}")
+        return None
+
+
+def _fetch_class_intel_prompt(work_order: dict) -> str | None:
+    """Fetch the class intelligence AI context prompt for brief grounding."""
+    class_id = work_order.get("class_id")
+    if not class_id:
+        return None
+    try:
+        from src.lms_agents.tools.class_intelligence import get_ai_context_prompt
+        return get_ai_context_prompt(class_id) or None
+    except Exception as e:
+        log.warning(f"[AssignmentCrew] Class intelligence lookup failed (non-fatal): {e}")
+        return None
+
+
 def run_assignment_crew(work_order: dict) -> dict:
     """
-    Run the full 5-agent assignment generation crew.
+    Run the full 6-step assignment generation crew.
 
-    Sequential: Curriculum → Content → Rubric → QA → Format
+    Sequential: Curriculum → Pedagogy Director → Content → Rubric → QA → Format
     With QA rejection loop (max 2 retries).
 
     Returns a dict with all agent outputs and the final rendered content.
@@ -441,8 +651,22 @@ def run_assignment_crew(work_order: dict) -> dict:
 
     client = _get_client()
 
-    # Agent 1: Curriculum
+    # Step 1: Curriculum Agent — retrieve aligned standards
     curriculum_output = run_curriculum_agent(client, work_order)
+
+    # Step 2: Pedagogy Director — generate developmentally-correct brief
+    # Pre-fetch the inputs the director needs so its brief can be grounded.
+    kb_chunks = _fetch_kb_chunks_for_brief(work_order, curriculum_output)
+    class_intel_prompt = _fetch_class_intel_prompt(work_order)
+    pedagogy_brief = generate_brief(
+        work_order=work_order,
+        curriculum_output=curriculum_output,
+        kb_chunks=kb_chunks,
+        class_intel_prompt=class_intel_prompt,
+        client=client,
+    )
+    if pedagogy_brief is None:
+        log.info("[AssignmentCrew] No pedagogy brief generated — running un-constrained")
 
     # QA loop: Content → Rubric → QA (with retries)
     content_output = None
@@ -453,17 +677,17 @@ def run_assignment_crew(work_order: dict) -> dict:
     for attempt in range(1, QA_MAX_RETRIES + 2):  # 1 initial + 2 retries
         log.info(f"--- Generation attempt {attempt} ---")
 
-        # Agent 2: Content
+        # Step 3: Content Agent (constrained by brief)
         content_output = run_content_agent(
-            client, work_order, curriculum_output, revision_notes
+            client, work_order, curriculum_output, pedagogy_brief, revision_notes
         )
 
-        # Agent 3: Rubric
+        # Step 4: Rubric Agent
         rubric_output = run_rubric_agent(client, work_order, content_output)
 
-        # Agent 4: QA
+        # Step 5: QA Agent (validates against brief)
         qa_output = run_qa_agent(
-            client, work_order, curriculum_output, content_output, rubric_output
+            client, work_order, curriculum_output, content_output, rubric_output, pedagogy_brief
         )
 
         if qa_output.get("approved", False):
@@ -512,6 +736,8 @@ def run_assignment_crew(work_order: dict) -> dict:
         "question_count": len(content_output.get("questions", [])),
         "qa_score": qa_output.get("score", 0),
         "qa_approved": qa_output.get("approved", False),
+        "pedagogy_brief": pedagogy_brief,
+        "pedagogy_pack_id": (pedagogy_brief or {}).get("_pack_id"),
         "content": content_output,
         "rubric": rubric_output,
         "qa_report": qa_output,

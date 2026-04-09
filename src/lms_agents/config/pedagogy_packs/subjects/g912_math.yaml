@@ -1,0 +1,524 @@
+# Grade 9-12 Math Subject Overlay
+#
+# Inherits from: grade_bands/g912.yaml
+#
+# 9-12 math spans the widest course range in any grade band:
+#   - Algebra 1 (9th typical, sometimes 8th)
+#   - Geometry (10th typical)
+#   - Algebra 2 / Math 3 (11th typical)
+#   - Pre-Calculus / Trigonometry (11th-12th)
+#   - AP Calculus AB/BC (11th-12th)
+#   - AP Statistics (11th-12th)
+#   - College Algebra / Quantitative Reasoning (12th)
+#   - Discrete Mathematics, Linear Algebra (electives)
+#
+# The director must infer course level from the standards or work order
+# context. This overlay provides scaffolding rules and content scope for
+# all common high school math courses without prescribing a single sequence.
+#
+# Source authorities:
+#   - CCSS-Math High School (N, A, F, G, S, Modeling)
+#   - College Board AP Calculus and AP Statistics CEDs
+#   - NCTM Catalyzing Change in High School Mathematics
+#   - NCTM Principles to Actions
+#   - Phil Daro / William McCallum CCSS-M architects
+#   - Patrick Honner / Park Math Project
+#   - Illustrative Mathematics 9-12
+
+id: g912_math
+extends: g912
+subject: math
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Course Coverage
+# ---------------------------------------------------------------------------
+courses_supported:
+  algebra_1:
+    typical_grade: "9"
+    in_scope:
+      - "linear_equations_inequalities_systems"
+      - "linear_functions_in_multiple_representations"
+      - "exponents_and_exponential_functions"
+      - "polynomial_operations_basic"
+      - "factoring_quadratics"
+      - "quadratic_functions_and_equations"
+      - "radicals_and_rational_exponents_intro"
+      - "data_analysis_univariate_and_bivariate"
+      - "absolute_value_and_piecewise_functions"
+      - "sequences_arithmetic_and_geometric_intro"
+    out_of_scope:
+      - "logarithms_full"
+      - "trigonometry"
+      - "calculus_concepts"
+      - "matrices_full_operations"
+
+  geometry:
+    typical_grade: "10"
+    in_scope:
+      - "rigid_motions_congruence_proofs"
+      - "similarity_dilations_proofs"
+      - "right_triangle_trigonometry"
+      - "circles_arcs_chords_secants_tangents"
+      - "coordinate_geometry"
+      - "perimeter_area_volume_3d_solids"
+      - "geometric_constructions_with_compass_straightedge"
+      - "transformations_in_coordinate_plane"
+      - "geometric_probability"
+      - "introduction_to_proof_two_column_paragraph_flowchart"
+    out_of_scope:
+      - "non_euclidean_geometry"
+      - "topology"
+      - "calculus_concepts"
+
+  algebra_2:
+    typical_grade: "11"
+    in_scope:
+      - "polynomial_functions_and_operations"
+      - "rational_functions_and_equations"
+      - "radical_functions_and_equations"
+      - "exponential_and_logarithmic_functions"
+      - "complex_numbers"
+      - "systems_of_equations_and_inequalities"
+      - "matrices_basic_operations"
+      - "conic_sections_intro"
+      - "sequences_and_series"
+      - "trigonometric_functions_intro"
+      - "statistics_probability_distributions_intro"
+    out_of_scope:
+      - "calculus_concepts"
+      - "differential_equations"
+      - "linear_algebra_advanced"
+
+  precalculus:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "functions_and_their_graphs_advanced"
+      - "trigonometric_functions_full"
+      - "trigonometric_identities_and_equations"
+      - "polar_coordinates_and_complex_numbers"
+      - "vectors_and_parametric_equations"
+      - "matrices_and_determinants"
+      - "sequences_series_and_limits_intro"
+      - "conic_sections_full"
+      - "exponential_logarithmic_functions_advanced"
+    out_of_scope:
+      - "derivatives_and_integrals_full"
+
+  ap_calculus_ab_and_bc:
+    typical_grade: "11_or_12"
+    in_scope_ab:
+      - "limits_and_continuity"
+      - "differentiation_definitions_and_rules"
+      - "differentiation_composite_implicit_inverse"
+      - "contextual_applications_of_differentiation"
+      - "analytical_applications_of_differentiation"
+      - "integration_and_accumulation"
+      - "differential_equations_intro"
+      - "applications_of_integration"
+    additional_in_scope_bc:
+      - "parametric_equations_polar_coordinates_vector_valued_functions"
+      - "infinite_sequences_and_series"
+    out_of_scope:
+      - "multivariable_calculus"
+      - "partial_differential_equations"
+
+  ap_statistics:
+    typical_grade: "11_or_12"
+    in_scope:
+      - "exploring_one_variable_data"
+      - "exploring_two_variable_data"
+      - "collecting_data_sampling_and_experiments"
+      - "probability_random_variables_and_probability_distributions"
+      - "sampling_distributions"
+      - "inference_for_categorical_data_proportions"
+      - "inference_for_quantitative_data_means"
+      - "inference_for_categorical_data_chi_square"
+      - "inference_for_quantitative_data_slopes"
+    out_of_scope:
+      - "bayesian_statistics_advanced"
+      - "multivariate_statistics"
+
+# ---------------------------------------------------------------------------
+# Mathematical Practices Emphasis
+# ---------------------------------------------------------------------------
+practices_emphasis:
+  rule: >
+    By 9-12, students engage routinely in all 8 Mathematical Practices.
+    Every worksheet should target at least one practice in addition to a
+    content standard. Modeling and reasoning are heavily emphasized.
+  emphasized:
+    - "MP1_make_sense_of_problems_and_persevere"
+    - "MP2_reason_abstractly_and_quantitatively"
+    - "MP3_construct_viable_arguments_and_critique_reasoning"
+    - "MP4_model_with_mathematics"
+    - "MP5_use_appropriate_tools_strategically"
+    - "MP6_attend_to_precision"
+    - "MP7_look_for_and_make_use_of_structure"
+    - "MP8_look_for_and_express_regularity_in_repeated_reasoning"
+
+# ---------------------------------------------------------------------------
+# Multiple Representations
+# ---------------------------------------------------------------------------
+representations:
+  required: true
+  rule: >
+    High school math problems should regularly connect numerical, algebraic,
+    graphical, verbal, and contextual representations. Students should be
+    able to move fluently between them.
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g912_math_practice_set"
+      description: "Mixed practice — bare problems + applications + show your work"
+      max_items: 25
+    - id: "g912_math_problem_set_with_applications"
+      description: "Real-world or modeling problems with multi-step solutions"
+      max_items: 10
+    - id: "g912_math_proof_or_justification"
+      description: "Formal proofs, justifications, or counterexample work"
+      max_items: 6
+    - id: "g912_math_error_analysis"
+      description: "Find and correct mistakes; explain reasoning"
+      max_items: 6
+    - id: "g912_math_multiple_representations"
+      description: "Same situation in table, graph, equation, words, context"
+      max_items: 4
+    - id: "g912_math_modeling_task"
+      description: "Open-ended modeling problem with assumptions and conclusions"
+      max_items: 1
+    - id: "g912_math_test_prep_or_review"
+      description: "Mixed-format review aligned to course or AP exam"
+      max_items: 20
+    - id: "g912_math_lab_or_exploration"
+      description: "Discovery activity with guided questions and synthesis"
+      max_items: 1
+    - id: "g912_math_project_or_research"
+      description: "Extended task with research, analysis, and presentation"
+      max_items: 1
+    - id: "g912_math_ap_style_frq"
+      description: "AP-style free-response question with rubric"
+      max_items: 4
+  banned_templates:
+    - "k2_picture_count"
+    - "elementary_color_by_number"
+    - "speed_drill_pure_recall"
+    - "rote_copy_problems"
+
+# ---------------------------------------------------------------------------
+# Layout Overrides
+# ---------------------------------------------------------------------------
+layout_overrides:
+  equation_rendering:
+    orientation_options: ["horizontal", "vertical_stacked", "system_alignment"]
+    operator_size_pt: 13
+    show_your_work_box_required_for_multi_step: true
+    mathjax_or_latex_rendering_acceptable: true
+    proper_mathematical_notation_required: true
+  graphs_and_models:
+    coordinate_grid_required_for_graphing_problems: true
+    grid_paper_for_geometric_constructions: true
+    accurate_geometric_diagrams: true
+
+# ---------------------------------------------------------------------------
+# Math Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 25
+    tier_2_pct: 35
+    tier_3_pct: 40
+  allowed_tier_3_terms:
+    algebra_1:
+      - "linear function"
+      - "slope"
+      - "y-intercept"
+      - "domain"
+      - "range"
+      - "exponential function"
+      - "polynomial"
+      - "quadratic"
+      - "factor"
+      - "vertex"
+      - "axis of symmetry"
+      - "discriminant"
+      - "system of equations"
+      - "inequality"
+      - "absolute value"
+      - "piecewise function"
+      - "arithmetic sequence"
+      - "geometric sequence"
+      - "common difference"
+      - "common ratio"
+    geometry:
+      - "congruent"
+      - "similar"
+      - "rigid motion"
+      - "transformation"
+      - "translation"
+      - "rotation"
+      - "reflection"
+      - "dilation"
+      - "scale factor"
+      - "proof"
+      - "theorem"
+      - "postulate"
+      - "axiom"
+      - "corollary"
+      - "converse"
+      - "contrapositive"
+      - "hypothesis"
+      - "conclusion"
+      - "trigonometric ratio"
+      - "sine"
+      - "cosine"
+      - "tangent"
+      - "Pythagorean theorem"
+      - "law of sines"
+      - "law of cosines"
+      - "central angle"
+      - "inscribed angle"
+      - "arc"
+      - "chord"
+      - "tangent line"
+      - "secant"
+    algebra_2:
+      - "polynomial function"
+      - "rational function"
+      - "radical function"
+      - "asymptote"
+      - "horizontal asymptote"
+      - "vertical asymptote"
+      - "logarithm"
+      - "natural logarithm"
+      - "base"
+      - "exponent"
+      - "complex number"
+      - "imaginary unit"
+      - "conjugate"
+      - "matrix"
+      - "determinant"
+      - "inverse function"
+      - "composition of functions"
+      - "conic section"
+      - "ellipse"
+      - "hyperbola"
+      - "parabola"
+      - "amplitude"
+      - "period"
+      - "frequency"
+    precalculus:
+      - "unit circle"
+      - "radian"
+      - "trigonometric identity"
+      - "polar coordinate"
+      - "parametric equation"
+      - "vector"
+      - "magnitude"
+      - "direction"
+      - "limit"
+      - "continuous"
+      - "discontinuous"
+    ap_calculus:
+      - "derivative"
+      - "antiderivative"
+      - "integral"
+      - "definite integral"
+      - "indefinite integral"
+      - "Riemann sum"
+      - "fundamental theorem of calculus"
+      - "differential equation"
+      - "instantaneous rate of change"
+      - "average rate of change"
+      - "extreme value"
+      - "concavity"
+      - "inflection point"
+      - "Taylor series"                       # BC only
+      - "Maclaurin series"                    # BC only
+    ap_statistics:
+      - "mean"
+      - "median"
+      - "standard deviation"
+      - "variance"
+      - "z-score"
+      - "normal distribution"
+      - "binomial distribution"
+      - "geometric distribution"
+      - "sampling distribution"
+      - "central limit theorem"
+      - "confidence interval"
+      - "margin of error"
+      - "hypothesis test"
+      - "null hypothesis"
+      - "alternative hypothesis"
+      - "p-value"
+      - "type I error"
+      - "type II error"
+      - "chi-square"
+      - "regression"
+      - "correlation coefficient"
+  banned_terms:
+    - "multivariable_calculus_advanced"
+    - "partial_derivatives"
+    - "tensor_analysis"
+    - "real_analysis_proofs"
+    - "abstract_algebra_groups_rings_fields"
+
+# ---------------------------------------------------------------------------
+# Word Problem Contexts
+# ---------------------------------------------------------------------------
+word_problem_contexts:
+  allowed:
+    - "real_world_modeling_authentic"
+    - "physics_motion_kinematics"
+    - "chemistry_concentrations_and_reactions"
+    - "biology_population_growth"
+    - "economics_supply_demand_optimization"
+    - "finance_simple_compound_interest_basic"
+    - "engineering_design_problems"
+    - "sports_statistics_and_analytics"
+    - "data_journalism_and_current_events"
+    - "environmental_science_data"
+    - "social_sciences_polls_and_surveys"
+    - "computer_science_algorithms_and_complexity"
+    - "music_theory_and_acoustics"
+    - "architecture_and_design"
+    - "epidemiology_age_appropriate"
+  acceptable_with_care:
+    - "personal_finance_budgeting_intro"      # ok in HS, not lower
+    - "credit_and_loans_intro"
+    - "taxes_intro"
+  banned:
+    - "alcohol_or_gambling"
+    - "violence_in_problem_setups"
+    - "predatory_lending_glorified"
+  character_name_rules:
+    diverse_name_rotation_required: true
+    realistic_high_school_contexts: true
+    example_name_pool:
+      - "Aaliyah"
+      - "Marcus"
+      - "Sofia"
+      - "Aarav"
+      - "Maya"
+      - "Diego"
+      - "Priya"
+      - "Jamal"
+      - "Zoe"
+      - "Wei"
+      - "Leilani"
+      - "Ezra"
+      - "Amara"
+      - "Kai"
+      - "Mateo"
+      - "Sanaa"
+      - "Yusuf"
+      - "Imani"
+      - "Hugo"
+      - "Anjali"
+      - "Tomás"
+      - "Naima"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 55
+  block_schedule_alternative_min: 90
+  structure:
+    - phase: "warm_up_or_problem_of_day"
+      duration_min: 6
+      description: "Mental math, prior knowledge activation, or rich problem"
+    - phase: "direct_instruction_with_modeling"
+      duration_min: 15
+      description: "Concept introduction with worked example and multiple representations"
+    - phase: "guided_practice_and_discourse"
+      duration_min: 12
+      description: "Partner work, discourse moves, structured collaboration"
+    - phase: "independent_or_collaborative_practice"
+      duration_min: 17
+      description: "Worksheet, task, exploration, or extended problem work"
+    - phase: "exit_or_synthesis"
+      duration_min: 5
+      description: "Formative check, reflection, preview, or homework intro"
+  homework_expected: true
+  manipulatives_required: false
+  technology_integration: "graphing_calculator_or_desmos_geogebra_when_relevant"
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 6
+  length_max: 15
+  must_show_proper_mathematical_notation: true
+  worked_example_step_by_step_required: true
+  multiple_representations_when_applicable: true
+  pause_for_thinking_moments: 2
+  examples_per_video: 3
+  ap_style_examples_for_ap_courses: true
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "show_your_work_with_solution"
+    - "explain_your_reasoning_in_complete_sentences"
+    - "construct_a_proof_or_justification"
+    - "modeling_problem_with_assumptions_and_conclusions"
+    - "translate_between_representations"
+    - "find_and_correct_the_error_with_explanation"
+    - "ap_style_free_response"
+    - "real_world_application_with_analysis"
+  exit_ticket_format:
+    max_items: 4
+    must_include_show_your_work: true
+    must_be_completable_in_min: 7
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["9", "10", "11", "12"]
+  course_level_aware: true
+  alignment_metadata_required:
+    - "conceptual_category"                   # N, A, F, G, S, Modeling
+    - "domain"
+    - "cluster"
+    - "specific_standard_code"
+    - "course_level"                          # algebra_1, geometry, etc.
+    - "mathematical_practice_targeted"
+  default_frameworks_supported:
+    - "CCSS-Math"
+    - "TEKS-Math"
+    - "Virginia-SOL-Math"
+    - "Florida-BEST-Math"
+    - "AP-Calculus-CED"
+    - "AP-Statistics-CED"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g912_math_curricula_recognized:
+    - "Illustrative Mathematics 9-12"
+    - "OpenUp Resources HS Math"
+    - "CPM Core Connections"
+    - "Big Ideas Math Algebra/Geometry/Algebra 2"
+    - "enVision Math (HS)"
+    - "Carnegie Learning"
+    - "Glencoe / McGraw Hill HS Math"
+    - "Pearson HS Math"
+    - "Stewart Calculus (AP Calc)"
+    - "Larson Calculus (AP Calc)"
+    - "The Practice of Statistics (Starnes/Tabor) for AP Stats"
+  when_curriculum_uploaded:
+    match_terminology: true
+    match_notation_conventions: true
+    match_lesson_structure_if_detectable: true

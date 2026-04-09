@@ -1,0 +1,380 @@
+# Grade 3-5 Social Studies Subject Overlay
+#
+# Inherits from: grade_bands/g35.yaml
+# Covers: civics, geography, economics, history at 3-5 level.
+#
+# 3-5 social studies broadens from self/family/community to local
+# community → state → region → nation → world. Historical thinking
+# emerges with chronology, cause and effect, and primary sources
+# (heavily scaffolded). Civics expands to government structure,
+# rights, and responsibilities. Geography incorporates regions,
+# climate, and human-environment interaction. Economics introduces
+# choice, scarcity, and resources at a more analytical level.
+#
+# Source authorities:
+#   - NCSS National Curriculum Standards for Social Studies
+#   - C3 Framework for Social Studies State Standards
+#   - Reading Like a Historian (Stanford History Education Group)
+#   - National Council for History Education
+#   - Facing History and Ourselves (age-appropriate practices)
+
+id: g35_social
+extends: g35
+subject: social_studies
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Core Pedagogical Stance
+# ---------------------------------------------------------------------------
+pedagogical_stance:
+  primary_mode: "inquiry_with_sources"
+  rule: >
+    3-5 social studies introduces inquiry-based learning with primary and
+    secondary sources, scaffolded for the developmental level. Students
+    investigate compelling questions, gather and evaluate evidence, and
+    communicate conclusions. Historical thinking includes chronology,
+    cause and effect, multiple perspectives, and continuity/change.
+    Treat historical figures and events with honesty appropriate to age,
+    never mythologizing, never minimizing harm, while maintaining
+    age-appropriate emotional safety.
+  time_concept_progression:
+    third_grade: "decades_centuries_with_simple_timelines"
+    fourth_grade: "complex_timelines_with_eras_and_periods"
+    fifth_grade: "long_chronologies_with_overlapping_events_and_eras"
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+content_progression:
+  third_grade:
+    in_scope:
+      civics:
+        - "purpose_of_government_local_state_national"
+        - "responsibilities_of_citizens"
+        - "how_local_government_makes_decisions"
+        - "voting_and_elections_basic"
+      geography:
+        - "use_maps_with_legend_compass_scale"
+        - "physical_and_political_maps"
+        - "climate_regions_and_landforms"
+        - "human_environment_interaction"
+        - "communities_around_the_world"
+      economics:
+        - "scarcity_and_choice"
+        - "goods_and_services"
+        - "supply_and_demand_basic"
+        - "trade_between_communities"
+      history:
+        - "history_of_local_community"
+        - "compare_communities_long_ago_and_now"
+        - "diverse_groups_and_perspectives_in_local_history"
+      themes:
+        - "community_and_culture"
+        - "interdependence"
+    out_of_scope:
+      - "complex_political_theory"
+      - "world_war_details"
+      - "macroeconomic_policy"
+
+  fourth_grade:
+    in_scope:
+      civics:
+        - "state_government_three_branches_simplified"
+        - "state_constitution_basic"
+        - "rights_and_responsibilities_of_state_citizens"
+      geography:
+        - "us_geographic_regions_landforms_climate_resources"
+        - "state_geography_in_depth"
+        - "movement_of_people_goods_and_ideas"
+        - "human_impact_on_environment"
+      economics:
+        - "natural_human_capital_resources"
+        - "specialization_and_trade"
+        - "economic_decisions_and_consequences"
+        - "state_economy_industries"
+      history:
+        - "state_history_native_peoples_exploration_settlement_statehood"
+        - "diverse_perspectives_in_state_history_including_native_voices"
+        - "key_figures_in_state_history_diverse_set"
+        - "primary_sources_with_heavy_scaffolding"
+    out_of_scope:
+      - "constitutional_law_in_depth"
+      - "complex_economic_systems"
+
+  fifth_grade:
+    in_scope:
+      civics:
+        - "us_constitution_purpose_and_basic_structure"
+        - "three_branches_of_federal_government_with_functions"
+        - "bill_of_rights_first_ten_amendments_age_appropriate"
+        - "rights_and_responsibilities_of_us_citizens"
+        - "civic_participation_beyond_voting"
+      geography:
+        - "us_regions_in_depth"
+        - "north_american_geography"
+        - "geographic_factors_in_us_history"
+        - "human_environment_interaction_through_us_history"
+      economics:
+        - "free_enterprise_basic"
+        - "supply_and_demand_with_examples"
+        - "imports_exports_and_global_trade_intro"
+        - "money_and_banking_basic"
+      history:
+        - "early_americans_native_nations_diverse_and_distinct"
+        - "european_exploration_and_contact_honest_account"
+        - "colonial_america_with_diverse_perspectives_including_enslaved_people"
+        - "american_revolution_and_independence"
+        - "constitution_and_early_republic"
+        - "westward_expansion_with_indigenous_perspectives_honest"
+        - "primary_sources_at_increased_complexity"
+    out_of_scope:
+      - "post_civil_war_in_depth"               # typically 8th and 11th
+      - "20th_century_world_wars"
+      - "current_partisan_political_debates"
+
+# ---------------------------------------------------------------------------
+# Content Sensitivity Rules
+# ---------------------------------------------------------------------------
+content_sensitivity:
+  required_inclusive_representation:
+    cultural_backgrounds: "broad_global_diversity_required"
+    indigenous_voices: "centered_when_relevant"
+    enslaved_peoples: "honest_age_appropriate_treatment_with_humanity"
+    immigration_stories: "diverse_and_humanizing"
+    abilities: "natural_inclusion"
+    family_structures: "diverse"
+    gender_representation: "balanced"
+
+  historical_treatment:
+    rule: >
+      Tell the truth, age-appropriately. Do not mythologize founders or
+      explorers. Do not minimize harm done to indigenous peoples, enslaved
+      peoples, or other marginalized groups. Do not present a single
+      narrative as "the" story. Always include multiple perspectives.
+      Maintain emotional safety with content warnings or framing for
+      difficult topics, but never sanitize history into something it
+      wasn't.
+    banned_simplifications:
+      - "first_thanksgiving_happy_harmony_myth"
+      - "columbus_hero_discovery_narrative"
+      - "founding_fathers_unblemished_with_no_contradictions_about_slavery"
+      - "westward_expansion_as_inevitable_progress"
+      - "passive_voice_for_violence_done_to_marginalized_groups"
+    required_inclusions:
+      - "indigenous_perspectives_on_european_contact"
+      - "honest_acknowledgment_of_enslavement_in_colonial_and_revolutionary_periods"
+      - "diverse_contributors_to_american_history"
+      - "ongoing_impacts_on_indigenous_communities_today"
+
+  banned_topics:
+    - "graphic_violence_imagery"
+    - "graphic_descriptions_of_torture_or_brutality"
+    - "current_partisan_political_attacks"
+    - "religious_practice_or_proselytization"   # acknowledgment ok, practice not
+    - "war_with_modern_weapon_glorification"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g35_soc_primary_source_analysis"
+      description: "Source + scaffolded analysis questions (image, document, artifact)"
+      max_items: 1
+    - id: "g35_soc_map_skills"
+      description: "Read map with legend, compass, scale; answer questions"
+      max_items: 1
+    - id: "g35_soc_timeline_creation"
+      description: "Sequence events on timeline + analyze cause/effect"
+      max_items: 1
+    - id: "g35_soc_compare_perspectives"
+      description: "Two perspectives on same event with analysis"
+      max_items: 1
+    - id: "g35_soc_biography_research"
+      description: "Research a figure with structured questions"
+      max_items: 1
+    - id: "g35_soc_cause_and_effect_organizer"
+      description: "Cause/effect chains for historical events"
+      max_items: 1
+    - id: "g35_soc_concept_sort_civics_econ_geo_history"
+      description: "Categorize examples by social studies discipline"
+      max_items: 12
+    - id: "g35_soc_short_passage_with_questions"
+      description: "Informational passage + comprehension and analysis"
+      max_items: 1
+    - id: "g35_soc_civic_action_planning"
+      description: "Identify community issue + plan response"
+      max_items: 1
+    - id: "g35_soc_economic_decision_chart"
+      description: "Choices, costs, benefits, trade-offs"
+      max_items: 4
+  banned_templates:
+    - "memorize_dates_only_worksheet"
+    - "founding_fathers_hero_worship"
+    - "single_perspective_history_narrative"
+    - "speed_drill_facts_recall"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 55
+    tier_2_pct: 25
+    tier_3_pct: 20
+  allowed_tier_3_terms_by_grade:
+    third_grade:
+      - "community"
+      - "government"
+      - "citizen"
+      - "rights"
+      - "responsibility"
+      - "vote"
+      - "election"
+      - "law"
+      - "scarcity"
+      - "goods"
+      - "services"
+      - "trade"
+      - "supply"
+      - "demand"
+      - "region"
+      - "climate"
+      - "landform"
+      - "culture"
+      - "tradition"
+      - "interdependence"
+    fourth_grade:
+      - "branch of government"
+      - "executive"
+      - "legislative"
+      - "judicial"
+      - "constitution"
+      - "natural resource"
+      - "human resource"
+      - "capital resource"
+      - "specialization"
+      - "exploration"
+      - "settlement"
+      - "migration"
+      - "immigrant"
+      - "indigenous"
+      - "treaty"
+      - "primary source"
+      - "secondary source"
+      - "perspective"
+    fifth_grade:
+      - "amendment"
+      - "bill of rights"
+      - "federal"
+      - "republic"
+      - "democracy"
+      - "free enterprise"
+      - "import"
+      - "export"
+      - "colony"
+      - "colonist"
+      - "revolution"
+      - "independence"
+      - "declaration"
+      - "enslave"
+      - "abolition"
+      - "expansion"
+      - "displacement"
+      - "sovereignty"
+      - "diplomacy"
+  banned_terms:
+    - "ideology"
+    - "conservative"                            # avoid partisan framing in 3-5
+    - "liberal"                                 # avoid partisan framing in 3-5
+    - "socialism"
+    - "communism"                               # 6th+ in proper context
+    - "fascism"                                 # 8th+ in proper context
+    - "geopolitics"
+    - "macroeconomic"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 45
+  structure:
+    - phase: "compelling_question_or_hook"
+      duration_min: 5
+      description: "Big question, image, or artifact to spark inquiry"
+    - phase: "build_knowledge_with_source_or_text"
+      duration_min: 15
+      description: "Read, view, or analyze a source with scaffolding"
+    - phase: "discuss_or_collaborate"
+      duration_min: 10
+      description: "Partner or small group analysis with discourse moves"
+    - phase: "apply_or_create"
+      duration_min: 10
+      description: "Organizer, response, or creative task"
+    - phase: "share_and_close"
+      duration_min: 5
+      description: "Share findings, return to compelling question"
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 4
+  length_max: 8
+  primary_sources_visible_when_referenced: true
+  diverse_perspectives_required: true
+  no_glorification_of_violence: true
+  age_appropriate_imagery_only: true
+  on_screen_text_for_key_terms: true
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "primary_source_short_response"
+    - "compare_two_perspectives"
+    - "explain_cause_and_effect"
+    - "interpret_map_or_chart"
+    - "sequence_events_with_explanation"
+    - "argue_a_position_with_evidence_simple"
+    - "research_and_present_findings"
+  banned:
+    - "memorize_dates_test"
+    - "single_correct_perspective_test"
+    - "rapid_fire_facts_recall_competition"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["3", "4", "5"]
+  alignment_metadata_required:
+    - "discipline"                              # civics, geography, economics, history
+    - "strand_or_theme"
+    - "specific_standard_code"
+  default_frameworks_supported:
+    - "C3-Framework"
+    - "NCSS"
+    - "TEKS-Social-Studies"
+    - "Virginia-SOL-Social-Studies"
+    - "Florida-SSS-Social-Studies"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g35_social_curricula_recognized:
+    - "Studies Weekly"
+    - "TCI Social Studies Alive"
+    - "MyWorld Interactive"
+    - "Core Knowledge History and Geography (CKHG)"
+    - "Impact Social Studies"
+    - "InquirED"
+    - "Reading Like a Historian (SHEG) primary sources"
+  when_curriculum_uploaded:
+    match_thematic_sequence: true
+    match_terminology: true
+    honor_local_state_requirements: true

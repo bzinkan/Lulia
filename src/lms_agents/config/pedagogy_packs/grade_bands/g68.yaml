@@ -1,0 +1,307 @@
+# Grade 6-8 (Middle School) — Developmental Pedagogy Base
+#
+# This is the developmental foundation inherited by all 6-8 subject overlays.
+# It defines HOW content should be presented for 11-14 year olds, the most
+# developmentally turbulent grade band in K-12.
+#
+# 6-8 is the formal operational transition: students can finally reason
+# hypothetically, manipulate abstract symbols, and entertain counterfactuals.
+# Identity formation is the dominant social-emotional task. Peer relationships
+# eclipse adult relationships in importance. Executive function is uneven —
+# students can do sophisticated work one day and struggle to organize a
+# binder the next. Brains are literally rewiring.
+#
+# The core pedagogical move: pair rising abstraction with strong scaffolds.
+# Don't dumb down the content — build the bridges.
+#
+# Source authorities:
+#   - AMLE (Association for Middle Level Education) "This We Believe"
+#   - NAEYC Developmentally Appropriate Practice (Adolescence chapter)
+#   - Piaget formal operational stage
+#   - Carol Dweck mindset research
+#   - Lev Vygotsky zone of proximal development
+#   - Daniel Willingham cognitive science
+#   - Camille Farrington Foundations for Young Adult Success
+#   - Beck, McKeown & Kucan vocabulary tier framework
+
+id: g68
+grade_band: "6-8"
+grade_levels: ["6", "7", "8"]
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Developmental Profile
+# ---------------------------------------------------------------------------
+developmental_profile:
+  cognitive_stage: "transitioning_to_formal_operational"
+  cognitive_notes: >
+    Students develop the capacity for hypothetical reasoning, abstract
+    symbol manipulation, and metacognition. They can hold multiple
+    variables in mind, evaluate competing claims, and consider
+    counterfactuals. BUT this capacity is uneven — it shows up in
+    domains they're motivated about and disappears in domains they're
+    not. Concrete anchors and worked examples are still needed when
+    introducing new abstract concepts. Students benefit from explicit
+    metacognitive prompts ("How did you figure that out?").
+
+  attention_span:
+    sustained_independent_min: 30
+    whole_group_listening_min: 20      # before mandatory shift in modality
+    full_lesson_max_min: 60            # block schedules may run 80-90
+
+  motor_skills:
+    fine_motor_development: "fully_developed"
+    keyboarding_expected: true
+    handwriting_acceptable_but_typing_preferred_for_long_writing: true
+    implications:
+      - "Writing volume not constrained by motor skill"
+      - "Standard answer lines and notebook formats"
+      - "Lab equipment manipulation is reliable"
+
+  reading_level:
+    lexile_range: "925L-1185L"          # spans 6th through end of 8th
+    decoding_stage: "fluent_and_advanced"
+    transition_complete: "students_use_reading_to_learn_independently"
+    implications:
+      - "Multi-source synthesis is feasible"
+      - "Primary source documents can be tackled with scaffolding"
+      - "Vocabulary instruction is morphological + contextual"
+      - "Text complexity matters more than text length"
+
+  social_emotional:
+    primary_developmental_task: "identity_formation"
+    play_stage: "structured_collaboration_with_role_negotiation"
+    emotional_regulation: "highly_variable_brain_remodeling"
+    peer_interaction: "central_to_motivation_and_self_concept"
+    risk_tolerance: "elevated_but_socially_calibrated"
+    implications:
+      - "Public correction or shaming is profoundly damaging — feedback must be private"
+      - "Group work productive but requires explicit role assignment and norms"
+      - "Choice and voice substantially increase engagement"
+      - "Identity-affirming content (mirrors and windows) matters more than ever"
+      - "Sarcasm and irony from teachers cuts deep — avoid"
+      - "Avoid framing that triggers stereotype threat"
+
+  executive_function:
+    working_memory_items: 5
+    task_initiation: "improving_but_inconsistent"
+    self_monitoring: "explicit_strategy_instruction_helps"
+    organization: "needs_continued_support_planners_checklists"
+    implications:
+      - "Multi-day projects work with daily checkpoints and explicit organizers"
+      - "Rubrics with 4-6 criteria help students plan and self-assess"
+      - "Chunking long assignments into milestones is critical"
+      - "Time-management instruction is itself curriculum"
+
+  language_stage:
+    receptive_vocabulary_words: "25000-50000"
+    expressive_sentence_length_avg_words: 14
+    tier_distribution_required:
+      tier_1_pct: 45      # everyday high-frequency
+      tier_2_pct: 35      # cross-curricular academic (analyze, evaluate, infer)
+      tier_3_pct: 20      # domain-specific — subject overlays may extend further
+
+# ---------------------------------------------------------------------------
+# Layout & Visual Rules
+# ---------------------------------------------------------------------------
+layout_rules:
+  font:
+    primary_family: "professional_sans_or_serif"  # Open Sans, Inter, Georgia, Atkinson Hyperlegible
+    min_size_pt: 11
+    body_size_pt: 12
+    heading_size_pt: 18
+    line_spacing: 1.4
+    letter_case_rules:
+      - "Standard sentence case throughout"
+      - "Title case for headings"
+      - "Avoid ALL CAPS body text"
+
+  page_density:
+    max_problems_per_page: 24
+    min_problems_per_page: 5
+    min_whitespace_pct: 18
+    answer_box_min_height_in: 0.35
+    show_your_work_space_required_for_multi_step: true
+
+  imagery:
+    image_required_per_question: false
+    image_recommended_per_section: true
+    image_style: "diagram_chart_photograph_infographic"
+    banned_styles:
+      - "childish_cartoon_for_serious_content"
+      - "stock_photo_irrelevant_filler"
+    representation_requirements:
+      skin_tone_diversity: true
+      gender_balance: true
+      ability_representation: true
+      cultural_diversity: true
+      age_appropriate_to_middle_school_audience: true   # don't show only adults or only young kids
+
+  color:
+    palette: "peach_and_amber_warm_primary"
+    high_contrast_text_bg: true
+    professional_not_juvenile: true
+
+  mascot:
+    lulings_mascot_required: false
+    placement: "footer_or_branding_only_if_used"
+    role: "minimal_decorative_only_no_dialogue"
+
+# ---------------------------------------------------------------------------
+# Instruction & Scaffolding Rules
+# ---------------------------------------------------------------------------
+instructions:
+  max_words_per_instruction: 30
+  max_sentences_per_instruction_block: 4
+  numbered_steps_for_multi_step: true
+  teacher_read_aloud_default: false
+  scaffolds_required:
+    - "worked_example_or_model"
+    - "vocabulary_callout_for_new_terms"
+    - "graphic_organizer_for_analysis_or_synthesis_tasks"
+    - "self_assessment_or_reflection_prompt"
+    - "rubric_visible_to_students_for_complex_tasks"
+  metacognition_prompts_recommended: true
+
+# ---------------------------------------------------------------------------
+# Assessment Modes
+# ---------------------------------------------------------------------------
+assessment_modes:
+  preferred:
+    - "constructed_response_short"
+    - "extended_response_paragraph_or_short_essay"
+    - "claim_evidence_reasoning"
+    - "multi_step_problem_with_explanation"
+    - "graphic_organizer_with_analysis"
+    - "compare_and_contrast_with_synthesis"
+    - "argumentative_response_with_counterclaim_age_appropriate"
+    - "lab_report_or_investigation_writeup"
+    - "research_with_source_citation"
+    - "performance_task_or_project"
+  acceptable:
+    - "multiple_choice_with_4_options"
+    - "matching_with_explanation"
+    - "true_false_with_correction"
+    - "fill_in_the_blank_with_word_bank"
+  banned:
+    - "ranking_students_publicly"
+    - "speed_drill_high_stakes"
+    - "trick_questions_designed_to_mislead"
+    - "double_negatives"
+    - "all_caps_test_stem_language"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Pacing
+# ---------------------------------------------------------------------------
+lesson_plan_defaults:
+  total_duration_min: 55
+  structure:
+    - phase: "bell_ringer_or_warm_up"
+      duration_min: 5
+      description: "Quick activation, vocabulary, recall, or hook to today's question"
+    - phase: "mini_lesson_or_direct_instruction"
+      duration_min: 12
+      description: "Concept introduction with worked example or model"
+    - phase: "guided_practice_or_discourse"
+      duration_min: 12
+      description: "Structured collaboration, partner discourse, scaffolded practice"
+    - phase: "independent_or_collaborative_work"
+      duration_min: 18
+      description: "Worksheet, lab, station, project task, or analysis"
+    - phase: "exit_ticket_and_close"
+      duration_min: 8
+      description: "Formative assessment + brief share or wrap"
+  transitions_every_min: 18
+  needs_manipulatives: false              # subject overlays may set true (math, science)
+  block_schedule_variant_supported: true
+
+# ---------------------------------------------------------------------------
+# Video Specifications
+# ---------------------------------------------------------------------------
+video_defaults:
+  length_min: 5
+  length_max: 10
+  narrator_style: "engaging_age_aware_not_juvenile"
+  narrator_pace_wpm: 155
+  on_screen_visual_required_pct: 75
+  mascot_required: false
+  music_background: "subtle_modern_low_volume"
+  caption_style: "standard_synchronized"
+  scene_cadence_sec: 18
+  call_and_response_moments: 0            # avoid kiddie engagement tactics
+  concepts_per_video: 2
+  real_world_application_required: true   # middle schoolers ask "why does this matter?"
+
+# ---------------------------------------------------------------------------
+# Hard Bans
+# ---------------------------------------------------------------------------
+hard_bans:
+  - "violence_or_scary_imagery"
+  - "adult_contexts_taxes_mortgages_credit_in_examples"   # save for high school
+  - "sarcasm_or_irony_directed_at_students"
+  - "talking_down_or_baby_talk"
+  - "stereotype_threat_framing"
+  - "publicly_comparing_students"
+  - "trick_questions"
+  - "double_negatives"
+  - "graphic_war_imagery"
+  - "explicit_sexual_content"
+  - "substance_use_normalization"
+  - "religious_proselytization"
+
+# ---------------------------------------------------------------------------
+# Required Content Diversity
+# ---------------------------------------------------------------------------
+diversity_requirements:
+  character_name_rotation_required: true
+  cultural_representation_required: true
+  family_structure_variety_required: true
+  ability_representation_required: true
+  diverse_role_models_required: true       # in math/science/social, show diverse experts
+  no_stereotyping: true
+  middle_school_age_characters_when_relevant: true
+
+# ---------------------------------------------------------------------------
+# Identity Affirmation Rules (middle-school specific)
+# ---------------------------------------------------------------------------
+identity_affirmation:
+  rule: >
+    Middle schoolers are forming their identities. Content should provide
+    BOTH "mirrors" (students see themselves represented) and "windows"
+    (students see beyond their own experience). Avoid framing that
+    triggers stereotype threat ("girls struggle with this," "this group
+    historically..."). Show diverse experts and historical figures across
+    every discipline naturally, not as one-off representation.
+  required_practices:
+    - "diverse_named_examples_in_word_problems_and_contexts"
+    - "diverse_experts_in_videos_when_real_people_referenced"
+    - "diverse_authors_and_voices_in_text_selection"
+    - "growth_mindset_language_throughout"
+
+# ---------------------------------------------------------------------------
+# Parent Communication Calibration
+# ---------------------------------------------------------------------------
+parent_communication:
+  reading_level_lexile_max: 1100
+  jargon_acceptable_with_context: true
+  always_include:
+    - "what_the_student_can_do_with_specific_examples"
+    - "skills_being_developed"
+    - "how_to_support_independence_at_home"
+    - "growth_observed_not_just_grades"
+
+# ---------------------------------------------------------------------------
+# Integration Hooks
+# ---------------------------------------------------------------------------
+integration_hooks:
+  standards_system:
+    respects_three_tier_hierarchy: true
+    passes_through_standard_codes: true
+  rag_kb:
+    honors_has_kb_coverage_flag: true
+    grounds_in_teacher_curriculum: true
+  class_tabs:
+    honors_class_intelligence: true
+    scoped_by_class_id: true
+  generation_history:
+    no_repeat_check_required: true

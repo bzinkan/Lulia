@@ -1,0 +1,350 @@
+# K-2 Science Subject Overlay
+#
+# Inherits from: grade_bands/k2.yaml
+# Covers: NGSS K-2 Physical Science, Life Science, Earth/Space Science,
+#         and Engineering Design. Emphasis is OBSERVATION over explanation.
+#
+# Source authorities:
+#   - Next Generation Science Standards (NGSS) K-2
+#   - NSTA Early Childhood Position Statement
+#   - A Framework for K-12 Science Education (NRC)
+#   - Picture-Perfect Science Lessons (Ansberry & Morgan)
+#   - Ambitious Science Teaching (Windschitl et al.)
+
+id: k2_science
+extends: k2
+subject: science
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Core Pedagogical Stance
+# ---------------------------------------------------------------------------
+pedagogical_stance:
+  primary_mode: "observation_and_wonder"
+  rule: >
+    K-2 science is about noticing, wondering, and describing — not explaining
+    mechanisms. Students make observations, ask questions, and draw what they
+    see. They do NOT memorize vocabulary, write hypotheses in formal form, or
+    learn abstract models (atoms, molecules, energy transfer, ecosystems as
+    systems). Concrete phenomena are always the entry point. Explanation is
+    in the teacher's back pocket, offered only when a student's question
+    drives it.
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade (NGSS-aligned)
+# ---------------------------------------------------------------------------
+content_progression:
+  kindergarten:
+    in_scope:
+      physical_science:
+        - "pushes_and_pulls_change_motion"
+        - "collisions_change_direction"
+      life_science:
+        - "plants_and_animals_need_to_live"
+        - "where_plants_and_animals_live"
+      earth_space:
+        - "sunlight_warms_earth_surface"
+        - "reduce_weather_impact_simple_design"
+        - "weather_observations_over_time"
+      engineering:
+        - "define_simple_problem_draw_solution"
+    out_of_scope:
+      - "cells"
+      - "atoms_and_molecules"
+      - "genetic_inheritance"
+      - "plate_tectonics"
+      - "chemical_reactions_named"
+
+  first_grade:
+    in_scope:
+      physical_science:
+        - "light_and_sound_how_we_see_and_hear"
+        - "objects_block_light_make_shadows"
+        - "vibrating_materials_make_sound"
+      life_science:
+        - "plant_and_animal_parts_for_survival"
+        - "patterns_of_parent_offspring_behavior"
+      earth_space:
+        - "patterns_in_sun_moon_stars"
+        - "seasonal_day_length_patterns"
+    out_of_scope:
+      - "photosynthesis_named_process"
+      - "lunar_phases_mechanism"
+      - "solar_system_bodies_beyond_sun_moon_earth"
+
+  second_grade:
+    in_scope:
+      physical_science:
+        - "matter_properties_solid_liquid_gas_observable"
+        - "changes_caused_by_heating_cooling"
+        - "materials_and_their_uses"
+      life_science:
+        - "plants_depend_on_water_and_sunlight"
+        - "plants_depend_on_animals_for_seed_dispersal_pollination"
+        - "diversity_of_life_in_different_habitats"
+      earth_space:
+        - "earth_events_fast_or_slow"
+        - "water_is_found_in_many_places"
+        - "land_and_water_shown_on_maps"
+      engineering:
+        - "compare_multiple_solutions_to_same_problem"
+    out_of_scope:
+      - "states_of_matter_at_molecular_level"
+      - "full_water_cycle_with_evaporation_condensation_named"
+      - "ecosystem_food_webs_with_trophic_levels"
+
+# ---------------------------------------------------------------------------
+# Science & Engineering Practices (NGSS) — age-adapted
+# ---------------------------------------------------------------------------
+practices:
+  emphasized:
+    - "ask_questions_and_define_problems"
+    - "develop_and_use_models"                  # drawings are models in K-2
+    - "plan_and_carry_out_investigations"
+    - "analyze_and_interpret_data"              # via charts with pictures
+    - "construct_explanations"                  # in student-friendly words
+    - "obtain_and_communicate_information"      # draw and label, share aloud
+  de_emphasized_until_later_grades:
+    - "using_mathematics_computational_thinking_formal"
+    - "engaging_in_argument_from_evidence_formal"
+
+# ---------------------------------------------------------------------------
+# Hands-On Investigation Requirement
+# ---------------------------------------------------------------------------
+investigation_requirement:
+  required_frequency: "every_new_concept"
+  rule: >
+    Every new science concept must begin with a hands-on investigation or
+    direct observation of a phenomenon. Worksheets support and extend the
+    investigation but never replace it. If a concept cannot be safely or
+    practically investigated in a K-2 classroom, use a video of the
+    phenomenon as a substitute — never just text.
+  common_k2_investigations:
+    - "classroom_garden_seed_growth"
+    - "ramp_and_ball_push_experiments"
+    - "ice_melting_observation"
+    - "shadow_tracing_across_a_day"
+    - "weather_chart_daily"
+    - "sorting_objects_by_material"
+    - "sink_or_float_testing"
+    - "magnet_exploration"
+    - "living_vs_nonliving_sort"
+    - "sound_makers_rice_on_drum"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "k2_sci_observation_journal"
+      description: "Draw what you see, label 1-3 parts"
+      max_items: 1
+    - id: "k2_sci_predict_observe_record"
+      description: "POE chart — draw prediction, draw result, circle match/no match"
+      max_items: 1
+    - id: "k2_sci_living_nonliving_sort"
+      description: "Cut and paste into two columns"
+      max_items: 8
+    - id: "k2_sci_life_cycle_sequence"
+      description: "Put life cycle pictures in order"
+      max_items: 1
+    - id: "k2_sci_label_the_diagram"
+      description: "Drag or write labels on a simple diagram (plant parts, body parts)"
+      max_items: 5
+    - id: "k2_sci_weather_chart"
+      description: "Daily weather observation over a week or month"
+      max_items: 1
+    - id: "k2_sci_match_animal_to_habitat"
+      description: "Draw lines matching animal pictures to habitat pictures"
+      max_items: 6
+    - id: "k2_sci_materials_sort"
+      description: "Sort objects by material or property (hard, soft, rough, smooth)"
+      max_items: 8
+    - id: "k2_sci_my_experiment_recording_sheet"
+      description: "Question, picture of setup, picture of result, one-sentence finding"
+      max_items: 1
+  banned_templates:
+    - "formal_lab_report"
+    - "multiple_choice_science_quiz"
+    - "fill_in_vocabulary_with_no_visual"
+    - "dense_informational_passage"
+    - "periodic_table_activity"                   # not until middle school
+    - "balanced_equation_activity"
+
+# ---------------------------------------------------------------------------
+# Vocabulary — opens Tier 3 for observational science terms only
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 80
+    tier_2_pct: 12
+    tier_3_pct: 8
+  allowed_tier_3_terms_by_grade:
+    kindergarten:
+      - "observe"
+      - "wonder"
+      - "investigate"
+      - "compare"
+      - "sort"
+      - "push"
+      - "pull"
+      - "motion"
+      - "plant"
+      - "animal"
+      - "living"
+      - "non-living"
+      - "weather"
+      - "sunny"
+      - "rainy"
+      - "cloudy"
+      - "windy"
+      - "snowy"
+    first_grade:
+      - "predict"
+      - "record"
+      - "light"
+      - "shadow"
+      - "sound"
+      - "vibrate"
+      - "plant parts (root, stem, leaf, flower)"
+      - "parent"
+      - "offspring"
+      - "pattern"
+      - "moon"
+      - "sun"
+      - "stars"
+      - "season"
+    second_grade:
+      - "property"
+      - "material"
+      - "solid"
+      - "liquid"
+      - "gas"
+      - "heat"
+      - "cool"
+      - "habitat"
+      - "pollinate"
+      - "seed dispersal"
+      - "diversity"
+      - "landform"
+      - "map"
+      - "slow change"
+      - "fast change"
+  banned_terms:
+    - "hypothesis"                              # use "what do you think will happen?"
+    - "molecule"
+    - "atom"
+    - "cell"
+    - "photosynthesis"
+    - "ecosystem"
+    - "food web"
+    - "energy transfer"
+    - "gravity"                                 # describe it, don't name it in K
+    - "friction"                                # until 3rd+
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides (5E model, age-adapted)
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 30
+  model: "5E_primary_adapted"
+  structure:
+    - phase: "engage"
+      duration_min: 4
+      description: "Show phenomenon, mystery object, or wonder question"
+    - phase: "explore"
+      duration_min: 10
+      description: "Hands-on investigation or direct observation"
+    - phase: "movement_break"
+      duration_min: 2
+      description: "Shake wiggles out before focused recording"
+    - phase: "explain"
+      duration_min: 6
+      description: "Students share observations; teacher introduces key term"
+    - phase: "elaborate_or_apply"
+      duration_min: 6
+      description: "Draw and label recording sheet or sort activity"
+    - phase: "close"
+      duration_min: 2
+      description: "One wondering question to carry to tomorrow"
+  manipulatives_required: true
+  safety_review_required_for_investigations: true
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 2
+  length_max: 4
+  show_real_phenomenon_footage_required: true
+  animation_ok_only_for_inaccessible_phenomena: true   # plant growth time-lapse ok
+  narrator_asks_wondering_questions: true
+  pause_to_notice_moments: 2                            # "What do you see?"
+  no_anthropomorphism_of_non_animals: true              # a plant is not a person
+
+# ---------------------------------------------------------------------------
+# Safety Rules for Investigations
+# ---------------------------------------------------------------------------
+safety_rules:
+  banned_activities:
+    - "open_flame"
+    - "chemicals_beyond_baking_soda_vinegar_soap"
+    - "small_choking_hazard_items_in_K"
+    - "sharp_blades"
+    - "uncovered_hot_plates"
+  required_reminders_on_all_worksheets:
+    - "ask_an_adult_before_trying_at_home"
+    - "wash_hands_after"
+  living_organism_rules:
+    - "no_harm_to_animals_or_insects"
+    - "release_observed_creatures_where_found"
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "draw_what_you_observed"
+    - "label_the_parts"
+    - "sort_by_category"
+    - "sequence_the_life_cycle"
+    - "point_and_explain_aloud_to_teacher"
+    - "complete_the_observation_chart"
+  banned:
+    - "multiple_choice_test"
+    - "fill_in_the_blank_with_vocab_word"
+    - "define_these_terms"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["K", "1", "2"]
+  alignment_metadata_required:
+    - "disciplinary_core_idea"                  # DCI
+    - "science_and_engineering_practice"        # SEP
+    - "crosscutting_concept"                    # CCC
+    - "specific_performance_expectation_code"
+  default_frameworks_supported:
+    - "NGSS"
+    - "TEKS-Science"
+    - "Virginia-SOL-Science"
+    - "Florida-SSS-Science"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_k2_science_curricula_recognized:
+    - "Amplify Science K-2"
+    - "Mystery Science"
+    - "FOSS (Full Option Science System)"
+    - "Picture-Perfect Science"
+    - "Inspire Science"
+    - "STEMscopes"
+  when_curriculum_uploaded:
+    match_phenomenon_anchors: true
+    match_terminology: true
+    respect_investigation_sequence: true

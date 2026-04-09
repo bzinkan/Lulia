@@ -1,0 +1,386 @@
+# Grade 3-5 Math Subject Overlay
+#
+# Inherits from: grade_bands/g35.yaml
+#
+# 3-5 math is where students transition from arithmetic to mathematical
+# reasoning. Multiplication, division, fractions, and decimals dominate.
+# Word problems become multi-step. Students begin to justify their thinking
+# and use mathematical models. Concrete-Representational-Abstract progression
+# is still required for new concepts but can move faster than K-2.
+#
+# Source authorities:
+#   - NCTM Principles to Actions
+#   - CCSS-M 3-5 Progressions (OA, NBT, NF, MD, G)
+#   - Graham Fletcher progression videos
+#   - Jo Boaler / youcubed visual math research
+#   - Singapore Math bar model methodology
+#   - Eureka Math, Bridges, Illustrative Mathematics scope & sequence
+
+id: g35_math
+extends: g35
+subject: math
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+content_progression:
+  third_grade:
+    in_scope:
+      - "multiplication_and_division_within_100_fluency"
+      - "multiplication_word_problems_arrays_groups"
+      - "properties_of_multiplication_commutative_associative_distributive"
+      - "fractions_as_numbers_on_number_line"
+      - "equivalent_fractions_using_visual_models"
+      - "compare_fractions_with_same_numerator_or_denominator"
+      - "place_value_to_thousands"
+      - "round_to_nearest_10_or_100"
+      - "multi_step_word_problems_within_1000"
+      - "area_and_perimeter_with_unit_squares"
+      - "time_to_the_minute_elapsed_time"
+      - "scaled_picture_and_bar_graphs"
+      - "classify_quadrilaterals_by_attributes"
+    out_of_scope:
+      - "standard_algorithm_for_multi_digit_multiplication"
+      - "decimals"
+      - "negative_numbers"
+      - "ratios_and_percents"
+      - "pre_algebra_with_variables"
+
+  fourth_grade:
+    in_scope:
+      - "multi_digit_multiplication_using_strategies_and_arrays"
+      - "multi_digit_division_with_remainders"
+      - "factors_multiples_prime_composite"
+      - "fraction_addition_subtraction_with_like_denominators"
+      - "fraction_multiplication_by_whole_number"
+      - "decimal_notation_for_fractions_with_denominators_10_100"
+      - "compare_decimals_to_hundredths"
+      - "multi_step_word_problems_with_remainders_interpretation"
+      - "convert_measurement_units_within_a_system"
+      - "angles_measurement_with_protractor"
+      - "lines_of_symmetry_and_classification_of_2d_figures"
+      - "line_plots_with_fractions"
+    out_of_scope:
+      - "negative_numbers_full_operations"
+      - "ratios_and_proportional_reasoning"
+      - "exponents_beyond_squares"
+
+  fifth_grade:
+    in_scope:
+      - "standard_algorithm_for_multi_digit_multiplication"
+      - "multi_digit_division_with_two_digit_divisors"
+      - "decimal_operations_to_hundredths"
+      - "fraction_addition_subtraction_with_unlike_denominators"
+      - "fraction_multiplication_by_fractions"
+      - "fraction_division_unit_fractions_by_whole_numbers"
+      - "powers_of_10_and_place_value_patterns"
+      - "order_of_operations_with_parentheses"
+      - "convert_measurement_units_multiplicative_reasoning"
+      - "volume_of_rectangular_prisms"
+      - "coordinate_plane_first_quadrant"
+      - "classify_2d_figures_in_hierarchies"
+      - "line_plots_to_solve_fraction_problems"
+    out_of_scope:
+      - "ratios_and_proportions_formal"
+      - "negative_number_operations"
+      - "linear_equations_with_variables_on_both_sides"
+
+# ---------------------------------------------------------------------------
+# CRA Progression — accelerated from K-2 but still required
+# ---------------------------------------------------------------------------
+cra_progression:
+  required: true
+  rule: >
+    New concepts still introduced concrete → representational → abstract,
+    but the concrete phase can be brief (one example) for students who
+    already demonstrate readiness. By 5th grade, abstract symbols often
+    suffice for review work. Always include at least one visual model
+    (bar model, area model, number line, or array) on every worksheet.
+  preferred_models:
+    - "bar_model_singapore_method"
+    - "area_model_for_multiplication"
+    - "open_number_line"
+    - "fraction_bars_and_strips"
+    - "decimal_grids_tenths_hundredths"
+    - "arrays_and_equal_groups"
+    - "place_value_charts"
+    - "tape_diagrams"
+  manipulatives_still_used:
+    - "fraction_tiles_or_circles"
+    - "base_ten_blocks_with_decimal_extensions"
+    - "geometry_solids"
+    - "protractors_rulers"
+    - "pattern_blocks"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g35_math_practice_set"
+      description: "Mixed practice — bare computation + word problems"
+      max_items: 16
+    - id: "g35_math_word_problem_set"
+      description: "Multi-step word problems with show-your-work boxes"
+      max_items: 6
+    - id: "g35_math_visual_model"
+      description: "Bar model, area model, or number line problems"
+      max_items: 8
+    - id: "g35_math_fraction_practice"
+      description: "Fraction operations with visual models"
+      max_items: 10
+    - id: "g35_math_decimal_practice"
+      description: "Decimal operations with grid models"
+      max_items: 10
+    - id: "g35_math_geometry_lab"
+      description: "Measure, classify, draw activities"
+      max_items: 6
+    - id: "g35_math_data_analysis"
+      description: "Read graph, answer questions, create representation"
+      max_items: 5
+    - id: "g35_math_error_analysis"
+      description: "Find the mistake and explain"
+      max_items: 4
+    - id: "g35_math_exit_ticket"
+      description: "Quick 2-3 problem formative check"
+      max_items: 3
+    - id: "g35_math_task_cards"
+      description: "Single-problem cards for stations"
+      max_items: 12
+  banned_templates:
+    - "k2_picture_count"                       # too young
+    - "color_by_number_only"                   # use sparingly, not as primary practice
+    - "speed_drill_timed_test"
+    - "rote_copy_problems"
+
+# ---------------------------------------------------------------------------
+# Layout Overrides
+# ---------------------------------------------------------------------------
+layout_overrides:
+  equation_rendering:
+    orientation_options: ["horizontal", "vertical_stacked"]
+    operator_size_pt: 16
+    answer_line_style: "underline_or_box"
+    show_your_work_box_required_for_multi_step: true
+  problem_numbering:
+    style: "numbered_with_period"
+    bold_problem_numbers: true
+  visual_models:
+    fraction_models_must_be_proportional: true
+    grid_paper_for_decimal_problems: true
+    bar_models_required_for_multi_step_word_problems_grade_3_4: true
+
+# ---------------------------------------------------------------------------
+# Math Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 55
+    tier_2_pct: 25
+    tier_3_pct: 20
+  allowed_tier_3_terms_by_grade:
+    third_grade:
+      - "multiply"
+      - "divide"
+      - "factor"
+      - "product"
+      - "quotient"
+      - "array"
+      - "equal groups"
+      - "fraction"
+      - "numerator"
+      - "denominator"
+      - "equivalent"
+      - "unit fraction"
+      - "number line"
+      - "round"
+      - "estimate"
+      - "perimeter"
+      - "area"
+      - "square unit"
+      - "elapsed time"
+      - "scaled graph"
+      - "quadrilateral"
+      - "polygon"
+      - "rhombus"
+    fourth_grade:
+      - "multiple"
+      - "prime"
+      - "composite"
+      - "remainder"
+      - "decimal"
+      - "tenth"
+      - "hundredth"
+      - "angle"
+      - "acute"
+      - "obtuse"
+      - "right angle"
+      - "parallel"
+      - "perpendicular"
+      - "symmetry"
+      - "line of symmetry"
+      - "convert"
+      - "kilometer"
+      - "milliliter"
+      - "gram"
+    fifth_grade:
+      - "expression"
+      - "evaluate"
+      - "exponent"
+      - "power of ten"
+      - "order of operations"
+      - "common denominator"
+      - "mixed number"
+      - "improper fraction"
+      - "volume"
+      - "cubic unit"
+      - "coordinate plane"
+      - "ordered pair"
+      - "x-axis"
+      - "y-axis"
+      - "origin"
+      - "hierarchy"
+  banned_terms:
+    - "variable"                              # 6th grade and beyond
+    - "linear equation"
+    - "function"
+    - "polynomial"
+    - "integer"                               # use "whole number" / "negative number"
+    - "ratio"                                 # 6th grade
+    - "proportion"
+    - "percent"                               # 6th grade
+
+# ---------------------------------------------------------------------------
+# Word Problem Contexts
+# ---------------------------------------------------------------------------
+word_problem_contexts:
+  allowed:
+    - "school_and_classroom"
+    - "sports_and_games_age_appropriate"
+    - "cooking_and_recipes_simple_fractions"
+    - "shopping_with_dollars_and_cents"
+    - "field_trips_and_school_events"
+    - "pets_and_animals"
+    - "siblings_and_family_activities"
+    - "hobbies_and_collections"
+    - "gardening_and_plants"
+    - "construction_and_building_simple"
+    - "travel_distance_and_time_age_appropriate"
+  banned:
+    - "salaries_and_paychecks"
+    - "taxes_and_interest"
+    - "stock_market"
+    - "credit_and_loans"
+    - "alcohol_or_gambling"
+    - "violence_or_war"
+  character_name_rules:
+    diverse_name_rotation_required: true
+    example_name_pool:
+      - "Aaliyah"
+      - "Marcus"
+      - "Sofia"
+      - "Aarav"
+      - "Maya"
+      - "Diego"
+      - "Priya"
+      - "Jamal"
+      - "Zoe"
+      - "Wei"
+      - "Leilani"
+      - "Ezra"
+      - "Amara"
+      - "Kai"
+      - "Nia"
+      - "Mateo"
+      - "Sanaa"
+      - "Theo"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides — math block structure
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 60                      # math block typically 60 min in 3-5
+  structure:
+    - phase: "number_talk_or_fluency_warmup"
+      duration_min: 8
+      description: "Mental math, counting routine, or quick fact practice"
+    - phase: "mini_lesson_i_do"
+      duration_min: 12
+      description: "New concept or strategy with worked example and visual model"
+    - phase: "guided_practice_we_do"
+      duration_min: 12
+      description: "Shared work, partner discourse, scaffolded examples"
+    - phase: "independent_or_station_practice"
+      duration_min: 20
+      description: "Worksheet, math task, station rotation, or partner game"
+    - phase: "share_and_close"
+      duration_min: 8
+      description: "Student strategy share, exit ticket, or wrap-up discussion"
+  manipulatives_required: false               # available but not required every day
+  math_journal_recommended: true
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 4
+  length_max: 8
+  must_show_visual_model_on_screen: true
+  show_worked_example_step_by_step: true
+  pause_for_student_thinking_moments: 2
+  examples_per_video: 3                       # modeled + we-do + try-it
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "show_your_work_with_solution"
+    - "explain_your_strategy"
+    - "use_a_visual_model_to_solve"
+    - "find_the_error_and_correct_it"
+    - "multi_step_word_problem"
+    - "compare_two_strategies"
+    - "estimate_then_solve"
+  exit_ticket_format:
+    max_items: 3
+    must_include_show_your_work: true
+    must_be_completable_in_min: 5
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["3", "4", "5"]
+  alignment_metadata_required:
+    - "strand"                                # OA, NBT, NF, MD, G
+    - "cluster"
+    - "specific_standard_code"
+  default_frameworks_supported:
+    - "CCSS-Math"
+    - "TEKS-Math"
+    - "Virginia-SOL-Math"
+    - "Florida-BEST-Math"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g35_math_curricula_recognized:
+    - "Eureka Math (EngageNY)"
+    - "Bridges in Mathematics"
+    - "Investigations 3"
+    - "enVision Math"
+    - "Saxon Math"
+    - "Go Math"
+    - "Illustrative Mathematics K-5"
+    - "i-Ready Math"
+    - "Singapore Math (Math in Focus, Dimensions)"
+    - "Math Expressions"
+  when_curriculum_uploaded:
+    match_terminology: true
+    match_visual_model_conventions: true     # bar model vs. tape diagram vs. rod
+    match_lesson_structure_if_detectable: true

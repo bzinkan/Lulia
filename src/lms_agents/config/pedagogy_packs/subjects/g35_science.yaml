@@ -1,0 +1,385 @@
+# Grade 3-5 Science Subject Overlay
+#
+# Inherits from: grade_bands/g35.yaml
+# Covers: NGSS 3-5 Physical, Life, Earth/Space Science, and Engineering Design.
+#
+# 3-5 science introduces models, simple investigations with controlled
+# variables, and explanation construction. Students still learn through
+# direct phenomena and hands-on experiences, but they begin to use
+# evidence to support claims and draw conclusions. Science notebooks
+# become productive. Vocabulary expands to include named processes
+# (photosynthesis, water cycle) but always anchored to observable
+# phenomena.
+#
+# Source authorities:
+#   - Next Generation Science Standards (NGSS) 3-5
+#   - A Framework for K-12 Science Education (NRC)
+#   - Ambitious Science Teaching (Windschitl et al.)
+#   - Picture-Perfect Science Lessons (3-5 volumes)
+#   - NSTA Position Statement on Elementary Science
+
+id: g35_science
+extends: g35
+subject: science
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Core Pedagogical Stance
+# ---------------------------------------------------------------------------
+pedagogical_stance:
+  primary_mode: "phenomena_first_then_explanation"
+  rule: >
+    3-5 science begins with observable phenomena and uses direct experience
+    as the entry point. Students develop and use models, plan and carry out
+    simple investigations with controlled variables, analyze data, and
+    construct explanations supported by evidence. Vocabulary is expanded
+    but always taught alongside the phenomenon — never as memorization
+    in isolation. Hypothesis-testing emerges in 4th-5th grade but framed
+    as "I think... because..." not formal scientific method ritual.
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+content_progression:
+  third_grade:
+    in_scope:
+      physical_science:
+        - "forces_and_motion_balanced_unbalanced"
+        - "patterns_in_motion_to_predict_future_motion"
+        - "electric_and_magnetic_forces"
+      life_science:
+        - "life_cycles_birth_growth_reproduction_death"
+        - "inheritance_and_variation_of_traits"
+        - "organisms_have_traits_that_help_them_survive"
+        - "fossils_provide_evidence_about_past_organisms"
+      earth_space:
+        - "weather_patterns_in_a_region_over_time"
+        - "climate_in_different_regions"
+        - "weather_related_hazards_and_solutions"
+      engineering:
+        - "define_simple_design_problem_with_criteria_and_constraints"
+        - "compare_solutions_against_criteria"
+    out_of_scope:
+      - "atomic_structure"
+      - "cellular_respiration"
+      - "plate_tectonics_full_mechanism"
+      - "energy_transformations_with_formulas"
+
+  fourth_grade:
+    in_scope:
+      physical_science:
+        - "energy_transfer_collisions_motion_heat_light_sound_electric"
+        - "wave_patterns_amplitude_wavelength"
+        - "information_transfer_via_patterns"
+      life_science:
+        - "internal_and_external_structures_for_survival_growth_reproduction"
+        - "animals_use_senses_to_perceive_and_respond"
+      earth_space:
+        - "patterns_in_rock_formations_and_fossils"
+        - "weathering_and_erosion_shape_earth"
+        - "natural_hazards_and_human_solutions"
+        - "energy_and_fuels_from_natural_resources"
+      engineering:
+        - "generate_and_compare_multiple_solutions"
+        - "test_and_improve_a_design"
+    out_of_scope:
+      - "electromagnetic_spectrum_full"
+      - "evolution_natural_selection_named"
+      - "chemical_reactions_with_equations"
+
+  fifth_grade:
+    in_scope:
+      physical_science:
+        - "matter_made_of_particles_too_small_to_see"
+        - "conservation_of_matter_in_chemical_reactions"
+        - "properties_of_matter_to_identify_substances"
+      life_science:
+        - "energy_in_food_traces_back_to_sun"
+        - "matter_cycles_among_living_and_nonliving_parts_of_ecosystems"
+        - "decomposers_in_ecosystems"
+      earth_space:
+        - "earth_systems_geosphere_biosphere_hydrosphere_atmosphere"
+        - "water_cycle_distribution_of_water_on_earth"
+        - "human_impact_on_earth_systems"
+        - "earth_in_solar_system_gravity_pulls_objects_down"
+        - "patterns_in_day_night_seasons_shadows"
+      engineering:
+        - "iterate_test_improve"
+        - "use_models_to_test_solutions"
+    out_of_scope:
+      - "atomic_theory_with_subatomic_particles"
+      - "balanced_chemical_equations"
+      - "trophic_levels_with_pyramids_named_beyond_basics"
+      - "lunar_phases_full_mechanism_with_orbital_geometry"
+
+# ---------------------------------------------------------------------------
+# Science & Engineering Practices (NGSS) — emphasized at 3-5
+# ---------------------------------------------------------------------------
+practices:
+  emphasized:
+    - "asking_questions_and_defining_problems"
+    - "developing_and_using_models"
+    - "planning_and_carrying_out_investigations_with_controlled_variables"
+    - "analyzing_and_interpreting_data"
+    - "using_mathematics_and_computational_thinking_basic"
+    - "constructing_explanations_with_evidence"
+    - "engaging_in_argument_from_evidence_age_appropriate"
+    - "obtaining_evaluating_and_communicating_information"
+
+# ---------------------------------------------------------------------------
+# Hands-On Investigation Requirement
+# ---------------------------------------------------------------------------
+investigation_requirement:
+  required_frequency: "most_lessons_introducing_new_concepts"
+  rule: >
+    Most new concepts should begin with a hands-on investigation, demonstration,
+    or direct observation of the phenomenon. Lab simulations and high-quality
+    video phenomena are acceptable substitutes when the real thing is impractical
+    or unsafe. Always pair the experience with a science notebook entry that
+    captures observations, models, and explanations.
+  common_g35_investigations:
+    - "ramps_and_marbles_force_motion"
+    - "circuit_building_with_batteries_bulbs_wires"
+    - "magnet_exploration_with_iron_filings"
+    - "plant_growth_under_different_conditions"
+    - "owl_pellet_dissection_or_photo_analysis"
+    - "rock_and_mineral_classification"
+    - "weather_station_data_collection"
+    - "stream_table_for_erosion"
+    - "matter_state_change_observation"
+    - "chemical_change_indicator_baking_soda_vinegar"
+    - "shadow_tracking_across_a_day"
+    - "ecosystem_in_a_jar_terrarium_aquarium"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g35_sci_lab_recording_sheet"
+      description: "Question, materials, procedure, data table, conclusion"
+      max_items: 1
+    - id: "g35_sci_data_table_and_analysis"
+      description: "Pre-populated table to fill in + analysis questions"
+      max_items: 1
+    - id: "g35_sci_claim_evidence_reasoning_simple"
+      description: "Age-appropriate CER scaffold with sentence frames"
+      max_items: 3
+    - id: "g35_sci_diagram_label_and_explain"
+      description: "Diagram with labels + explanation prompt"
+      max_items: 1
+    - id: "g35_sci_concept_sort_or_classify"
+      description: "Sort phenomena, organisms, materials by attributes"
+      max_items: 12
+    - id: "g35_sci_compare_contrast_organizer"
+      description: "Two systems, organisms, or phenomena compared"
+      max_items: 1
+    - id: "g35_sci_design_challenge_planning"
+      description: "Engineering design with criteria, constraints, sketch"
+      max_items: 1
+    - id: "g35_sci_reading_with_questions"
+      description: "Short informational passage + comprehension questions"
+      max_items: 1
+    - id: "g35_sci_model_drawing"
+      description: "Draw and label a model of a system or phenomenon"
+      max_items: 1
+    - id: "g35_sci_vocabulary_in_context"
+      description: "Science terms used in sentences with diagrams"
+      max_items: 8
+  banned_templates:
+    - "memorize_definitions_only"
+    - "fill_in_vocab_with_no_phenomenon"
+    - "high_school_lab_report_format"        # too complex
+    - "balanced_chemical_equations"
+    - "scientific_method_step_recital"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 55
+    tier_2_pct: 25
+    tier_3_pct: 20
+  allowed_tier_3_terms_by_grade:
+    third_grade:
+      - "force"
+      - "motion"
+      - "balanced"
+      - "unbalanced"
+      - "magnet"
+      - "attract"
+      - "repel"
+      - "life cycle"
+      - "trait"
+      - "inherit"
+      - "adaptation"
+      - "fossil"
+      - "habitat"
+      - "weather"
+      - "climate"
+      - "predict"
+      - "investigate"
+      - "observe"
+      - "data"
+    fourth_grade:
+      - "energy"
+      - "transfer"
+      - "vibration"
+      - "wave"
+      - "amplitude"
+      - "wavelength"
+      - "structure"
+      - "function"
+      - "weathering"
+      - "erosion"
+      - "deposition"
+      - "renewable"
+      - "nonrenewable"
+      - "natural resource"
+      - "design solution"
+      - "criteria"
+      - "constraint"
+    fifth_grade:
+      - "matter"
+      - "particle"
+      - "conservation of matter"
+      - "chemical reaction"
+      - "physical change"
+      - "ecosystem"
+      - "decomposer"
+      - "producer"
+      - "consumer"
+      - "geosphere"
+      - "biosphere"
+      - "hydrosphere"
+      - "atmosphere"
+      - "water cycle"
+      - "evaporation"
+      - "condensation"
+      - "precipitation"
+      - "gravity"
+      - "rotation"
+      - "revolution"
+  banned_terms:
+    - "molecule"                              # 6th+ grade
+    - "atom"                                  # 6th+ grade
+    - "proton"
+    - "neutron"
+    - "electron"
+    - "photosynthesis_chemical_equation"      # name the process, not the equation
+    - "mitosis"
+    - "meiosis"
+    - "trophic level_pyramid_named"
+    - "covalent_bond"
+    - "ionic_bond"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides — 5E model
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 50
+  model: "5E_full"
+  structure:
+    - phase: "engage"
+      duration_min: 7
+      description: "Phenomenon, demo, mystery, or wondering question"
+    - phase: "explore"
+      duration_min: 15
+      description: "Hands-on investigation, data collection, or exploration"
+    - phase: "explain"
+      duration_min: 12
+      description: "Discussion of findings, vocabulary introduction, model construction"
+    - phase: "elaborate"
+      duration_min: 10
+      description: "Apply concept to new situation or extend with reading"
+    - phase: "evaluate_and_close"
+      duration_min: 6
+      description: "Exit ticket, science notebook entry, or quick CER prompt"
+  manipulatives_required: true                # most lessons have hands-on materials
+  safety_review_required_for_investigations: true
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 4
+  length_max: 8
+  show_real_phenomenon_footage_required: true
+  animation_ok_for_models_inside_systems: true     # cell, water cycle ok if accurate
+  narrator_uses_evidence_language: true
+  pause_for_prediction_or_observation_moments: 2
+  examples_per_video: 2
+
+# ---------------------------------------------------------------------------
+# Safety Rules
+# ---------------------------------------------------------------------------
+safety_rules:
+  banned_activities:
+    - "open_flame_unsupervised"
+    - "strong_acids_or_bases"
+    - "small_choking_hazard_items_in_younger_grades"
+    - "electrical_hazards_beyond_battery_circuits"
+    - "dissection_without_consent_protocols"
+  required_reminders:
+    - "wear_safety_goggles_when_appropriate"
+    - "wash_hands_before_and_after"
+    - "no_tasting_lab_materials_unless_explicitly_food"
+    - "report_accidents_immediately"
+  living_organism_rules:
+    - "no_harm_to_living_things"
+    - "release_observed_creatures_where_found"
+    - "respect_animal_life_in_dissection_with_dignity"
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "draw_and_label_model"
+    - "claim_evidence_reasoning_short"
+    - "data_table_completion_and_interpretation"
+    - "explain_phenomenon_using_evidence"
+    - "design_investigation_to_test_question"
+    - "compare_two_systems_or_organisms"
+    - "predict_then_observe_then_revise"
+  banned:
+    - "memorize_and_define_only"
+    - "multiple_choice_dominant"              # use sparingly
+    - "fill_in_the_vocabulary_word_no_context"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["3", "4", "5"]
+  alignment_metadata_required:
+    - "disciplinary_core_idea"
+    - "science_and_engineering_practice"
+    - "crosscutting_concept"
+    - "specific_performance_expectation_code"
+  default_frameworks_supported:
+    - "NGSS"
+    - "TEKS-Science"
+    - "Virginia-SOL-Science"
+    - "Florida-SSS-Science"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g35_science_curricula_recognized:
+    - "Amplify Science 3-5"
+    - "Mystery Science"
+    - "FOSS (Full Option Science System)"
+    - "Picture-Perfect Science"
+    - "Inspire Science"
+    - "STEMscopes"
+    - "Generation Genius"
+    - "BSCS Science Tracks"
+  when_curriculum_uploaded:
+    match_phenomenon_anchors: true
+    match_terminology: true
+    respect_investigation_sequence: true

@@ -1,0 +1,405 @@
+# Grade 6-8 Social Studies Subject Overlay
+#
+# Inherits from: grade_bands/g68.yaml
+# Covers: civics, geography, economics, world and US history at the middle
+#         school level.
+#
+# 6-8 social studies expands dramatically in scope: world history (ancient
+# civilizations through modern), geography (full world regions, physical
+# and human), economics (markets, scarcity, decision-making, global trade),
+# civics (government structures, civic engagement, US history). Inquiry
+# becomes more rigorous: students evaluate sources, weigh competing claims,
+# argue from evidence, and produce extended written responses. Honest,
+# multi-perspective history is essential.
+#
+# Source authorities:
+#   - NCSS National Curriculum Standards for Social Studies
+#   - C3 Framework for Social Studies State Standards
+#   - Reading Like a Historian (Stanford History Education Group)
+#   - National Council for History Education
+#   - Facing History and Ourselves
+#   - Teaching Tolerance / Learning for Justice
+#   - James W. Loewen "Lies My Teacher Told Me"
+
+id: g68_social
+extends: g68
+subject: social_studies
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Core Pedagogical Stance
+# ---------------------------------------------------------------------------
+pedagogical_stance:
+  primary_mode: "inquiry_with_multiple_perspectives_and_sources"
+  rule: >
+    Middle school social studies is inquiry-based: students investigate
+    compelling questions, gather and evaluate multiple sources, weigh
+    competing perspectives, and communicate evidence-based conclusions.
+    Historical thinking includes sourcing, contextualization, corroboration,
+    and close reading. Treat all peoples and events with honesty,
+    acknowledging complexity and harm done. Center marginalized voices
+    when telling histories that involve them. Avoid both myth-making and
+    cynical "no heroes" framing — present human beings making consequential
+    choices in their contexts.
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+# Note: middle school social studies sequences vary widely by state.
+# This overlay provides a typical NCSS-aligned progression but the
+# Curriculum Agent will retrieve actual state standards.
+content_progression:
+  sixth_grade:
+    common_focus: "ancient_civilizations_and_world_geography"
+    in_scope:
+      world_history:
+        - "early_humans_and_neolithic_revolution"
+        - "mesopotamia_and_egypt"
+        - "indus_valley_civilization"
+        - "ancient_china"
+        - "ancient_greece_government_philosophy_culture"
+        - "ancient_rome_republic_through_empire"
+        - "ancient_americas_olmec_maya"
+        - "ancient_africa_kush_aksum"
+      geography:
+        - "world_physical_geography_continents_landforms_climate"
+        - "world_political_geography_countries_capitals_regions"
+        - "human_environment_interaction_in_early_civilizations"
+      civics:
+        - "early_forms_of_government_compared"
+      economics:
+        - "trade_in_ancient_civilizations"
+        - "scarcity_and_decision_making"
+    out_of_scope:
+      - "post_renaissance_european_history_in_depth"
+      - "modern_us_constitutional_law"
+
+  seventh_grade:
+    common_focus: "world_history_medieval_through_early_modern"
+    in_scope:
+      world_history:
+        - "fall_of_rome_and_byzantine_empire"
+        - "rise_of_islam_and_islamic_civilizations"
+        - "medieval_europe_feudalism_crusades_plague"
+        - "imperial_china_tang_song_ming"
+        - "japan_feudal_period"
+        - "african_kingdoms_ghana_mali_songhai"
+        - "americas_aztec_inca"
+        - "renaissance_and_reformation"
+        - "age_of_exploration_with_honest_account_of_contact_and_colonization"
+        - "scientific_revolution"
+        - "enlightenment"
+      geography:
+        - "trade_routes_silk_road_indian_ocean_trans_saharan_columbian_exchange"
+        - "diffusion_of_ideas_technology_disease"
+        - "regional_geography_in_depth"
+      civics:
+        - "compare_government_forms_across_civilizations"
+      economics:
+        - "trade_networks_and_economic_systems"
+    out_of_scope:
+      - "post_industrial_revolution_in_depth"
+      - "20th_century_world_wars"
+      - "us_constitutional_law_advanced"
+
+  eighth_grade:
+    common_focus: "us_history_through_reconstruction"
+    in_scope:
+      us_history:
+        - "indigenous_nations_pre_contact_diverse_and_distinct"
+        - "european_exploration_and_contact_honest_account"
+        - "colonial_america_with_diverse_perspectives_including_enslaved_africans"
+        - "road_to_revolution_causes_and_perspectives"
+        - "american_revolution_and_independence"
+        - "constitution_constitutional_convention_compromises_including_three_fifths"
+        - "bill_of_rights_and_early_republic"
+        - "westward_expansion_with_indigenous_perspectives_and_displacement_honest"
+        - "antebellum_period_and_reform_movements_abolition_womens_rights_temperance"
+        - "slavery_in_the_united_states_systemic_and_ongoing_impacts"
+        - "civil_war_causes_course_and_consequences"
+        - "reconstruction_promises_and_failures"
+      civics:
+        - "us_constitution_in_depth"
+        - "branches_of_government_powers_and_checks_and_balances"
+        - "bill_of_rights_and_amendments"
+        - "federalism"
+        - "civic_responsibility_and_participation"
+      geography:
+        - "us_geography_and_its_role_in_history"
+      economics:
+        - "agrarian_to_industrial_economy_transition"
+    out_of_scope:
+      - "post_reconstruction_in_depth"          # typically 11th
+      - "world_war_one_two_in_depth"            # typically 10th-11th
+      - "modern_partisan_political_debates"
+
+# ---------------------------------------------------------------------------
+# Content Sensitivity Rules — strict at 6-8
+# ---------------------------------------------------------------------------
+content_sensitivity:
+  required_inclusive_representation:
+    cultural_backgrounds: "broad_global_diversity_required"
+    indigenous_voices: "centered_when_relevant"
+    enslaved_peoples: "humane_complete_treatment_with_named_individuals_when_possible"
+    immigration_stories: "diverse_humanizing_complex"
+    abilities: "natural_inclusion"
+    family_structures: "diverse"
+    gender_representation: "balanced_with_attention_to_historical_marginalization"
+    lgbtq_inclusion: "age_appropriate_when_relevant_to_history"
+
+  historical_treatment:
+    rule: >
+      Tell the truth, age-appropriately. Do not mythologize founders,
+      explorers, or any historical actors. Do not minimize harm done to
+      indigenous peoples, enslaved peoples, or other marginalized groups.
+      Always include multiple perspectives. Use active voice for harm
+      ("colonizers killed thousands" not "thousands died"). Maintain
+      emotional safety with framing for difficult topics. Avoid both
+      myth-making and cynical "no heroes" framing — present complex
+      humans in complex situations.
+    banned_simplifications:
+      - "first_thanksgiving_happy_harmony_myth"
+      - "columbus_hero_discovery_narrative"
+      - "founding_fathers_unblemished_with_no_contradictions_about_slavery"
+      - "westward_expansion_as_inevitable_progress_or_manifest_destiny_uncritical"
+      - "passive_voice_for_violence_done_to_marginalized_groups"
+      - "civil_war_states_rights_without_acknowledging_slavery"
+      - "lost_cause_mythology"
+      - "single_story_of_any_culture_or_continent"
+    required_inclusions:
+      - "indigenous_perspectives_on_colonization_and_displacement"
+      - "honest_complete_account_of_chattel_slavery_in_americas"
+      - "diverse_contributors_to_us_and_world_history"
+      - "ongoing_impacts_of_historical_injustices_today"
+      - "resistance_and_agency_of_marginalized_peoples"
+
+  banned_topics:
+    - "graphic_violence_imagery"
+    - "graphic_descriptions_of_torture_or_brutality"
+    - "current_partisan_political_attacks"
+    - "religious_proselytization_of_any_faith"
+    - "war_glorification"
+    - "explicit_descriptions_of_sexual_violence"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g68_soc_primary_source_analysis"
+      description: "Document with sourcing, context, close reading, corroboration questions"
+      max_items: 1
+    - id: "g68_soc_paired_source_analysis"
+      description: "Two sources on same event with comparison and analysis"
+      max_items: 1
+    - id: "g68_soc_dbq_intro"
+      description: "Document-based question with multiple sources and structured response"
+      max_items: 1
+    - id: "g68_soc_argumentative_writing_with_evidence"
+      description: "Take a position with claim, evidence from sources, counterclaim"
+      max_items: 1
+    - id: "g68_soc_map_analysis"
+      description: "Historical or current map with interpretation questions"
+      max_items: 1
+    - id: "g68_soc_timeline_with_analysis"
+      description: "Construct or analyze timeline with cause/effect and significance"
+      max_items: 1
+    - id: "g68_soc_compare_civilizations_or_systems"
+      description: "Two civilizations, governments, or economic systems compared"
+      max_items: 1
+    - id: "g68_soc_biography_research"
+      description: "In-depth research on a figure with multiple perspectives"
+      max_items: 1
+    - id: "g68_soc_concept_or_vocabulary_practice"
+      description: "Civic, geographic, economic, or historical terms in context"
+      max_items: 12
+    - id: "g68_soc_socratic_seminar_prep"
+      description: "Compelling question + evidence gathering + discussion notes"
+      max_items: 1
+    - id: "g68_soc_civic_action_research"
+      description: "Identify issue, research perspectives, propose action"
+      max_items: 1
+  banned_templates:
+    - "memorize_dates_only_worksheet"
+    - "single_perspective_history_narrative"
+    - "fill_in_with_no_source_or_context"
+    - "speed_drill_recall"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 35
+    tier_2_pct: 35
+    tier_3_pct: 30
+  allowed_tier_3_terms_by_grade:
+    sixth_grade:
+      - "civilization"
+      - "agriculture"
+      - "irrigation"
+      - "polytheism"
+      - "monotheism"
+      - "city-state"
+      - "empire"
+      - "dynasty"
+      - "philosopher"
+      - "democracy"
+      - "republic"
+      - "monarchy"
+      - "aristocracy"
+      - "primary source"
+      - "secondary source"
+      - "artifact"
+      - "archaeology"
+      - "BCE_CE_or_BC_AD"
+      - "decade"
+      - "century"
+      - "millennium"
+      - "scarcity"
+      - "trade"
+      - "nomad"
+    seventh_grade:
+      - "feudalism"
+      - "manor"
+      - "vassal"
+      - "serf"
+      - "caliphate"
+      - "renaissance"
+      - "reformation"
+      - "humanism"
+      - "encomienda"
+      - "colonization"
+      - "indigenous"
+      - "columbian exchange"
+      - "diffusion"
+      - "scientific method"
+      - "enlightenment"
+      - "natural rights"
+      - "absolute monarchy"
+      - "constitutional monarchy"
+      - "mercantilism"
+    eighth_grade:
+      - "constitution"
+      - "amendment"
+      - "federalism"
+      - "checks and balances"
+      - "separation of powers"
+      - "ratification"
+      - "compromise"
+      - "abolition"
+      - "abolitionist"
+      - "emancipation"
+      - "secession"
+      - "confederacy"
+      - "union"
+      - "reconstruction"
+      - "freedmen"
+      - "manifest destiny"
+      - "annexation"
+      - "displacement"
+      - "treaty"
+      - "sovereignty"
+      - "perspective"
+      - "bias"
+      - "corroborate"
+      - "contextualize"
+      - "source"
+      - "credibility"
+  banned_terms:
+    - "ideology_partisan_use"
+    - "neoliberalism"
+    - "geopolitics_advanced"
+    - "deconstruction"
+    - "marxist_critique_advanced"               # 11th+ in proper context
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 55
+  structure:
+    - phase: "compelling_question_or_hook"
+      duration_min: 6
+      description: "Big inquiry question, image, artifact, or current connection"
+    - phase: "build_knowledge_with_text_or_source"
+      duration_min: 15
+      description: "Read, view, or analyze sources with sourcing and context"
+    - phase: "structured_discourse_or_collaboration"
+      duration_min: 12
+      description: "Partner or small group analysis with discourse moves"
+    - phase: "apply_or_create"
+      duration_min: 15
+      description: "Writing response, organizer, argument, or creative task"
+    - phase: "share_and_close"
+      duration_min: 7
+      description: "Synthesis discussion, exit ticket, return to compelling question"
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 5
+  length_max: 10
+  primary_sources_visible_when_referenced: true
+  diverse_perspectives_required: true
+  no_glorification_of_violence: true
+  age_appropriate_imagery_only: true
+  on_screen_text_for_key_terms_and_dates: true
+  identify_sources_visually: true
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "primary_source_analysis_short_response"
+    - "compare_two_or_more_perspectives"
+    - "argumentative_paragraph_with_evidence"
+    - "explain_cause_and_effect_with_analysis"
+    - "interpret_map_chart_or_data"
+    - "construct_timeline_with_significance_analysis"
+    - "research_with_source_evaluation"
+    - "dbq_response_intro_level"
+  banned:
+    - "memorize_dates_test"
+    - "single_correct_perspective_test"
+    - "rapid_fire_facts_recall_competition"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["6", "7", "8"]
+  alignment_metadata_required:
+    - "discipline"                              # civics, geography, economics, history
+    - "strand_or_theme"
+    - "specific_standard_code"
+  default_frameworks_supported:
+    - "C3-Framework"
+    - "NCSS"
+    - "TEKS-Social-Studies"
+    - "Virginia-SOL-Social-Studies"
+    - "Florida-SSS-Social-Studies"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g68_social_curricula_recognized:
+    - "TCI History Alive"
+    - "McGraw Hill IMPACT Social Studies"
+    - "Pearson myWorld Interactive"
+    - "Studies Weekly"
+    - "Reading Like a Historian (SHEG)"
+    - "Facing History and Ourselves units"
+    - "InquirED"
+    - "StudySync Social Studies"
+    - "DBQ Project"
+  when_curriculum_uploaded:
+    match_thematic_sequence: true
+    match_terminology: true
+    honor_local_state_requirements: true
+    use_provided_primary_sources_when_named: true

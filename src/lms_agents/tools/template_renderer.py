@@ -8,11 +8,18 @@ Each template in src/lms_agents/templates/{template_id}/ has:
 The renderer builds complete HTML documents from content data using
 Python string formatting. Templates are self-contained (inline CSS,
 print-ready, no external dependencies).
+
+Questions may carry a structured `visual` field that the visual_renderer
+module converts into inline SVG. This replaces the older pattern of LLMs
+embedding bracketed text like "[Image: ten-frame with 5 dots]" in
+question_text — see visual_renderer.py for the supported types.
 """
 import json
 import logging
 import os
 from pathlib import Path
+
+from src.lms_agents.tools.visual_renderer import get_visual_css, render_visual
 
 log = logging.getLogger(__name__)
 
@@ -395,6 +402,7 @@ def _base_css(theme: str | None = None) -> str:
         font-size: 12px;
         border-radius: 0 8px 8px 0;
       }
+      """ + get_visual_css() + """
     </style>
 """
 
@@ -423,6 +431,8 @@ def render_worksheet(content: dict, config: dict, answer_key: bool = False) -> s
         diff_badge = f'<span class="difficulty-badge diff-{diff}">{diff}</span>' if diff and answer_key else ""
         pts_html = f'<span class="points">{pts} pt{"s" if pts > 1 else ""}</span>' if answer_key else ""
 
+        visual_html = render_visual(q.get("visual"))
+
         answer_html = ""
         if answer_key:
             ans = q.get("answer", "")
@@ -433,6 +443,7 @@ def render_worksheet(content: dict, config: dict, answer_key: bool = False) -> s
         questions_html += f"""
         <div class="question">
           <div><span class="question-number">{num}.</span><span class="question-text">{text}</span>{diff_badge}{pts_html}</div>
+          {visual_html}
           {answer_html}
         </div>"""
 
@@ -464,12 +475,14 @@ def render_task_cards(content: dict, config: dict, answer_key: bool = False) -> 
     for q in questions:
         num = q.get("question_number", "")
         text = q.get("question_text", "")
+        visual_html = render_visual(q.get("visual"))
         if answer_key:
             ans = q.get("answer", "")
             cards_html += f"""
             <div class="card">
               <div class="card-number">{num}</div>
               <div class="question-text" style="margin-bottom:8px;">{text}</div>
+              {visual_html}
               <div class="answer-key-answer">{ans}</div>
             </div>"""
         else:
@@ -477,6 +490,7 @@ def render_task_cards(content: dict, config: dict, answer_key: bool = False) -> 
             <div class="card">
               <div class="card-number">{num}</div>
               <div class="question-text" style="padding-right:20px;">{text}</div>
+              {visual_html}
             </div>"""
 
     ak_label = " — Answer Key" if answer_key else ""
@@ -500,11 +514,12 @@ def render_exit_ticket(content: dict, config: dict, answer_key: bool = False) ->
         for q in questions:
             num = q.get("question_number", "")
             text = q.get("question_text", "")
+            visual_html = render_visual(q.get("visual"))
             if is_answer:
                 ans = q.get("answer", "")
-                qs += f'<div class="question"><span class="question-number">{num}.</span><span class="question-text">{text}</span><div style="margin-left:20px;margin-top:2px;"><span class="answer-key-answer">{ans}</span></div></div>'
+                qs += f'<div class="question"><span class="question-number">{num}.</span><span class="question-text">{text}</span>{visual_html}<div style="margin-left:20px;margin-top:2px;"><span class="answer-key-answer">{ans}</span></div></div>'
             else:
-                qs += f'<div class="question"><span class="question-number">{num}.</span><span class="question-text">{text}</span><div class="answer-line"></div></div>'
+                qs += f'<div class="question"><span class="question-number">{num}.</span><span class="question-text">{text}</span>{visual_html}<div class="answer-line"></div></div>'
         ak = " — ANSWER KEY" if is_answer else ""
         return f"""
         <div class="half-page">
@@ -543,6 +558,7 @@ def render_quiz_test(content: dict, config: dict, answer_key: bool = False) -> s
         text = q.get("question_text", "")
         pts = q.get("points", 1)
         pts_html = f'<span class="points">/{pts}</span>'
+        visual_html = render_visual(q.get("visual"))
 
         if answer_key:
             ans = q.get("answer", "")
@@ -553,6 +569,7 @@ def render_quiz_test(content: dict, config: dict, answer_key: bool = False) -> s
         questions_html += f"""
         <div class="question">
           <div><span class="question-number">{num}.</span><span class="question-text">{text}</span>{pts_html}</div>
+          {visual_html}
           {answer_html}
         </div>"""
 
@@ -692,20 +709,22 @@ def render_morning_work(content: dict, config: dict, answer_key: bool = False) -
     for q in regular:
         num = q.get("question_number", "")
         text = q.get("question_text", "")
+        visual_html = render_visual(q.get("visual"))
         if answer_key:
             ans = q.get("answer", "")
-            qs_html += f'<div class="question"><span class="question-number">{num}.</span><span class="question-text">{text}</span><div style="margin-left:20px;margin-top:2px;"><span class="answer-key-answer">{ans}</span></div></div>'
+            qs_html += f'<div class="question"><span class="question-number">{num}.</span><span class="question-text">{text}</span>{visual_html}<div style="margin-left:20px;margin-top:2px;"><span class="answer-key-answer">{ans}</span></div></div>'
         else:
-            qs_html += f'<div class="question"><span class="question-number">{num}.</span><span class="question-text">{text}</span><div class="answer-line"></div></div>'
+            qs_html += f'<div class="question"><span class="question-number">{num}.</span><span class="question-text">{text}</span>{visual_html}<div class="answer-line"></div></div>'
 
     challenge_html = ""
     if challenge:
         ch_text = challenge.get("question_text", "")
+        ch_visual = render_visual(challenge.get("visual"))
         if answer_key:
             ch_ans = challenge.get("answer", "")
-            challenge_html = f'<div style="background:#FFF7ED;border:2px solid #F97316;border-radius:10px;padding:12px;margin-top:12px;"><h3 style="color:#F97316;margin-bottom:4px;">Challenge</h3><div class="question-text">{ch_text}</div><div style="margin-top:4px;"><span class="answer-key-answer">{ch_ans}</span></div></div>'
+            challenge_html = f'<div style="background:#FFF7ED;border:2px solid #F97316;border-radius:10px;padding:12px;margin-top:12px;"><h3 style="color:#F97316;margin-bottom:4px;">Challenge</h3><div class="question-text">{ch_text}</div>{ch_visual}<div style="margin-top:4px;"><span class="answer-key-answer">{ch_ans}</span></div></div>'
         else:
-            challenge_html = f'<div style="background:#FFF7ED;border:2px solid #F97316;border-radius:10px;padding:12px;margin-top:12px;"><h3 style="color:#F97316;margin-bottom:4px;">Challenge</h3><div class="question-text">{ch_text}</div><div class="answer-line"></div></div>'
+            challenge_html = f'<div style="background:#FFF7ED;border:2px solid #F97316;border-radius:10px;padding:12px;margin-top:12px;"><h3 style="color:#F97316;margin-bottom:4px;">Challenge</h3><div class="question-text">{ch_text}</div>{ch_visual}<div class="answer-line"></div></div>'
 
     ak = " — Answer Key" if answer_key else ""
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8">{_base_css()}</head>

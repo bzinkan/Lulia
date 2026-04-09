@@ -1,0 +1,461 @@
+# Grade 6-8 English Language Arts Subject Overlay
+#
+# Inherits from: grade_bands/g68.yaml
+# Covers: reading literature, reading informational text, writing
+#         (argument, narrative, informative), speaking & listening,
+#         language conventions, vocabulary acquisition.
+#
+# 6-8 ELA is where students transition from "reading to learn" to
+# "reading to analyze and argue." Argumentative writing with claims,
+# evidence, and counterclaims becomes the dominant mode by 8th grade.
+# Literary analysis emerges with attention to figurative language,
+# theme development, and author's craft. Vocabulary instruction shifts
+# to academic and domain-specific words. Students write multi-paragraph
+# essays with evidence from sources.
+#
+# Source authorities:
+#   - CCSS-ELA 6-8 progressions
+#   - NCTE position statements on adolescent literacy
+#   - 6+1 Traits of Writing
+#   - Beck, McKeown & Kucan robust vocabulary instruction
+#   - Reading Apprenticeship (WestEd)
+#   - Penny Kittle / Kelly Gallagher writing pedagogy
+#   - Doug Lemov reading & writing techniques
+
+id: g68_ela
+extends: g68
+subject: ela
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+content_progression:
+  sixth_grade:
+    in_scope:
+      reading_literature:
+        - "cite_textual_evidence_to_support_analysis"
+        - "determine_theme_and_how_it_develops"
+        - "analyze_how_plot_episodes_unfold"
+        - "describe_how_a_story_or_drama_unfolds"
+        - "compare_and_contrast_genres_and_their_characteristics"
+      reading_informational:
+        - "cite_textual_evidence_for_inferences"
+        - "determine_central_idea_and_how_conveyed_through_details"
+        - "analyze_how_a_key_individual_event_or_idea_is_introduced_and_developed"
+        - "compare_and_contrast_one_author_s_presentation_of_events_with_another"
+      writing:
+        - "argument_with_clear_claim_and_relevant_evidence"
+        - "informative_explanatory_with_relevant_facts"
+        - "narrative_with_real_or_imagined_experiences_using_descriptive_details"
+        - "introduce_topic_organize_ideas_use_transitions"
+        - "produce_writing_with_attention_to_audience_and_purpose"
+      vocabulary:
+        - "context_clues_word_relationships"
+        - "greek_and_latin_affixes_and_roots_meaning"
+        - "figurative_language_in_context"
+      language:
+        - "pronouns_proper_case_intensive_pronouns"
+        - "varied_sentence_patterns"
+        - "consistent_pronoun_number_and_person"
+    out_of_scope:
+      - "rhetorical_analysis_full"
+      - "ap_synthesis_essays"
+      - "literary_criticism_through_theoretical_lens"
+
+  seventh_grade:
+    in_scope:
+      reading_literature:
+        - "cite_several_pieces_of_textual_evidence"
+        - "determine_theme_and_analyze_its_development"
+        - "analyze_how_setting_shapes_characters_and_plot"
+        - "analyze_form_and_meaning"
+        - "compare_fictional_portrayal_to_historical_account"
+      reading_informational:
+        - "analyze_interactions_between_individuals_events_and_ideas"
+        - "determine_two_or_more_central_ideas"
+        - "analyze_structure_an_author_uses_to_organize_a_text"
+        - "trace_and_evaluate_argument_and_specific_claims_in_a_text"
+      writing:
+        - "argument_with_acknowledged_alternate_or_opposing_claim"
+        - "informative_explanatory_with_well_chosen_facts_and_definitions"
+        - "narrative_with_dialogue_pacing_and_descriptive_details"
+        - "use_precise_words_and_phrases_relevant_descriptive_details"
+      vocabulary:
+        - "use_relationships_between_words"
+        - "verify_word_meanings_using_dictionary"
+        - "interpret_figures_of_speech_in_context"
+      language:
+        - "phrases_and_clauses_in_general_and_their_function"
+        - "simple_compound_complex_compound_complex_sentences"
+        - "place_phrases_and_clauses_correctly"
+    out_of_scope:
+      - "thesis_driven_literary_analysis_high_school_level"
+      - "extended_research_papers_with_works_cited"
+      - "ap_argument_essays"
+
+  eighth_grade:
+    in_scope:
+      reading_literature:
+        - "cite_textual_evidence_strongest_support"
+        - "analyze_how_lines_of_dialogue_or_incidents_propel_action_reveal_character"
+        - "determine_theme_and_objective_summary"
+        - "compare_two_or_more_texts_with_similar_themes"
+        - "analyze_modern_works_drawing_on_themes_from_traditional_works"
+      reading_informational:
+        - "evaluate_argument_and_specific_claims_assess_reasoning_relevance_and_sufficiency_of_evidence"
+        - "analyze_how_text_makes_connections_among_and_distinctions_between_ideas"
+        - "analyze_a_case_in_which_two_or_more_texts_provide_conflicting_information"
+        - "determine_authors_point_of_view_or_purpose_and_analyze_how_it_responds_to_conflicting_viewpoints"
+      writing:
+        - "argument_with_acknowledged_and_distinguished_alternate_claims"
+        - "informative_explanatory_with_well_chosen_relevant_evidence"
+        - "narrative_with_engagement_orientation_and_techniques"
+        - "produce_clear_coherent_writing_appropriate_to_task_purpose_audience"
+      vocabulary:
+        - "consult_general_and_specialized_reference_materials"
+        - "denotation_connotation_and_word_relationships"
+        - "interpret_figurative_language_including_verbal_irony_and_puns"
+      language:
+        - "verbals_gerunds_participles_infinitives"
+        - "active_and_passive_voice"
+        - "indicative_imperative_interrogative_conditional_subjunctive_mood"
+    out_of_scope:
+      - "ap_literature_close_reading"
+      - "extended_research_papers_with_full_apa_or_mla_citations"
+      - "rhetorical_situation_full_analysis"
+
+# ---------------------------------------------------------------------------
+# Text Selection
+# ---------------------------------------------------------------------------
+text_selection:
+  text_complexity_must_match_grade_band: true
+  rule: >
+    Use grade-band-appropriate Lexile and qualitative complexity. 6th grade
+    925-1070L, 7th 970-1120L, 8th 1010-1185L. Above-grade text acceptable
+    in shared reading with scaffolding. Always include text-dependent
+    questions that require evidence from the text. Avoid trivia recall;
+    prioritize analysis, inference, and synthesis.
+  passage_length_words:
+    sixth_grade: "500-1200"
+    seventh_grade: "700-1500"
+    eighth_grade: "1000-2000"
+  text_types_required:
+    - "literary_fiction"
+    - "informational_nonfiction"
+    - "biography_and_memoir"
+    - "poetry"
+    - "drama_excerpt"
+    - "primary_source_documents"
+    - "argumentative_or_opinion_essays"
+  diverse_authorship_required: true
+  representation_required:
+    - "diverse_main_characters_and_authors"
+    - "diverse_settings_cultures_perspectives"
+    - "ability_inclusion"
+    - "lgbtq_inclusion_age_appropriate"
+    - "global_and_indigenous_voices"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g68_ela_close_reading"
+      description: "Passage with annotation, text-dependent questions, analysis"
+      max_items: 1
+    - id: "g68_ela_paired_text_analysis"
+      description: "Two related texts with comparison and synthesis questions"
+      max_items: 1
+    - id: "g68_ela_argumentative_writing_with_planner"
+      description: "Prompt + claim/evidence/counterclaim organizer + writing space"
+      max_items: 1
+    - id: "g68_ela_literary_analysis_short"
+      description: "Excerpt + theme/character/setting analysis questions"
+      max_items: 1
+    - id: "g68_ela_vocabulary_in_context"
+      description: "Words from grade-level text with multiple-meaning analysis"
+      max_items: 12
+    - id: "g68_ela_morphology_and_etymology"
+      description: "Greek/Latin roots with word-building practice"
+      max_items: 14
+    - id: "g68_ela_grammar_and_usage"
+      description: "Sentence editing, combining, and clause analysis"
+      max_items: 14
+    - id: "g68_ela_research_starter"
+      description: "Topic introduction, source evaluation, note-taking organizer"
+      max_items: 1
+    - id: "g68_ela_socratic_seminar_prep"
+      description: "Discussion question, evidence gathering, response notes"
+      max_items: 1
+    - id: "g68_ela_text_evidence_organizer"
+      description: "Claim, evidence, reasoning, alternate claim consideration"
+      max_items: 4
+  banned_templates:
+    - "k2_picture_match"
+    - "g35_short_passage_with_simple_questions"
+    - "essay_with_no_planning_scaffold"
+    - "fill_in_the_blank_only"
+    - "high_stakes_timed_fluency"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 35
+    tier_2_pct: 40                              # heavy academic vocabulary focus
+    tier_3_pct: 25
+  allowed_tier_3_terms_by_grade:
+    sixth_grade:
+      - "claim"
+      - "evidence"
+      - "reasoning"
+      - "central idea"
+      - "theme"
+      - "plot"
+      - "character development"
+      - "narrator"
+      - "point of view"
+      - "first person"
+      - "third person omniscient"
+      - "third person limited"
+      - "tone"
+      - "mood"
+      - "figurative language"
+      - "metaphor"
+      - "simile"
+      - "personification"
+      - "context clue"
+      - "connotation"
+      - "denotation"
+      - "summarize"
+      - "infer"
+      - "inference"
+      - "cite evidence"
+    seventh_grade:
+      - "argument"
+      - "counterclaim"
+      - "alternate claim"
+      - "rhetorical strategy"
+      - "purpose"
+      - "audience"
+      - "structure"
+      - "chronological"
+      - "cause and effect"
+      - "compare and contrast"
+      - "problem and solution"
+      - "irony"
+      - "symbol"
+      - "symbolism"
+      - "imagery"
+      - "hyperbole"
+      - "allusion"
+      - "etymology"
+      - "denotation"
+      - "subordinate clause"
+      - "independent clause"
+    eighth_grade:
+      - "thesis"
+      - "argument with counterclaim"
+      - "rebuttal"
+      - "rhetorical question"
+      - "rhetorical appeal"
+      - "ethos"
+      - "pathos"
+      - "logos"                                 # introduce in 8th, formalize in 9th
+      - "verbal irony"
+      - "dramatic irony"
+      - "situational irony"
+      - "satire"
+      - "pun"
+      - "syntax"
+      - "diction"
+      - "active voice"
+      - "passive voice"
+      - "subjunctive mood"
+      - "gerund"
+      - "participle"
+      - "infinitive"
+  banned_terms:
+    - "mla_works_cited_full_format"             # save for 9th+
+    - "apa_in_text_citation_format"
+    - "literary_theory"
+    - "deconstruction"
+    - "post_structuralism"
+    - "neo_aristotelian"
+
+# ---------------------------------------------------------------------------
+# Writing Expectations
+# ---------------------------------------------------------------------------
+writing_expectations:
+  sixth_grade:
+    modes: ["argument", "informative", "narrative"]
+    typical_length: "four_to_six_paragraph_essay"
+    scaffolds_required:
+      - "graphic_organizer_or_outline"
+      - "model_essay_or_mentor_text"
+      - "claim_evidence_reasoning_template"
+      - "transitional_phrases_bank"
+    mechanics_expected:
+      - "varied_sentence_structures"
+      - "clear_topic_sentences_and_transitions"
+      - "consistent_verb_tense"
+
+  seventh_grade:
+    modes: ["argument_with_counterclaim", "informative", "narrative"]
+    typical_length: "five_to_seven_paragraph_essay"
+    scaffolds_required:
+      - "graphic_organizer"
+      - "mentor_text_with_annotations"
+      - "revision_checklist"
+      - "peer_review_protocol"
+    mechanics_expected:
+      - "phrases_and_clauses_used_correctly"
+      - "complex_sentence_construction"
+      - "punctuation_in_dialogue_and_quotation"
+
+  eighth_grade:
+    modes: ["argument_with_counterclaim_and_rebuttal", "informative", "narrative", "research_intro"]
+    typical_length: "five_to_eight_paragraph_essay_with_intro_body_conclusion"
+    scaffolds_required:
+      - "outline_or_planning_template"
+      - "mentor_text_at_above_grade_level"
+      - "revision_checklist_with_4_to_6_criteria"
+      - "peer_review_with_rubric"
+      - "self_assessment_reflection"
+    mechanics_expected:
+      - "active_and_passive_voice_appropriate_use"
+      - "verbals_used_correctly"
+      - "sophisticated_punctuation_semicolons_dashes"
+      - "consistent_tone_appropriate_to_audience"
+
+# ---------------------------------------------------------------------------
+# Layout Overrides
+# ---------------------------------------------------------------------------
+layout_overrides:
+  reading_passage_formatting:
+    line_spacing: 1.5
+    line_numbering_for_close_reading: true
+    paragraph_numbering_for_long_passages: true
+    margins_for_annotation: true
+    no_justified_text: true
+  writing_space:
+    typed_response_preferred: true
+    handwritten_lines_acceptable: true
+    word_count_target_visible: true
+
+# ---------------------------------------------------------------------------
+# Story & Passage Content Rules
+# ---------------------------------------------------------------------------
+story_content:
+  allowed_themes:
+    - "identity_and_self_discovery"
+    - "friendship_and_belonging"
+    - "courage_and_resilience"
+    - "social_justice_age_appropriate"
+    - "perseverance_through_challenge"
+    - "family_dynamics_age_appropriate"
+    - "cultural_heritage_and_traditions"
+    - "scientific_discoveries_and_innovation"
+    - "historical_perspectives"
+    - "environmental_responsibility"
+    - "civic_engagement"
+    - "moral_dilemmas_age_appropriate"
+  acceptable_with_care:
+    - "loss_and_grief_sensitively_handled"
+    - "prejudice_and_discrimination_with_critical_framing"
+    - "historical_violence_without_graphic_detail"
+  banned_themes:
+    - "graphic_violence"
+    - "explicit_sexual_content"
+    - "detailed_substance_abuse_glorification"
+    - "graphic_self_harm"
+    - "romance_with_explicit_content"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 55
+  structure:
+    - phase: "vocabulary_or_grammar_warmup"
+      duration_min: 6
+      description: "Word study, root analysis, sentence editing, or quick recall"
+    - phase: "mini_lesson_skill_or_strategy"
+      duration_min: 12
+      description: "Direct instruction with model text and think-aloud"
+    - phase: "shared_or_close_reading"
+      duration_min: 15
+      description: "Whole-group or guided text analysis with discussion"
+    - phase: "independent_or_collaborative_work"
+      duration_min: 15
+      description: "Reading, writing, or analysis task with structured talk"
+    - phase: "share_and_close"
+      duration_min: 7
+      description: "Discussion synthesis, exit ticket, or writing share"
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 5
+  length_max: 10
+  must_show_text_when_reading_aloud: true
+  highlight_vocabulary_terms_visually: true
+  show_writing_examples_step_by_step: true
+  pause_for_thinking_moments: 2
+  examples_per_video: 2
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "constructed_response_with_evidence"
+    - "argumentative_paragraph_or_essay"
+    - "literary_analysis_short_response"
+    - "compare_and_contrast_with_synthesis"
+    - "vocabulary_in_context_with_explanation"
+    - "annotation_of_text_for_analysis"
+    - "research_with_source_evaluation"
+  banned:
+    - "memorize_and_define_only"
+    - "speed_reading_competition"
+    - "spelling_bee_for_grade"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["6", "7", "8"]
+  alignment_metadata_required:
+    - "strand"                                   # RL, RI, W, SL, L
+    - "cluster"
+    - "specific_standard_code"
+  default_frameworks_supported:
+    - "CCSS-ELA"
+    - "TEKS-ELA"
+    - "Virginia-SOL-ELA"
+    - "Florida-BEST-ELA"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g68_ela_curricula_recognized:
+    - "Wit and Wisdom 6-8"
+    - "EL Education 6-8"
+    - "StudySync"
+    - "Wonders 6-8 (HMH)"
+    - "Into Literature (HMH)"
+    - "Pearson myPerspectives"
+    - "SpringBoard ELA"
+    - "Amplify ELA"
+    - "OpenUp Resources 6-8 ELA"
+  when_curriculum_uploaded:
+    match_anchor_texts_when_named: true
+    match_terminology: true
+    respect_unit_thematic_focus: true

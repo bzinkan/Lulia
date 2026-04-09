@@ -22,6 +22,10 @@ from psycopg2.extras import Json, RealDictCursor
 
 from src.lms_agents.tools.db import get_connection
 from src.lms_agents.tools.generation_history import query_history, build_exclusion_prompt
+from src.lms_agents.tools.pedagogy_director import (
+    format_brief_for_prompt,
+    generate_brief,
+)
 
 log = logging.getLogger(__name__)
 
@@ -213,11 +217,50 @@ def run_planner(
     # Subject-aware templates
     available_templates = SUBJECT_TEMPLATES.get(subject, SUBJECT_TEMPLATES["Mathematics"])
 
+    # Generate Pedagogy Brief for grade-band-appropriate lesson structure
+    pedagogy_brief = generate_brief(
+        work_order={
+            "grade_level": grade,
+            "subject": subject,
+            "output_template_id": "lesson_plan",
+            "question_count": 0,
+            "difficulty_distribution": {},
+        },
+        curriculum_output={"standards": standards, "subject": subject, "grade_level": grade},
+        kb_chunks=None,
+        class_intel_prompt=None,
+        client=client,
+    )
+
+    # Narrow the template whitelist to brief-allowed templates if available
+    if pedagogy_brief:
+        ws_formats = (
+            pedagogy_brief.get("template_recommendation", {}).get("alternatives") or []
+        )
+        primary = pedagogy_brief.get("template_recommendation", {}).get("primary")
+        if primary:
+            ws_formats = [primary] + [t for t in ws_formats if t != primary]
+        banned = set(
+            pedagogy_brief.get("template_recommendation", {}).get("banned_for_this_task") or []
+        )
+        if ws_formats:
+            available_templates = [t for t in ws_formats if t not in banned]
+            log.info(
+                f"[Planner] Brief constrained templates to: {available_templates}"
+            )
+
+    brief_section = ""
+    if pedagogy_brief:
+        brief_section = "\n\n" + format_brief_for_prompt(pedagogy_brief) + "\n"
+
     system = (
         f"You are an expert lesson planner for grade {grade} {subject}. "
         f"You create engaging, standards-aligned weekly plans that vary templates across days. "
         f"Never use the same template two days in a row. "
-        f"Include per-procedure standard citations for every lesson phase."
+        f"Include per-procedure standard citations for every lesson phase. "
+        f"When a Pedagogy Brief is provided, the lesson_plan_spec section is AUTHORITATIVE — "
+        f"your daily procedures must match its phase structure, durations, transition cadence, "
+        f"and manipulatives requirement. Do not exceed total_duration_min."
     )
 
     user = f"""Create a {duration_type} lesson plan for:
@@ -239,6 +282,7 @@ AVAILABLE TEMPLATES (vary these across days):
 DESIGN THEME: {design_theme}
 {exclusion}
 {analytics_context}
+{brief_section}
 
 Generate a JSON plan with this structure:
 {{
@@ -296,11 +340,17 @@ Generate a JSON plan with this structure:
 IMPORTANT:
 - Create plans for each of these days: {json.dumps(days)}
 - Vary templates across days (use at least 3 different templates for a full week)
-- Include 4-5 procedure phases per day with realistic time allocations
+- Include the procedure phases that match the Pedagogy Brief lesson_plan_spec when provided
+  (K-2 will be ~25-30 min with hook → mini-lesson → guided → movement break → independent → share;
+   secondary will be longer with bell ringer → direct → guided → independent → exit ticket).
+  Use realistic time allocations.
 - Every procedure phase must have standards_addressed
 - Each day should have 1-2 work_orders for materials to generate
 - Make titles engaging and specific (not generic "Math Lesson")
 - Date each day correctly starting from {week_start.isoformat()}
+- If a Pedagogy Brief was provided above, every constraint is mandatory:
+  template choice, phase durations, transition cadence, scaffolds, vocabulary
+  caps, and assessment modes must ALL be honored
 
 Respond with ONLY the JSON object."""
 
@@ -310,6 +360,13 @@ Respond with ONLY the JSON object."""
     if not plan_data:
         log.warning("[Planner] Failed to parse plan JSON")
         plan_data = {"rationale": "Plan generation incomplete", "daily_plans": []}
+
+    # Persist grade, subject, and the pedagogy brief on the plan so downstream
+    # assignment generation can use them (fixes hardcoded grade=4 bug).
+    plan_data["grade_level"] = grade
+    plan_data["subject"] = subject
+    plan_data["pedagogy_brief"] = pedagogy_brief
+    plan_data["pedagogy_pack_id"] = (pedagogy_brief or {}).get("_pack_id")
 
     # Store plan in database
     plan_id = _store_plan(
@@ -381,6 +438,15 @@ def approve_plan(plan_id: str) -> dict:
     teacher_id = str(plan["teacher_id"])
     class_id = str(plan["class_id"])
 
+    # Pull grade and subject from the plan_data we persisted at planning time.
+    # Falls back to the class record if the plan was created before this fix.
+    plan_grade = plan_data.get("grade_level")
+    plan_subject = plan_data.get("subject")
+    if not plan_grade or not plan_subject:
+        class_info = _get_class_info(class_id)
+        plan_grade = plan_grade or class_info.get("grade_level") or "4"
+        plan_subject = plan_subject or class_info.get("subject") or "Mathematics"
+
     # Update status to generating
     conn = get_connection()
     cur = conn.cursor()
@@ -407,8 +473,8 @@ def approve_plan(plan_id: str) -> dict:
                 "output_template_id": wo.get("output_template_id", "worksheet"),
                 "output_format": wo.get("output_format", "html"),
                 "design_theme": wo.get("design_theme", "modern_clean"),
-                "subject": plan.get("plan_data", {}).get("subject", "Mathematics"),
-                "grade_level": "4",
+                "subject": plan_subject,
+                "grade_level": plan_grade,
                 "standards_ids": wo.get("standards_ids", []),
                 "question_count": wo.get("question_count", 10),
                 "difficulty_distribution": wo.get("difficulty_distribution", {"easy": 3, "medium": 4, "hard": 3}),

@@ -1,0 +1,434 @@
+# Grade 6-8 Math Subject Overlay
+#
+# Inherits from: grade_bands/g68.yaml
+#
+# 6-8 math is the make-or-break grade band for mathematical literacy and
+# algebra readiness. Students transition from arithmetic and pre-algebra
+# (6th: ratios, percents, integers) to early algebra (7th: linear
+# expressions, two-step equations, proportional reasoning) to formal
+# algebra prep (8th: linear functions, systems, exponents, Pythagorean
+# theorem). Variables are introduced and become routine. Mathematical
+# justification (proof-precursors) emerges. Real-world application is
+# essential — middle schoolers will check out fast if they don't see why.
+#
+# Source authorities:
+#   - NCTM Principles to Actions
+#   - CCSS-M 6-8 Progressions (RP, NS, EE, F, G, SP)
+#   - Phil Daro / William McCallum CCSS-M architects
+#   - Jo Boaler / youcubed visual math research
+#   - Singapore Math bar model methodology
+#   - Illustrative Mathematics 6-8 scope & sequence
+
+id: g68_math
+extends: g68
+subject: math
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+content_progression:
+  sixth_grade:
+    in_scope:
+      - "ratio_concepts_and_ratio_reasoning"
+      - "unit_rates_with_complex_fractions"
+      - "percent_as_a_rate_per_100"
+      - "fraction_division_by_fractions"
+      - "multi_digit_decimal_operations_fluency"
+      - "negative_numbers_on_number_line"
+      - "absolute_value"
+      - "rational_numbers_in_real_world_contexts"
+      - "expressions_with_variables_and_substitution"
+      - "equivalent_expressions"
+      - "one_variable_equations_one_step_solutions"
+      - "inequalities_one_variable"
+      - "area_of_polygons_volume_of_rectangular_prisms_with_fractional_edges"
+      - "coordinate_plane_all_four_quadrants"
+      - "statistical_questions_distributions_measures_of_center_and_variability"
+    out_of_scope:
+      - "two_step_equations_full"             # builds toward 7th
+      - "proportional_relationship_formal"
+      - "systems_of_equations"
+      - "quadratic_expressions"
+
+  seventh_grade:
+    in_scope:
+      - "proportional_relationships_in_tables_graphs_equations"
+      - "constant_of_proportionality_unit_rate"
+      - "percent_change_increase_decrease_markup_discount_tax_tip"
+      - "operations_with_rational_numbers_all_four_operations"
+      - "linear_expressions_with_rational_coefficients"
+      - "two_step_equations_and_inequalities"
+      - "scale_drawings_and_geometric_constructions"
+      - "circles_area_and_circumference"
+      - "angle_relationships_complementary_supplementary_vertical_adjacent"
+      - "volume_and_surface_area_of_3d_figures_with_rectangular_and_triangular_faces"
+      - "sampling_population_inference_basics"
+      - "probability_simple_and_compound_events"
+    out_of_scope:
+      - "systems_of_equations"
+      - "quadratic_functions"
+      - "trigonometry"
+
+  eighth_grade:
+    in_scope:
+      - "irrational_numbers_and_decimal_expansions"
+      - "integer_exponents_properties"
+      - "scientific_notation_operations"
+      - "linear_equations_in_one_variable_multi_step"
+      - "systems_of_two_linear_equations_graphing_substitution_elimination_intro"
+      - "functions_concept_input_output_linear_vs_nonlinear"
+      - "linear_functions_slope_intercept_form"
+      - "rate_of_change_and_initial_value_from_table_graph_equation"
+      - "transformations_translations_reflections_rotations_dilations"
+      - "congruence_and_similarity_via_transformations"
+      - "pythagorean_theorem_with_application"
+      - "volume_of_cylinders_cones_spheres"
+      - "bivariate_data_scatter_plots_associations_lines_of_fit"
+    out_of_scope:
+      - "quadratic_functions_full"
+      - "trigonometric_ratios"
+      - "logarithms"
+      - "formal_proof_writing"
+
+# ---------------------------------------------------------------------------
+# Mathematical Practices Emphasis
+# ---------------------------------------------------------------------------
+practices_emphasis:
+  rule: >
+    By 6-8, students should explicitly engage in the Standards for
+    Mathematical Practice. Every worksheet should target at least one
+    practice in addition to a content standard.
+  emphasized:
+    - "MP1_make_sense_of_problems_and_persevere"
+    - "MP2_reason_abstractly_and_quantitatively"
+    - "MP3_construct_viable_arguments_and_critique_reasoning_of_others"
+    - "MP4_model_with_mathematics"
+    - "MP5_use_appropriate_tools_strategically"
+    - "MP6_attend_to_precision"
+    - "MP7_look_for_and_make_use_of_structure"
+    - "MP8_look_for_and_express_regularity_in_repeated_reasoning"
+
+# ---------------------------------------------------------------------------
+# Visual Models & Representations
+# ---------------------------------------------------------------------------
+representations:
+  required: true
+  rule: >
+    Middle school math should connect multiple representations: tables,
+    graphs, equations, verbal descriptions, and contextual situations.
+    A student who can solve 2x + 3 = 11 algebraically should also be able
+    to graph it, describe it in words, model it with bar/tape diagrams,
+    and connect it to a real-world context.
+  preferred_models:
+    - "double_number_line_for_ratios_and_percent"
+    - "tape_diagram_or_bar_model"
+    - "ratio_table"
+    - "coordinate_graphs"
+    - "algebra_tiles_for_expressions_and_equations"
+    - "number_line_for_integers_and_inequalities"
+    - "scatter_plots_with_lines_of_fit"
+    - "geometric_constructions_with_compass_protractor"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g68_math_practice_set"
+      description: "Mixed practice — bare problems + word problems + show your work"
+      max_items: 20
+    - id: "g68_math_word_problem_set"
+      description: "Multi-step real-world problems with show-your-work boxes"
+      max_items: 8
+    - id: "g68_math_error_analysis"
+      description: "Find the mistake, explain, and correct"
+      max_items: 6
+    - id: "g68_math_multiple_representations"
+      description: "Same problem in table, graph, equation, words"
+      max_items: 4
+    - id: "g68_math_proof_precursor"
+      description: "Justify your reasoning with logical steps"
+      max_items: 4
+    - id: "g68_math_real_world_application"
+      description: "Authentic context problems with multi-step solutions"
+      max_items: 4
+    - id: "g68_math_lab_or_exploration"
+      description: "Discovery activity with guided questions"
+      max_items: 1
+    - id: "g68_math_test_prep_set"
+      description: "Mixed-format review for assessment readiness"
+      max_items: 16
+    - id: "g68_math_exit_ticket"
+      description: "2-3 problem formative check"
+      max_items: 4
+    - id: "g68_math_choice_board"
+      description: "Self-selected problems by interest or difficulty"
+      max_items: 9
+  banned_templates:
+    - "k2_picture_count"
+    - "g35_picture_only_practice"
+    - "color_by_number_only"
+    - "speed_drill_timed_test"
+    - "pure_rote_copy"
+
+# ---------------------------------------------------------------------------
+# Layout Overrides
+# ---------------------------------------------------------------------------
+layout_overrides:
+  equation_rendering:
+    orientation_options: ["horizontal", "vertical_stacked"]
+    operator_size_pt: 14
+    show_your_work_box_required_for_multi_step: true
+    mathjax_or_latex_rendering_acceptable: true   # algebraic notation needs proper rendering
+  graphs_and_models:
+    coordinate_grid_required_for_graphing_problems: true
+    grid_paper_for_geometric_constructions: true
+  problem_numbering:
+    style: "numbered_with_period"
+    bold_problem_numbers: true
+
+# ---------------------------------------------------------------------------
+# Math Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 40
+    tier_2_pct: 30
+    tier_3_pct: 30
+  allowed_tier_3_terms_by_grade:
+    sixth_grade:
+      - "ratio"
+      - "rate"
+      - "unit rate"
+      - "percent"
+      - "equivalent ratios"
+      - "absolute value"
+      - "integer"
+      - "rational number"
+      - "opposite"
+      - "expression"
+      - "term"
+      - "coefficient"
+      - "variable"
+      - "evaluate"
+      - "substitute"
+      - "equivalent expression"
+      - "inequality"
+      - "solution"
+      - "quadrant"
+      - "ordered pair"
+      - "histogram"
+      - "box plot"
+      - "mean"
+      - "median"
+      - "mode"
+      - "range"
+      - "interquartile range"
+      - "mean absolute deviation"
+    seventh_grade:
+      - "proportional"
+      - "constant of proportionality"
+      - "scale factor"
+      - "markup"
+      - "discount"
+      - "interest"
+      - "complementary angles"
+      - "supplementary angles"
+      - "vertical angles"
+      - "circumference"
+      - "diameter"
+      - "radius"
+      - "pi"
+      - "cross section"
+      - "sample"
+      - "population"
+      - "probability"
+      - "compound event"
+      - "outcome"
+      - "tree diagram"
+    eighth_grade:
+      - "irrational number"
+      - "scientific notation"
+      - "exponent"
+      - "base"
+      - "function"
+      - "linear function"
+      - "slope"
+      - "y-intercept"
+      - "rate of change"
+      - "system of equations"
+      - "transformation"
+      - "translation"
+      - "reflection"
+      - "rotation"
+      - "dilation"
+      - "congruent"
+      - "similar"
+      - "Pythagorean theorem"
+      - "hypotenuse"
+      - "legs"
+      - "scatter plot"
+      - "association"
+      - "line of best fit"
+      - "two-way table"
+  banned_terms:
+    - "logarithm"
+    - "trigonometric ratio"
+    - "sine"
+    - "cosine"
+    - "tangent"                                  # 9th+ as trig
+    - "quadratic formula"
+    - "discriminant"
+    - "polynomial of degree higher than 2"
+    - "matrix"
+    - "limit"
+    - "derivative"
+    - "integral"
+
+# ---------------------------------------------------------------------------
+# Word Problem Contexts (middle-school relevant)
+# ---------------------------------------------------------------------------
+word_problem_contexts:
+  allowed:
+    - "sports_and_athletics_age_appropriate"
+    - "video_games_and_streaming"
+    - "music_concerts_and_streaming_subscriptions"
+    - "smartphones_and_data_plans"
+    - "social_media_engagement_metrics"
+    - "skateboarding_and_extreme_sports"
+    - "cooking_and_recipe_scaling"
+    - "shopping_and_simple_budgeting"
+    - "school_events_and_fundraisers"
+    - "travel_and_distance_problems"
+    - "scientific_measurements"
+    - "sports_statistics_and_team_performance"
+    - "art_design_and_proportions"
+    - "construction_and_engineering"
+  banned:
+    - "salaries_and_paychecks"               # save for high school
+    - "taxes_beyond_simple_sales_tax"
+    - "stock_market_and_investments"
+    - "credit_cards_and_loans"
+    - "mortgages"
+    - "alcohol_or_gambling"
+    - "violence_in_problem_setups"
+  character_name_rules:
+    diverse_name_rotation_required: true
+    middle_school_age_appropriate: true
+    example_name_pool:
+      - "Aaliyah"
+      - "Marcus"
+      - "Sofia"
+      - "Aarav"
+      - "Maya"
+      - "Diego"
+      - "Priya"
+      - "Jamal"
+      - "Zoe"
+      - "Wei"
+      - "Leilani"
+      - "Ezra"
+      - "Amara"
+      - "Kai"
+      - "Nia"
+      - "Mateo"
+      - "Sanaa"
+      - "Theo"
+      - "Yusuf"
+      - "Imani"
+      - "Hugo"
+      - "Anjali"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 55
+  structure:
+    - phase: "warm_up_or_problem_of_day"
+      duration_min: 6
+      description: "Mental math, retrieval practice, or rich problem to spark thinking"
+    - phase: "mini_lesson_with_modeling"
+      duration_min: 12
+      description: "Concept introduction with worked example and multiple representations"
+    - phase: "structured_collaboration_or_discourse"
+      duration_min: 12
+      description: "Partner work, number talks, math talks with discourse moves"
+    - phase: "independent_or_collaborative_practice"
+      duration_min: 18
+      description: "Worksheet, task, station, or extended problem work"
+    - phase: "exit_ticket_and_close"
+      duration_min: 7
+      description: "Formative check + brief share or preview"
+  manipulatives_required: false                # available but not required daily
+  math_journal_recommended: true
+  block_schedule_extension_supported: true     # 80-90 min blocks work too
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 5
+  length_max: 10
+  must_show_multiple_representations: true
+  worked_example_step_by_step_required: true
+  real_world_hook_in_first_30_seconds: true
+  pause_for_thinking_moments: 2
+  examples_per_video: 3
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "show_your_work_with_solution"
+    - "explain_your_reasoning_in_complete_sentences"
+    - "justify_your_answer_with_evidence"
+    - "compare_two_strategies"
+    - "find_and_correct_the_error"
+    - "translate_between_representations"
+    - "construct_an_argument_simple_proof"
+    - "real_world_application_problem"
+  exit_ticket_format:
+    max_items: 4
+    must_include_show_your_work: true
+    must_be_completable_in_min: 7
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["6", "7", "8"]
+  alignment_metadata_required:
+    - "domain"                                  # RP, NS, EE, F, G, SP
+    - "cluster"
+    - "specific_standard_code"
+    - "mathematical_practice_targeted"
+  default_frameworks_supported:
+    - "CCSS-Math"
+    - "TEKS-Math"
+    - "Virginia-SOL-Math"
+    - "Florida-BEST-Math"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g68_math_curricula_recognized:
+    - "Illustrative Mathematics 6-8"
+    - "OpenUp Resources 6-8 Math"
+    - "Eureka Math (EngageNY)"
+    - "Connected Mathematics Project (CMP)"
+    - "enVision Math"
+    - "Big Ideas Math"
+    - "Glencoe Math"
+    - "Singapore Math Dimensions"
+    - "Carnegie Learning"
+    - "Reveal Math"
+  when_curriculum_uploaded:
+    match_terminology: true
+    match_visual_model_conventions: true
+    match_lesson_structure_if_detectable: true

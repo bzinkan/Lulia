@@ -1,0 +1,457 @@
+# Grade 9-12 English Language Arts Subject Overlay
+#
+# Inherits from: grade_bands/g912.yaml
+# Covers: literature, informational/argumentative reading, writing across
+#         all modes, language conventions, vocabulary, speaking & listening,
+#         research with citations.
+#
+# 9-12 ELA spans general English through AP English Language and AP
+# English Literature. Students engage in close reading, rhetorical
+# analysis, literary analysis, argumentative writing with sophisticated
+# counter-argument, and full research papers with citations. The reading
+# diet includes canonical and contemporary works, primary documents,
+# academic articles, and challenging informational texts.
+#
+# Source authorities:
+#   - CCSS-ELA 9-10 and 11-12 grade bands
+#   - College Board AP English Language and Composition CED
+#   - College Board AP English Literature and Composition CED
+#   - NCTE position statements on adolescent literacy
+#   - Lucy Calkins / Penny Kittle / Kelly Gallagher writing pedagogy
+#   - 6+1 Traits of Writing
+#   - MLA and APA style guides
+
+id: g912_ela
+extends: g912
+subject: ela
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Course Coverage
+# ---------------------------------------------------------------------------
+courses_supported:
+  english_9:
+    typical_focus: "literature_introduction_writing_foundations"
+    in_scope:
+      - "reading_literature_with_close_attention_to_text"
+      - "reading_informational_text_with_analysis"
+      - "argumentative_writing_with_clear_claim_and_evidence"
+      - "informative_explanatory_writing"
+      - "narrative_writing_with_craft"
+      - "research_with_simple_citations"
+      - "vocabulary_acquisition_through_text"
+      - "language_conventions_grade_9_10"
+
+  english_10:
+    typical_focus: "literature_world_or_american_writing_with_analysis"
+    in_scope:
+      - "rhetorical_analysis_intro"
+      - "literary_analysis_with_evidence"
+      - "argumentative_writing_with_counterclaim_and_rebuttal"
+      - "research_paper_with_proper_citations"
+      - "extended_close_reading_of_complex_texts"
+
+  english_11:
+    typical_focus: "american_literature_argument_and_research_intensive"
+    in_scope:
+      - "rhetorical_analysis_full"
+      - "argument_essays_with_sophisticated_counter_argument"
+      - "literary_analysis_with_thesis_and_evidence"
+      - "research_paper_with_works_cited_or_bibliography"
+      - "synthesis_of_multiple_sources"
+      - "primary_source_analysis_in_literary_context"
+
+  english_12:
+    typical_focus: "british_or_world_literature_capstone_writing"
+    in_scope:
+      - "extended_literary_analysis"
+      - "rhetorical_analysis_of_canonical_speeches_and_essays"
+      - "research_thesis_or_capstone_project"
+      - "college_application_essay_writing_when_appropriate"
+      - "advanced_close_reading"
+
+  ap_english_language:
+    typical_grade: "11"
+    in_scope:
+      - "rhetorical_analysis_of_nonfiction_essays_speeches_articles"
+      - "argument_essays_with_sophisticated_evidence"
+      - "synthesis_essays_using_multiple_provided_sources"
+      - "analysis_of_authors_choices_and_their_effects"
+      - "rhetorical_situation_full_analysis"
+      - "logical_fallacies_identification"
+      - "stylistic_analysis_diction_syntax_tone"
+
+  ap_english_literature:
+    typical_grade: "12"
+    in_scope:
+      - "literary_analysis_of_prose_passages"
+      - "literary_analysis_of_poetry"
+      - "literary_analysis_of_full_length_works"
+      - "thematic_synthesis_across_works"
+      - "analysis_of_literary_devices_and_their_effects"
+      - "comparative_literary_analysis"
+
+# ---------------------------------------------------------------------------
+# Text Selection
+# ---------------------------------------------------------------------------
+text_selection:
+  text_complexity_must_match_grade_band: true
+  rule: >
+    Use grade-band-appropriate Lexile and qualitative complexity. 9-10 band
+    1050-1335L; 11-CCR band 1185-1385L. Above-grade text acceptable in close
+    reading with scaffolding. Always include text-dependent questions
+    requiring evidence from the text. Diverse authorship across all units.
+  passage_length_words:
+    english_9_10: "1000-3000"
+    english_11_12: "1500-5000"
+    ap_courses: "varied_including_full_length_works"
+  text_types_required:
+    - "literary_fiction_classic_and_contemporary"
+    - "poetry_diverse_traditions"
+    - "drama_classic_and_contemporary"
+    - "nonfiction_essays_and_articles"
+    - "primary_source_documents"
+    - "speeches_and_rhetorical_texts"
+    - "academic_or_journalistic_long_form"
+  diverse_authorship_required: true
+  representation_required:
+    - "authors_from_diverse_backgrounds_central_not_supplemental"
+    - "global_and_indigenous_voices"
+    - "lgbtq_inclusion_when_age_appropriate"
+    - "ability_inclusion"
+    - "varied_historical_periods_and_movements"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g912_ela_close_reading"
+      description: "Complex passage with annotation, text-dependent questions, analysis"
+      max_items: 1
+    - id: "g912_ela_rhetorical_analysis"
+      description: "Speech or essay with rhetorical situation, appeals, devices analysis"
+      max_items: 1
+    - id: "g912_ela_literary_analysis"
+      description: "Literary text with theme, character, structure, craft analysis"
+      max_items: 1
+    - id: "g912_ela_argumentative_essay_with_planner"
+      description: "Prompt + claim/evidence/counterclaim/rebuttal organizer + writing"
+      max_items: 1
+    - id: "g912_ela_synthesis_essay"
+      description: "Multiple sources + synthesis prompt + planning + drafting space"
+      max_items: 1
+    - id: "g912_ela_research_paper_workshop"
+      description: "Topic, sources, notes, citations, draft sections"
+      max_items: 1
+    - id: "g912_ela_paired_text_analysis"
+      description: "Two related texts with comparative analysis questions"
+      max_items: 1
+    - id: "g912_ela_ap_style_frq"
+      description: "AP-style free-response question with rubric"
+      max_items: 3
+    - id: "g912_ela_vocabulary_in_context"
+      description: "Sophisticated words from grade-level text with usage analysis"
+      max_items: 16
+    - id: "g912_ela_grammar_and_style"
+      description: "Sentence editing, combining, style analysis"
+      max_items: 14
+    - id: "g912_ela_socratic_seminar_prep"
+      description: "Compelling question, evidence gathering, response notes"
+      max_items: 1
+    - id: "g912_ela_research_with_source_evaluation"
+      description: "Topic, source evaluation, note-taking, citation practice"
+      max_items: 1
+  banned_templates:
+    - "k2_picture_match"
+    - "g35_short_passage_with_simple_questions"
+    - "fill_in_the_blank_only"
+    - "elementary_color_and_label"
+    - "high_stakes_timed_fluency"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 25
+    tier_2_pct: 40
+    tier_3_pct: 35
+  allowed_tier_3_terms:
+    english_9_10:
+      - "claim"
+      - "evidence"
+      - "reasoning"
+      - "counterclaim"
+      - "rebuttal"
+      - "thesis"
+      - "argument"
+      - "rhetoric"
+      - "rhetorical question"
+      - "audience"
+      - "purpose"
+      - "tone"
+      - "mood"
+      - "diction"
+      - "syntax"
+      - "imagery"
+      - "metaphor"
+      - "simile"
+      - "personification"
+      - "symbol"
+      - "symbolism"
+      - "allusion"
+      - "irony"
+      - "verbal irony"
+      - "dramatic irony"
+      - "situational irony"
+      - "satire"
+      - "characterization"
+      - "protagonist"
+      - "antagonist"
+      - "narrator"
+      - "point of view"
+      - "first person"
+      - "third person omniscient"
+      - "third person limited"
+      - "theme"
+      - "motif"
+      - "plot"
+      - "exposition"
+      - "rising action"
+      - "climax"
+      - "falling action"
+      - "resolution"
+      - "context clue"
+      - "denotation"
+      - "connotation"
+      - "etymology"
+    english_11_12:
+      - "rhetorical strategy"
+      - "rhetorical appeal"
+      - "ethos"
+      - "pathos"
+      - "logos"
+      - "kairos"
+      - "rhetorical situation"
+      - "exigence"
+      - "constraints"
+      - "logical fallacy"
+      - "ad hominem"
+      - "straw man"
+      - "false dichotomy"
+      - "slippery slope"
+      - "anaphora"
+      - "epistrophe"
+      - "asyndeton"
+      - "polysyndeton"
+      - "antithesis"
+      - "chiasmus"
+      - "parallelism"
+      - "juxtaposition"
+      - "synthesis"
+      - "annotation"
+      - "exegesis"
+      - "literary criticism"
+      - "literary device"
+      - "stylistic choice"
+      - "verisimilitude"
+      - "allegory"
+      - "archetype"
+      - "foil"
+    research_and_writing:
+      - "primary source"
+      - "secondary source"
+      - "tertiary source"
+      - "credible source"
+      - "peer reviewed"
+      - "MLA citation"
+      - "APA citation"
+      - "in-text citation"
+      - "works cited"
+      - "bibliography"
+      - "annotated bibliography"
+      - "plagiarism"
+      - "paraphrase"
+      - "summarize"
+      - "direct quotation"
+      - "block quotation"
+  banned_terms:
+    - "graduate_level_critical_theory_jargon"
+    - "post_structuralist_advanced"
+    - "lacanian_psychoanalysis"
+
+# ---------------------------------------------------------------------------
+# Writing Expectations
+# ---------------------------------------------------------------------------
+writing_expectations:
+  english_9_10:
+    modes: ["argument", "informative", "narrative", "research_intro"]
+    typical_length: "five_to_eight_paragraph_essay"
+    research_paper_length: "3_to_5_pages_with_5_to_8_sources"
+    scaffolds_required:
+      - "outline_or_planning_template"
+      - "model_essay_or_mentor_text"
+      - "revision_checklist_with_4_to_6_criteria"
+      - "peer_review_protocol"
+    mechanics_expected:
+      - "varied_sophisticated_sentence_structures"
+      - "consistent_tone_and_voice"
+      - "proper_citation_intro"
+      - "active_and_passive_voice_appropriate"
+
+  english_11_12:
+    modes: ["argument_with_rebuttal", "rhetorical_analysis", "literary_analysis", "synthesis", "research"]
+    typical_length: "six_to_ten_paragraph_essay"
+    research_paper_length: "5_to_10_pages_with_8_to_15_sources"
+    scaffolds_required:
+      - "thesis_workshop"
+      - "mentor_text_at_above_grade_level"
+      - "revision_workshop_with_specific_criteria"
+      - "writing_conferences_with_teacher"
+      - "self_assessment_against_rubric"
+    mechanics_expected:
+      - "sophisticated_syntax_and_diction"
+      - "voice_appropriate_to_purpose_and_audience"
+      - "proper_MLA_or_APA_citation"
+      - "varied_punctuation_for_effect"
+
+# ---------------------------------------------------------------------------
+# Layout Overrides
+# ---------------------------------------------------------------------------
+layout_overrides:
+  reading_passage_formatting:
+    line_spacing: 1.5
+    line_numbering_for_close_reading: true
+    paragraph_numbering_for_long_passages: true
+    margins_for_annotation: true
+    no_justified_text: true
+  writing_space:
+    typed_response_default: true
+    word_count_target_visible: true
+    citation_format_specified: true
+
+# ---------------------------------------------------------------------------
+# Story & Passage Content Rules
+# ---------------------------------------------------------------------------
+story_content:
+  allowed_themes:
+    - "identity_and_self_discovery"
+    - "social_justice_and_civic_engagement"
+    - "moral_complexity_and_ethical_dilemmas"
+    - "history_and_memory"
+    - "power_and_agency"
+    - "alienation_and_belonging"
+    - "love_in_age_appropriate_forms"
+    - "loss_grief_and_resilience"
+    - "scientific_discovery_and_ethics"
+    - "art_and_creativity"
+    - "war_and_its_consequences_with_care"
+    - "freedom_and_constraint"
+    - "tradition_and_change"
+  acceptable_with_care:
+    - "violence_when_thematically_essential_and_handled_seriously"
+    - "substance_use_in_canonical_works_with_critical_framing"
+    - "sexuality_in_canonical_works_age_appropriate"
+    - "religious_themes_in_literary_context"
+    - "political_themes_when_balanced_and_age_appropriate"
+  banned:
+    - "gratuitous_violence_or_torture_porn"
+    - "explicit_sexual_content_outside_literary_canon"
+    - "glorification_of_substance_abuse"
+    - "graphic_self_harm_without_critical_framing"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 55
+  block_schedule_alternative_min: 90
+  structure:
+    - phase: "vocabulary_or_grammar_warmup"
+      duration_min: 6
+      description: "Word study, sentence editing, or quick recall"
+    - phase: "mini_lesson_skill_or_strategy"
+      duration_min: 12
+      description: "Direct instruction with model text and think-aloud"
+    - phase: "shared_or_close_reading"
+      duration_min: 18
+      description: "Guided text analysis with discussion and annotation"
+    - phase: "independent_or_collaborative_writing_or_analysis"
+      duration_min: 14
+      description: "Writing, analysis, or research task"
+    - phase: "share_synthesis_or_close"
+      duration_min: 5
+      description: "Discussion synthesis, exit ticket, or writing share"
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 6
+  length_max: 15
+  must_show_text_when_referencing: true
+  highlight_rhetorical_or_literary_devices_visually: true
+  show_writing_examples_step_by_step: true
+  primary_sources_visible_when_referenced: true
+  examples_per_video: 2
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "rhetorical_analysis_essay"
+    - "literary_analysis_essay"
+    - "argumentative_essay_with_rebuttal"
+    - "synthesis_essay_with_multiple_sources"
+    - "research_paper_with_citations"
+    - "ap_style_frq"
+    - "constructed_response_with_textual_evidence"
+    - "annotation_of_text_for_close_reading"
+    - "socratic_seminar_or_discussion_assessment"
+  banned:
+    - "memorize_and_define_only"
+    - "speed_reading_for_grade"
+    - "spelling_bee"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["9", "10", "11", "12"]
+  course_level_aware: true
+  alignment_metadata_required:
+    - "strand"                                  # RL, RI, W, SL, L
+    - "cluster"
+    - "specific_standard_code"
+    - "course_level_or_grade"
+  default_frameworks_supported:
+    - "CCSS-ELA"
+    - "TEKS-ELA"
+    - "Virginia-SOL-ELA"
+    - "Florida-BEST-ELA"
+    - "AP-English-Language-CED"
+    - "AP-English-Literature-CED"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g912_ela_curricula_recognized:
+    - "Wit and Wisdom HS"
+    - "EL Education HS"
+    - "StudySync"
+    - "Pearson myPerspectives HS"
+    - "Into Literature (HMH) HS"
+    - "SpringBoard HS"
+    - "Norton Anthologies"
+    - "Bedford/St. Martin's textbooks"
+    - "Perrine's Sound and Sense"
+    - "Bedford Reader for AP Lang"
+  when_curriculum_uploaded:
+    match_anchor_texts_when_named: true
+    match_terminology: true
+    respect_unit_thematic_focus: true

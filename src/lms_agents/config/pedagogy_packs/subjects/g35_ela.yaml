@@ -1,0 +1,431 @@
+# Grade 3-5 English Language Arts Subject Overlay
+#
+# Inherits from: grade_bands/g35.yaml
+# Covers: reading literature, reading informational text, foundational
+#         skills (multi-syllabic decoding, morphology), writing across
+#         opinion/narrative/informative, vocabulary, speaking & listening.
+#
+# 3-5 ELA is the "reading to learn" transition. Students who decoded in
+# K-2 now read for meaning, summary, inference, and analysis. Writing
+# expands from sentences to paragraphs to multi-paragraph essays. Word
+# study shifts from phonics to morphology (prefixes, suffixes, roots).
+#
+# Source authorities:
+#   - Science of Reading (later stages)
+#   - Scarborough's Reading Rope (upper strands)
+#   - Fountas & Pinnell Continuum (M-W)
+#   - CCSS-ELA 3-5 progressions
+#   - Lucy Calkins / Teachers College writing workshops (selected practices)
+#   - 6+1 Traits of Writing
+#   - Beck, McKeown & Kucan robust vocabulary instruction
+
+id: g35_ela
+extends: g35
+subject: ela
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+content_progression:
+  third_grade:
+    in_scope:
+      foundational_skills:
+        - "multi_syllabic_decoding_open_closed_vowel_team_silent_e"
+        - "common_prefixes_un_re_pre_dis_mis"
+        - "common_suffixes_ly_ful_less_ness_able"
+        - "fluency_oral_reading_with_expression_110_to_130_wcpm"
+      reading_literature:
+        - "central_message_lesson_or_moral"
+        - "describe_characters_traits_motivations_feelings"
+        - "distinguish_own_point_of_view_from_narrator_or_character"
+        - "compare_themes_settings_plots_in_stories_by_same_author"
+      reading_informational:
+        - "main_idea_and_supporting_details"
+        - "use_text_features_headings_captions_glossaries_indexes"
+        - "describe_relationships_cause_effect_sequence_compare"
+      vocabulary:
+        - "context_clues_for_unknown_words"
+        - "academic_and_domain_specific_words"
+      writing:
+        - "opinion_with_reasons_supported_by_facts_and_details"
+        - "narrative_with_dialogue_descriptions_temporal_words"
+        - "informative_with_facts_definitions_and_organized_structure"
+        - "single_to_multi_paragraph_with_topic_sentences_and_conclusions"
+    out_of_scope:
+      - "literary_analysis_of_devices"
+      - "research_papers_with_citations"
+      - "argumentative_essays_with_counterclaims"
+
+  fourth_grade:
+    in_scope:
+      foundational_skills:
+        - "morphology_roots_and_word_families"
+        - "fluency_120_to_140_wcpm"
+        - "syllable_division_patterns_for_decoding"
+      reading_literature:
+        - "theme_from_details_in_text"
+        - "summarize_narrative_text"
+        - "describe_in_depth_character_setting_event"
+        - "compare_first_and_third_person_narration"
+      reading_informational:
+        - "main_idea_supported_by_key_details"
+        - "explain_events_procedures_concepts_in_historical_scientific_technical_text"
+        - "describe_overall_structure_chronology_compare_cause_problem_solution"
+        - "interpret_information_from_charts_graphs_diagrams_timelines"
+      vocabulary:
+        - "greek_and_latin_roots_basic"
+        - "figurative_language_similes_metaphors_idioms"
+      writing:
+        - "opinion_with_clearly_stated_reasons_organized_by_point"
+        - "narrative_with_concrete_words_and_sensory_details"
+        - "informative_with_quotations_and_text_evidence"
+        - "research_using_multiple_sources_with_simple_citations"
+    out_of_scope:
+      - "rhetorical_analysis"
+      - "thesis_driven_essays"
+      - "complex_research_with_works_cited_pages"
+
+  fifth_grade:
+    in_scope:
+      foundational_skills:
+        - "advanced_morphology_with_meaning_extraction"
+        - "fluency_140_to_160_wcpm"
+        - "verifying_uncertain_pronunciation_with_dictionary"
+      reading_literature:
+        - "theme_from_topic_or_summary"
+        - "compare_two_or_more_characters_or_settings"
+        - "explain_how_visual_elements_contribute_to_meaning"
+        - "compare_stories_in_same_genre_on_same_topic"
+      reading_informational:
+        - "two_or_more_main_ideas_with_supporting_details"
+        - "explain_relationships_in_text_using_specific_information"
+        - "compare_overall_structure_of_two_or_more_texts"
+        - "integrate_information_from_several_texts_on_same_topic"
+      vocabulary:
+        - "figurative_language_idioms_adages_proverbs"
+        - "shades_of_meaning_synonyms_antonyms_homographs"
+      writing:
+        - "opinion_with_logically_ordered_reasons_and_evidence"
+        - "narrative_with_pacing_dialogue_and_concrete_details"
+        - "informative_with_multiple_organized_paragraphs_and_evidence"
+        - "research_with_summarizing_paraphrasing_and_source_listing"
+    out_of_scope:
+      - "literary_analysis_with_thesis"
+      - "argumentative_essays_with_counterclaims_and_rebuttals"
+      - "ap_style_synthesis_essays"
+
+# ---------------------------------------------------------------------------
+# Text Selection
+# ---------------------------------------------------------------------------
+text_selection:
+  text_complexity_must_match_grade_band: true
+  rule: >
+    Use grade-band-appropriate Lexile and qualitative complexity. 3rd
+    grade students can handle 450-790L; 4th grade 770-980L; 5th grade
+    830-1010L. Above-grade text is acceptable in read-alouds but not in
+    independent practice. Always provide text-dependent questions, not
+    just opinion or recall.
+  passage_length_words:
+    third_grade: "200-400"
+    fourth_grade: "300-600"
+    fifth_grade: "400-800"
+  text_types_required:
+    - "literary_fiction"
+    - "informational_nonfiction"
+    - "biography_and_memoir"
+    - "poetry"
+    - "drama_short"
+    - "primary_source_excerpts_grade_4_and_up"
+  diverse_authorship_required: true
+  representation_required:
+    - "diverse_main_characters"
+    - "diverse_authors"
+    - "diverse_settings_and_cultures"
+    - "ability_inclusion"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "g35_ela_reading_comp_passage"
+      description: "Passage + 5-8 text-dependent questions"
+      max_items: 1
+    - id: "g35_ela_close_reading"
+      description: "Passage with annotation prompts and analysis questions"
+      max_items: 1
+    - id: "g35_ela_vocabulary_in_context"
+      description: "Words in sentences from grade-level text"
+      max_items: 10
+    - id: "g35_ela_morphology_practice"
+      description: "Build words with prefixes, suffixes, or roots"
+      max_items: 12
+    - id: "g35_ela_writing_prompt_with_planner"
+      description: "Prompt + graphic organizer + writing space"
+      max_items: 1
+    - id: "g35_ela_grammar_practice"
+      description: "Sentence editing or sentence combining"
+      max_items: 12
+    - id: "g35_ela_compare_contrast_organizer"
+      description: "Two texts or characters with Venn or T-chart"
+      max_items: 1
+    - id: "g35_ela_text_evidence_organizer"
+      description: "Claim + evidence + reasoning structure (precursor to CER)"
+      max_items: 4
+    - id: "g35_ela_summarize_organizer"
+      description: "Somebody-Wanted-But-So-Then or 5W structure"
+      max_items: 1
+  banned_templates:
+    - "k2_picture_match"
+    - "k2_letter_sound_match"
+    - "essay_with_no_planning_scaffold"
+    - "high_stakes_timed_fluency_test"
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 50
+    tier_2_pct: 35                            # heavy academic vocabulary focus
+    tier_3_pct: 15
+  allowed_tier_3_terms_by_grade:
+    third_grade:
+      - "main idea"
+      - "supporting detail"
+      - "central message"
+      - "lesson"
+      - "moral"
+      - "character trait"
+      - "setting"
+      - "plot"
+      - "point of view"
+      - "narrator"
+      - "fiction"
+      - "nonfiction"
+      - "text feature"
+      - "heading"
+      - "caption"
+      - "glossary"
+      - "context clue"
+      - "topic sentence"
+      - "conclusion"
+    fourth_grade:
+      - "theme"
+      - "summarize"
+      - "first person"
+      - "third person"
+      - "compare"
+      - "contrast"
+      - "cause"
+      - "effect"
+      - "chronological"
+      - "infer"
+      - "inference"
+      - "evidence"
+      - "prefix"
+      - "suffix"
+      - "root word"
+      - "simile"
+      - "metaphor"
+      - "idiom"
+    fifth_grade:
+      - "explicit"
+      - "implicit"
+      - "synthesize"
+      - "integrate"
+      - "perspective"
+      - "interpretation"
+      - "figurative language"
+      - "literal"
+      - "denotation"
+      - "connotation"
+      - "shade of meaning"
+      - "adage"
+      - "proverb"
+      - "summarize vs. paraphrase"
+      - "source"
+      - "credible"
+  banned_terms:
+    - "rhetorical strategy"
+    - "ethos"
+    - "pathos"
+    - "logos"
+    - "thesis statement"
+    - "counterclaim"
+    - "rebuttal"
+    - "annotated bibliography"
+    - "literary criticism"
+
+# ---------------------------------------------------------------------------
+# Writing Expectations
+# ---------------------------------------------------------------------------
+writing_expectations:
+  third_grade:
+    modes: ["opinion", "narrative", "informative"]
+    typical_length: "single_to_two_paragraph"
+    scaffolds_required:
+      - "graphic_organizer"
+      - "model_text"
+      - "sentence_starters_optional"
+    mechanics_expected:
+      - "complete_sentences"
+      - "capital_period_question_exclamation"
+      - "subject_verb_agreement_basic"
+      - "common_homophones"
+
+  fourth_grade:
+    modes: ["opinion", "narrative", "informative"]
+    typical_length: "two_to_four_paragraph"
+    scaffolds_required:
+      - "graphic_organizer"
+      - "model_text"
+      - "transitional_words_bank"
+    mechanics_expected:
+      - "varied_sentence_structures"
+      - "commas_in_compound_sentences"
+      - "quotation_marks_in_dialogue"
+      - "regular_irregular_verbs"
+
+  fifth_grade:
+    modes: ["opinion", "narrative", "informative", "research"]
+    typical_length: "four_to_six_paragraph"
+    scaffolds_required:
+      - "graphic_organizer_or_outline"
+      - "model_text_or_mentor_sentence"
+      - "revision_checklist"
+      - "peer_review_protocol"
+    mechanics_expected:
+      - "complex_sentences_with_subordinating_conjunctions"
+      - "comma_usage_in_series_dates_addresses"
+      - "verb_tense_consistency"
+      - "spelling_grade_appropriate_patterns"
+
+# ---------------------------------------------------------------------------
+# Layout Overrides
+# ---------------------------------------------------------------------------
+layout_overrides:
+  reading_passage_formatting:
+    line_spacing: 1.5
+    paragraph_indent_or_break: true
+    line_numbering_for_close_reading: true
+    no_justified_text: true
+  writing_lines:
+    style: "standard_lined"
+    line_height_in: 0.4
+    optional_box_for_planning_above: true
+
+# ---------------------------------------------------------------------------
+# Story & Passage Content Rules
+# ---------------------------------------------------------------------------
+story_content:
+  allowed_themes:
+    - "friendship_and_belonging"
+    - "perseverance_and_growth"
+    - "family_and_traditions"
+    - "school_and_community"
+    - "nature_and_environment"
+    - "historical_figures_age_appropriate"
+    - "scientific_discoveries_age_appropriate"
+    - "cultural_celebrations"
+    - "social_responsibility_age_appropriate"
+    - "imagination_and_adventure"
+    - "courage_in_difficult_situations_age_appropriate"
+  banned_themes:
+    - "graphic_violence"
+    - "detailed_substance_abuse"
+    - "romance_or_dating"
+    - "adult_relationship_conflict"
+    - "graphic_grief_or_trauma"           # age-appropriate handling acceptable
+  representation_required: true
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 90                       # ELA block commonly 60-90 min in 3-5
+  structure:
+    - phase: "vocabulary_or_morphology_warmup"
+      duration_min: 8
+      description: "Word study, root meaning, or quick vocabulary review"
+    - phase: "mini_lesson_reading_strategy_or_skill"
+      duration_min: 15
+      description: "Direct instruction with model text and think-aloud"
+    - phase: "guided_reading_or_close_reading"
+      duration_min: 20
+      description: "Shared text analysis with discussion and annotation"
+    - phase: "independent_or_partner_reading"
+      duration_min: 15
+      description: "Self-selected or assigned text with response journal"
+    - phase: "writing_workshop_mini_lesson_and_drafting"
+      duration_min: 25
+      description: "Writing instruction and student drafting time"
+    - phase: "share_and_close"
+      duration_min: 7
+      description: "Share writing or new vocabulary; preview tomorrow"
+  transitions_every_min: 18
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 4
+  length_max: 8
+  must_show_text_on_screen_when_reading_aloud: true
+  highlight_vocabulary_terms_visually: true
+  pause_for_thinking_moments: 2
+  examples_per_video: 2
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "text_dependent_short_answer"
+    - "short_paragraph_response_with_evidence"
+    - "vocabulary_in_context_select_best_meaning"
+    - "summarize_in_3_to_5_sentences"
+    - "compare_two_texts_with_organizer"
+    - "identify_and_explain_main_idea"
+    - "draft_paragraph_with_topic_and_conclusion"
+  banned:
+    - "spelling_bee_competition"
+    - "speed_reading_against_classmates"
+    - "memorize_and_recite_for_grade"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["3", "4", "5"]
+  alignment_metadata_required:
+    - "strand"                                # RF, RL, RI, W, SL, L
+    - "cluster"
+    - "specific_standard_code"
+  default_frameworks_supported:
+    - "CCSS-ELA"
+    - "TEKS-ELA"
+    - "Virginia-SOL-ELA"
+    - "Florida-BEST-ELA"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_g35_ela_curricula_recognized:
+    - "Wit and Wisdom"
+    - "EL Education"
+    - "CKLA (Core Knowledge Language Arts)"
+    - "Wonders"
+    - "Into Reading (HMH)"
+    - "Benchmark Advance"
+    - "ARC Core"
+    - "Lucy Calkins Units of Study (with caveats)"
+    - "Open Up Resources EL"
+  when_curriculum_uploaded:
+    match_scope_and_sequence: true
+    match_terminology: true
+    use_anchor_texts_when_named: true

@@ -1,0 +1,271 @@
+# Grade 3-5 (Upper Elementary) — Developmental Pedagogy Base
+#
+# This is the developmental foundation inherited by all 3-5 subject overlays
+# (g35_math, g35_ela, g35_science, g35_social). It defines HOW content should
+# be presented for 8-11 year olds, independent of subject matter.
+#
+# 3-5 is the "reading to learn" transition: students who could only decode
+# in K-2 now consume content through text. Concrete operational thinking is
+# strong; abstract reasoning is emerging. Group work and projects become
+# productive. Stamina, autonomy, and accountability all increase sharply.
+#
+# Source authorities:
+#   - NAEYC Developmentally Appropriate Practice, 4th ed. (Middle Childhood chapter)
+#   - Piaget concrete operational stage research
+#   - Common Core "shifts" for grades 3-5
+#   - Fountas & Pinnell literacy stages M-W
+#   - Beck, McKeown & Kucan vocabulary tier framework
+#   - Lev Vygotsky zone of proximal development (peer scaffolding)
+
+id: g35
+grade_band: "3-5"
+grade_levels: ["3", "4", "5"]
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Developmental Profile
+# ---------------------------------------------------------------------------
+developmental_profile:
+  cognitive_stage: "concrete_operational_with_emerging_abstract"
+  cognitive_notes: >
+    Students reason logically about concrete objects, situations, and
+    relationships they can visualize. They handle reversibility (knowing
+    that 8 + 5 = 13 also means 13 - 5 = 8), classification, seriation, and
+    simple cause-and-effect. Abstract reasoning (variables, hypothetical
+    scenarios, formal proofs) is just beginning and must be scaffolded with
+    concrete examples first. Multi-step procedures are now achievable but
+    still benefit from worked examples and visual organizers.
+
+  attention_span:
+    sustained_independent_min: 20        # 3rd: ~15, 4th: ~20, 5th: ~25
+    whole_group_listening_min: 20        # before a mandatory transition
+    full_lesson_max_min: 60              # specials may run shorter
+
+  motor_skills:
+    fine_motor_development: "developed"
+    can_write_paragraphs: true
+    keyboarding_emerging: true           # by 5th grade most students type
+    cursive_acceptable: true             # but never required for content
+    implications:
+      - "Writing volume can increase substantially compared to K-2"
+      - "Standard answer lines acceptable; oversized boxes no longer needed"
+      - "Cut-and-paste activities still motivating but no longer necessary"
+      - "Students can manage two-page spreads and multi-section worksheets"
+
+  reading_level:
+    lexile_range: "450L-980L"            # spans 3rd through end of 5th
+    fountas_pinnell_range: "M-W"
+    decoding_stage: "fluent_to_advanced"
+    transition_point: "learning_to_read_BECOMES_reading_to_learn"
+    implications:
+      - "Students can extract information from text independently"
+      - "Multi-paragraph passages, charts, diagrams, and infographics are accessible"
+      - "Vocabulary instruction shifts from decoding to meaning"
+      - "Students can handle 1-3 page primary readings with scaffolding"
+
+  social_emotional:
+    play_stage: "cooperative_with_rules"
+    emotional_regulation: "developing_with_coaching"
+    peer_interaction: "strong_focus_on_friendship_and_fairness"
+    identity_emergence: "comparing_self_to_others_starts"
+    implications:
+      - "Group work of 3-4 students is productive"
+      - "Partner discourse and turn-and-talk routines work well"
+      - "Sensitivity to public correction increases — private feedback preferred"
+      - "Competence-building (visible growth) matters more than competition"
+
+  executive_function:
+    working_memory_items: 4              # can hold ~4 instructions in mind
+    task_initiation: "improving_with_routines"
+    self_monitoring: "scaffolded_checklists_help"
+    implications:
+      - "3-step procedures with visual organizers are reliable"
+      - "Multi-day projects work with daily checkpoints"
+      - "Rubrics with 3-4 criteria help students self-assess"
+
+  language_stage:
+    receptive_vocabulary_words: "10000-25000"
+    expressive_sentence_length_avg_words: 11
+    tier_distribution_required:
+      tier_1_pct: 60      # everyday high-frequency
+      tier_2_pct: 30      # cross-curricular academic (analyze, summarize, compare)
+      tier_3_pct: 10      # domain-specific — subject overlays may extend
+
+# ---------------------------------------------------------------------------
+# Layout & Visual Rules
+# ---------------------------------------------------------------------------
+layout_rules:
+  font:
+    primary_family: "clear_sans_or_serif"     # Open Sans, Atkinson Hyperlegible, Georgia
+    min_size_pt: 14
+    body_size_pt: 14
+    heading_size_pt: 20
+    line_spacing: 1.4
+    letter_case_rules:
+      - "Standard sentence case throughout"
+      - "Avoid ALL CAPS body text"
+      - "Cursive acceptable for headings only, never body"
+
+  page_density:
+    max_problems_per_page: 16             # subject overlays may adjust
+    min_problems_per_page: 5
+    min_whitespace_pct: 25                # 25% of page must be negative space
+    answer_box_min_height_in: 0.4
+    answer_box_min_width_in: 1.5
+
+  imagery:
+    image_required_per_question: false    # supportive, not mandatory
+    image_recommended_per_section: true   # at least one visual per worksheet section
+    image_style: "illustration_diagram_or_photograph"
+    banned_styles:
+      - "abstract_without_referent"
+      - "stock_photo_adult_business_context"
+    representation_requirements:
+      skin_tone_diversity: true
+      gender_balance: true
+      family_structure_variety: true
+      ability_representation: true
+
+  color:
+    palette: "peach_and_amber_warm_primary"
+    high_contrast_text_bg: true
+    avoid_rainbow_overload: true
+
+  mascot:
+    lulings_mascot_required: false        # optional; older students prefer subtle design
+    placement: "header_or_corner_only_if_used"
+    role: "if_used_acts_as_thinking_prompt_voice"
+
+# ---------------------------------------------------------------------------
+# Instruction & Scaffolding Rules
+# ---------------------------------------------------------------------------
+instructions:
+  max_words_per_instruction: 20
+  max_sentences_per_instruction_block: 3
+  pictographic_icon_required: false
+  numbered_steps_for_multi_step: true
+  teacher_read_aloud_default: false       # students read instructions independently
+  scaffolds_required:
+    - "model_example_or_worked_problem"
+    - "graphic_organizer_for_multi_step_tasks"
+    - "vocabulary_callout_box_for_new_terms"
+    - "self_check_or_metacognition_prompt"
+
+# ---------------------------------------------------------------------------
+# Assessment Modes
+# ---------------------------------------------------------------------------
+assessment_modes:
+  preferred:
+    - "short_answer_response"
+    - "multi_step_word_problem"
+    - "short_paragraph_response"
+    - "graphic_organizer_completion"
+    - "explain_your_thinking"
+    - "compare_and_contrast"
+    - "select_and_justify"
+    - "matching_with_explanation"
+    - "draw_and_label_diagram"
+  acceptable:
+    - "circle_the_answer"
+    - "fill_in_the_blank"
+    - "true_false_with_correction"
+    - "multiple_choice_with_4_options"     # introduce gradually, don't overuse
+  banned:
+    - "five_paragraph_essay"
+    - "timed_high_stakes_speed_drills"
+    - "ranking_students_publicly"
+    - "all_caps_test_stem_language"
+    - "double_negatives"
+    - "trick_questions"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Pacing
+# ---------------------------------------------------------------------------
+lesson_plan_defaults:
+  total_duration_min: 50
+  structure:
+    - phase: "warm_up_or_bell_ringer"
+      duration_min: 5
+      description: "Quick recall, vocabulary, or hook to today's concept"
+    - phase: "mini_lesson_i_do"
+      duration_min: 12
+      description: "Direct instruction, modeled thinking, worked example"
+    - phase: "guided_practice_we_do"
+      duration_min: 12
+      description: "Shared work, partner talk, scaffolded examples"
+    - phase: "independent_or_collaborative_practice_you_do"
+      duration_min: 15
+      description: "Worksheet, station work, project task, or small-group activity"
+    - phase: "share_or_exit_ticket"
+      duration_min: 6
+      description: "Brief share-out and quick formative assessment"
+  transitions_every_min: 15
+  needs_manipulatives: false              # subject overlays may set true (e.g., math)
+  whole_group_to_independent_ratio: "1:1"
+
+# ---------------------------------------------------------------------------
+# Video Specifications
+# ---------------------------------------------------------------------------
+video_defaults:
+  length_min: 4
+  length_max: 7
+  narrator_style: "warm_clear_engaging"
+  narrator_pace_wpm: 140
+  on_screen_visual_required_pct: 85       # almost always visual; brief title screens ok
+  mascot_required: false
+  music_background: "subtle_instrumental_low_volume"
+  caption_style: "standard_synchronized"
+  scene_cadence_sec: 12                   # new visual every ~12 seconds
+  call_and_response_moments: 1
+  concepts_per_video: 2                   # main concept + reinforcement
+
+# ---------------------------------------------------------------------------
+# Hard Bans (apply regardless of subject)
+# ---------------------------------------------------------------------------
+hard_bans:
+  - "violence_or_scary_imagery"
+  - "adult_contexts_jobs_taxes_mortgages_credit"
+  - "sarcasm_or_irony_directed_at_students"
+  - "standardized_test_stem_language"     # "which of the following best..."
+  - "negative_framing_questions_overuse"  # one or two with care, not most
+  - "double_negatives"
+  - "trick_questions_with_misleading_distractors"
+  - "graphic_historical_violence"
+  - "romance_or_dating_content"
+
+# ---------------------------------------------------------------------------
+# Required Content Diversity
+# ---------------------------------------------------------------------------
+diversity_requirements:
+  character_name_rotation_required: true
+  cultural_representation_required: true
+  family_structure_variety_required: true
+  ability_representation_required: true
+  no_stereotyping: true
+
+# ---------------------------------------------------------------------------
+# Parent Communication Calibration
+# ---------------------------------------------------------------------------
+parent_communication:
+  reading_level_lexile_max: 900
+  jargon_acceptable_with_definition: true
+  always_include:
+    - "what_child_can_do_with_specific_examples"
+    - "skills_being_developed"
+    - "how_to_extend_learning_at_home"
+
+# ---------------------------------------------------------------------------
+# Integration Hooks
+# ---------------------------------------------------------------------------
+integration_hooks:
+  standards_system:
+    respects_three_tier_hierarchy: true
+    passes_through_standard_codes: true
+  rag_kb:
+    honors_has_kb_coverage_flag: true
+    grounds_in_teacher_curriculum: true
+  class_tabs:
+    honors_class_intelligence: true
+    scoped_by_class_id: true
+  generation_history:
+    no_repeat_check_required: true

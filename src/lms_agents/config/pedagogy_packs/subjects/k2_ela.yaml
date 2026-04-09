@@ -1,0 +1,434 @@
+# K-2 English Language Arts Subject Overlay
+#
+# Inherits from: grade_bands/k2.yaml
+# Covers: phonological awareness, phonics, fluency, vocabulary, comprehension,
+#         foundational writing, speaking & listening.
+#
+# Source authorities:
+#   - Science of Reading body of research
+#   - Scarborough's Reading Rope
+#   - Fountas & Pinnell Continuum of Literacy Learning
+#   - CCSS-ELA K-2 Foundational Skills progressions
+#   - Wiley Blevins Phonics Scope & Sequence
+#   - Dolch and Fry sight word research
+#   - 6+1 Traits of Writing (early primary adaptations)
+
+id: k2_ela
+extends: k2
+subject: ela
+llm: claude-sonnet-4-5
+
+# ---------------------------------------------------------------------------
+# Content Progression — what's in scope per grade
+# ---------------------------------------------------------------------------
+content_progression:
+  kindergarten:
+    in_scope:
+      phonological_awareness:
+        - "rhyming_identification_and_production"
+        - "syllable_clap_and_count"
+        - "onset_rime_blending"
+        - "initial_and_final_sound_isolation"
+        - "phoneme_blending_and_segmentation_CVC"
+      phonics:
+        - "letter_name_recognition_upper_and_lower"
+        - "letter_sound_correspondence_all_consonants_short_vowels"
+        - "CVC_decoding_mat_cat_pig"
+      sight_words:
+        - "dolch_preprimer_40_words"
+      comprehension:
+        - "retell_story_beginning_middle_end_with_pictures"
+        - "identify_characters_and_setting"
+        - "ask_and_answer_who_what_where_questions"
+      writing:
+        - "letter_formation"
+        - "name_writing"
+        - "label_pictures_with_words"
+        - "dictated_sentences_with_drawing"
+    out_of_scope:
+      - "multi_syllabic_decoding"
+      - "silent_letters_complex_patterns"
+      - "paragraph_writing"
+      - "cursive"
+      - "independent_chapter_book_reading"
+
+  first_grade:
+    in_scope:
+      phonological_awareness:
+        - "phoneme_substitution_and_manipulation"
+        - "phoneme_segmentation_up_to_5_sounds"
+      phonics:
+        - "consonant_blends_bl_br_cl_st_tr"
+        - "consonant_digraphs_sh_ch_th_wh_ck"
+        - "long_vowel_silent_e_CVCe"
+        - "vowel_teams_ai_ee_oa_common"
+        - "r_controlled_ar_or"
+        - "inflectional_endings_s_ed_ing"
+      sight_words:
+        - "dolch_primer_and_first_grade_lists_94_words"
+        - "fry_first_100"
+      fluency:
+        - "read_decodable_text_with_accuracy"
+        - "appropriate_phrasing_punctuation_cues"
+      comprehension:
+        - "main_topic_of_informational_text"
+        - "story_elements_character_setting_events_problem_solution"
+        - "compare_two_texts_on_same_topic"
+      writing:
+        - "complete_sentences_capital_and_period"
+        - "opinion_piece_with_reason_2_3_sentences"
+        - "narrative_with_sequence_3_5_sentences"
+        - "informational_with_facts_3_5_sentences"
+    out_of_scope:
+      - "five_paragraph_essay"
+      - "research_papers"
+      - "literary_analysis"
+      - "cursive"
+
+  second_grade:
+    in_scope:
+      phonics:
+        - "long_vowel_teams_all_common_patterns"
+        - "diphthongs_oi_oy_ou_ow"
+        - "r_controlled_er_ir_ur"
+        - "two_syllable_decoding_closed_open_magic_e"
+        - "common_prefixes_un_re_pre"
+        - "common_suffixes_ly_ful_less"
+      sight_words:
+        - "dolch_second_grade_46_words"
+        - "fry_second_100"
+      fluency:
+        - "oral_reading_90_100_wcpm_by_year_end"
+        - "expression_and_intonation"
+      comprehension:
+        - "central_message_and_lesson_of_story"
+        - "main_purpose_of_informational_text"
+        - "compare_and_contrast_two_texts_on_same_topic"
+        - "identify_text_features_headings_captions_glossary"
+      writing:
+        - "paragraphs_with_topic_sentence_and_details"
+        - "opinion_narrative_informational_with_intro_and_closure"
+        - "simple_editing_for_capitals_punctuation_spelling"
+    out_of_scope:
+      - "literary_devices_analysis"
+      - "argumentative_essays"
+      - "citations_and_sources"
+      - "cursive_required_for_assessment"
+
+# ---------------------------------------------------------------------------
+# Decodability & Text Selection
+# ---------------------------------------------------------------------------
+text_selection:
+  decodability_requirement: true
+  rule: >
+    Student-facing texts must contain only phonics patterns and sight words
+    already taught. No asking students to "sound out" patterns they haven't
+    learned. Predictable texts (repeated sentence frames) allowed ONLY as
+    shared reading, not independent decoding practice.
+  max_passage_length_words:
+    kindergarten: 25
+    first_grade: 75
+    second_grade: 150
+  picture_text_ratio_required:
+    kindergarten: "picture_dominant_80_20"     # 80% image, 20% text
+    first_grade: "picture_supportive_60_40"
+    second_grade: "balanced_50_50"
+  decodable_text_sources_recognized:
+    - "Geodes"
+    - "UFLI Foundations"
+    - "Flyleaf"
+    - "SPIRE"
+    - "Heggerty"
+    - "Really Great Reading"
+
+# ---------------------------------------------------------------------------
+# Worksheet Format Whitelist
+# ---------------------------------------------------------------------------
+worksheet_formats:
+  preferred_templates:
+    - id: "k2_ela_letter_sound_match"
+      description: "Match letter to picture with that initial sound"
+      max_items: 8
+    - id: "k2_ela_cvc_picture_word_match"
+      description: "Match CVC word to picture"
+      max_items: 6
+    - id: "k2_ela_rhyming_sort"
+      description: "Sort pictures into rhyming families"
+      max_items: 8
+    - id: "k2_ela_word_family_build"
+      description: "Build words in a family (at: cat, hat, bat)"
+      max_items: 6
+    - id: "k2_ela_sight_word_color"
+      description: "Color boxes containing the target sight word"
+      max_items: 12        # motivating, low cognitive load
+    - id: "k2_ela_sentence_scramble"
+      description: "Cut and paste words into a sentence"
+      max_items: 4
+    - id: "k2_ela_retell_sequence"
+      description: "Put story picture cards in order 1-2-3 (or 1-2-3-4 for 2nd)"
+      max_items: 1         # one story, multiple cards
+    - id: "k2_ela_story_map"
+      description: "Character, setting, problem, solution with picture boxes"
+      max_items: 1
+    - id: "k2_ela_writing_frame"
+      description: "Sentence starter + illustration box (I see ___. I like ___.)"
+      max_items: 4
+    - id: "k2_ela_reading_response_draw_and_label"
+      description: "Draw favorite part, label with words or short sentence"
+      max_items: 1
+  banned_templates:
+    - "essay_prompt"
+    - "dense_reading_passage_no_pictures"
+    - "cold_reading_fluency_test"             # use teacher assessment only
+    - "cloze_with_no_word_bank"
+    - "dictionary_lookup_activity"            # K-2 dictionaries are pictographic
+
+# ---------------------------------------------------------------------------
+# Phonics Scope & Sequence Discipline
+# ---------------------------------------------------------------------------
+phonics_discipline:
+  explicit_systematic_required: true
+  spiral_review_required: true
+  never_teach_cueing_three_cueing_system: true
+  rule: >
+    Phonics content must follow an explicit, systematic scope and sequence.
+    Never encourage students to guess unknown words from pictures or context
+    (the debunked three-cueing / MSV approach). Students decode based on
+    sound-spelling patterns they have been explicitly taught.
+
+# ---------------------------------------------------------------------------
+# Vocabulary — opens Tier 3 for ELA-specific terms
+# ---------------------------------------------------------------------------
+vocabulary:
+  tier_distribution_override:
+    tier_1_pct: 80
+    tier_2_pct: 15
+    tier_3_pct: 5
+  allowed_tier_3_terms_by_grade:
+    kindergarten:
+      - "letter"
+      - "sound"
+      - "word"
+      - "sentence"
+      - "rhyme"
+      - "beginning sound"
+      - "ending sound"
+      - "character"
+      - "setting"
+      - "title"
+      - "author"
+      - "illustrator"
+    first_grade:
+      - "blend"
+      - "digraph"
+      - "vowel"
+      - "consonant"
+      - "sight word"
+      - "beginning middle end"
+      - "problem"
+      - "solution"
+      - "main topic"
+      - "fact"
+      - "opinion"
+      - "punctuation"
+      - "capital letter"
+    second_grade:
+      - "prefix"
+      - "suffix"
+      - "syllable"
+      - "central message"
+      - "text feature"
+      - "heading"
+      - "caption"
+      - "glossary"
+      - "paragraph"
+      - "topic sentence"
+      - "compare"
+      - "contrast"
+  banned_terms:
+    - "phoneme"                                # teacher term, not student term until 2nd
+    - "grapheme"
+    - "morpheme"
+    - "metaphor"
+    - "simile"                                 # 3rd+ grade
+    - "theme"                                  # use "lesson" or "message"
+    - "protagonist"
+    - "narrator_voice"
+    - "literary_device"
+
+# ---------------------------------------------------------------------------
+# Writing Expectations by Grade
+# ---------------------------------------------------------------------------
+writing_expectations:
+  kindergarten:
+    modes: ["label", "dictated_sentence_with_drawing", "name_writing"]
+    max_writing_volume: "1-2 words per prompt, pictures primary"
+    scaffolds_required:
+      - "picture_first_words_second"
+      - "sentence_starter_provided"
+      - "word_bank_with_images"
+    mechanics_expected:
+      - "left_to_right_directionality"
+      - "letter_formation_emerging"
+    spelling_policy: "inventive_spelling_encouraged"
+
+  first_grade:
+    modes: ["opinion", "narrative", "informational"]
+    max_writing_volume: "2-5 sentences"
+    scaffolds_required:
+      - "graphic_organizer_first"
+      - "sentence_starters"
+      - "word_bank"
+    mechanics_expected:
+      - "capital_at_start_of_sentence"
+      - "period_question_exclamation"
+      - "finger_spaces_between_words"
+    spelling_policy: "phonetic_spelling_for_unknown_words"
+
+  second_grade:
+    modes: ["opinion", "narrative", "informational"]
+    max_writing_volume: "paragraph 5-8 sentences"
+    scaffolds_required:
+      - "graphic_organizer"
+      - "model_text"
+      - "editing_checklist_3_items_with_icons"
+    mechanics_expected:
+      - "capital_punctuation_basic_spelling"
+      - "topic_sentence"
+      - "closing_sentence"
+    spelling_policy: "conventional_for_taught_patterns_phonetic_otherwise"
+
+# ---------------------------------------------------------------------------
+# Layout Overrides
+# ---------------------------------------------------------------------------
+layout_overrides:
+  handwriting_lines:
+    style: "three_line_with_dashed_midline"   # traditional handwriting paper
+    line_height_in: 0.75
+    required_for_writing_tasks: true
+  reading_text_formatting:
+    double_spacing: true
+    serif_or_rounded_sans_only: true
+    no_justified_text: true                    # left-align for consistent word spacing
+    word_spacing_generous: true
+
+# ---------------------------------------------------------------------------
+# Story & Passage Content Rules
+# ---------------------------------------------------------------------------
+story_content:
+  allowed_themes:
+    - "friendship"
+    - "family"
+    - "pets"
+    - "school_day"
+    - "weather_and_seasons"
+    - "community_helpers"
+    - "simple_problem_solution"
+    - "feelings_and_emotions_age_appropriate"
+    - "trying_something_new"
+  banned_themes:
+    - "death_grief_serious_illness"
+    - "divorce_family_conflict"
+    - "bullying_as_central_conflict"           # except in guided SEL lessons
+    - "violence"
+    - "romance"
+    - "scary_content"
+  character_diversity_required: true
+  representation_required:
+    - "skin_tone_diversity"
+    - "family_structure_diversity"
+    - "ability_representation_natural_not_inspirational"
+
+# ---------------------------------------------------------------------------
+# Lesson Plan Overrides
+# ---------------------------------------------------------------------------
+lesson_plan_overrides:
+  total_duration_min: 60                       # ELA block commonly 60-90 min
+  structure:
+    - phase: "phonological_awareness_warmup"
+      duration_min: 5
+      description: "Heggerty-style oral routine, no print"
+    - phase: "phonics_explicit"
+      duration_min: 15
+      description: "Sound-spelling introduction, blending practice, dictation"
+    - phase: "decodable_reading"
+      duration_min: 10
+      description: "Read controlled text matching today's phonics pattern"
+    - phase: "movement_break"
+      duration_min: 2
+      description: "Stretch, alphabet song, or letter sound chant"
+    - phase: "read_aloud_comprehension"
+      duration_min: 15
+      description: "Teacher read-aloud (above-grade text), discussion, vocabulary"
+    - phase: "shared_or_guided_writing"
+      duration_min: 10
+      description: "Teacher models, students write at their level"
+    - phase: "share"
+      duration_min: 3
+      description: "One student shares their writing or new word"
+  transitions_every_min: 8
+
+# ---------------------------------------------------------------------------
+# Video Overrides
+# ---------------------------------------------------------------------------
+video_overrides:
+  length_min: 2
+  length_max: 4
+  narrator_must_pronounce_sounds_correctly: true   # /b/ not "buh"
+  must_show_letter_while_saying_sound: true
+  mouth_formation_shown_for_new_phonemes: true
+  captions_required: true
+  captions_synchronized_word_by_word: true         # karaoke-style for sight word videos
+
+# ---------------------------------------------------------------------------
+# Assessment Mode Overrides
+# ---------------------------------------------------------------------------
+assessment_overrides:
+  preferred:
+    - "circle_picture_with_target_sound"
+    - "write_the_word_dictation"
+    - "match_word_to_picture"
+    - "sort_words_by_pattern"
+    - "retell_with_picture_sequence"
+    - "oral_reading_observation"                    # teacher records, not student
+    - "story_map_completion"
+  banned:
+    - "timed_reading_fluency_for_grades"           # measure, don't grade
+    - "spelling_bee_style_competition"
+    - "red_pen_correction_style"
+
+# ---------------------------------------------------------------------------
+# Standards Integration
+# ---------------------------------------------------------------------------
+standards_integration:
+  respects_three_tier_hierarchy: true
+  retrieval_grade_band_filter: ["K", "1", "2"]
+  alignment_metadata_required:
+    - "strand"                                      # RF, RL, RI, W, SL, L
+    - "cluster"
+    - "specific_standard_code"
+  default_frameworks_supported:
+    - "CCSS-ELA"
+    - "TEKS-ELA"
+    - "Virginia-SOL-ELA"
+    - "Florida-BEST-ELA"
+
+# ---------------------------------------------------------------------------
+# Teacher Curriculum Grounding
+# ---------------------------------------------------------------------------
+curriculum_grounding:
+  honor_uploaded_curriculum: true
+  common_k2_ela_curricula_recognized:
+    - "CKLA (Core Knowledge Language Arts)"
+    - "Wit and Wisdom"
+    - "EL Education"
+    - "Benchmark Advance"
+    - "Wonders"
+    - "Into Reading (HMH)"
+    - "UFLI Foundations"
+    - "Fundations"
+    - "Orton-Gillingham programs"
+  when_curriculum_uploaded:
+    match_scope_and_sequence: true
+    match_terminology: true
+    respect_phonics_progression_order: true         # never introduce a pattern ahead of curriculum
