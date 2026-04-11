@@ -1,55 +1,68 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Upload, BookOpen, FileText, Calendar, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2, CheckCircle, AlertTriangle, X, Upload } from 'lucide-react';
 import { apiFetch, apiUpload } from '@/lib/api';
 
 const UPLOAD_TYPES = [
   {
     id: 'standards',
     label: 'Upload Standards',
-    desc: 'Custom school standards (JSON)',
-    icon: BookOpen,
+    desc: 'Custom school or diocese standards',
+    icon: 'star.png',
     endpoint: '/api/v1/upload/standards',
-    accept: '.json',
+    accept: '.json,.pdf,.docx,.txt',
+    accent: 'var(--coral)',
   },
   {
     id: 'curriculum',
     label: 'Upload Curriculum',
-    desc: 'Pacing guide → Calendar + KB',
-    icon: Calendar,
+    desc: 'Pacing guides, scope & sequence',
+    icon: 'calendar.png',
     endpoint: '/api/v1/upload/curriculum',
     accept: '.pdf,.docx,.txt',
+    accent: 'var(--sage)',
   },
   {
     id: 'materials',
     label: 'Upload Materials',
-    desc: 'Textbooks, worksheets → KB',
-    icon: FileText,
+    desc: 'Worksheets, textbooks, lesson plans',
+    icon: 'document.png',
     endpoint: '/api/v1/upload/materials',
     accept: '.pdf,.docx,.txt',
+    accent: 'var(--mustard)',
   },
 ];
+
+const STATUS_STYLES = {
+  complete: { bg: 'var(--green-bg, #DCFCE7)', color: 'var(--green-text, #16A34A)' },
+  failed:   { bg: 'var(--red-bg, #FEF2F2)', color: '#EF4444' },
+  pending:  { bg: 'var(--amber-bg, #FEF3C7)', color: 'var(--amber, #D97706)' },
+};
 
 export default function ContentLibrary() {
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(null);
+  const [uploading, setUploading] = useState(null);        // which type is uploading
+  const [validating, setValidating] = useState(null);      // which type is validating
+  const [validationResult, setValidationResult] = useState(null);
+  const [pendingFile, setPendingFile] = useState(null);     // file awaiting validation confirm
+  const [pendingType, setPendingType] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
   const [error, setError] = useState(null);
   const fileRefs = useRef({});
 
-  useEffect(() => {
-    loadSources();
-  }, []);
+  useEffect(() => { loadSources(); }, []);
 
   async function loadSources() {
     try {
       const data = await apiFetch('/api/v1/knowledge/sources');
-      // Only show teacher-uploaded content, not system OER (OpenStax, LibreTexts)
-      const teacherSources = (data.sources || []).filter(
-        s => !['oer_textbook', 'openstax'].includes(s.upload_lane)
+      // Only show sources the teacher explicitly uploaded through the UI
+      // Exclude system-ingested content (openstax, oer_textbook, teacher_reference, teacher_archive, loc)
+      const teacherUploaded = (data.sources || []).filter(
+        s => ['materials', 'curriculum'].includes(s.upload_lane)
       );
-      setSources(teacherSources);
+      setSources(teacherUploaded);
     } catch (e) {
       console.error(e);
     } finally {
@@ -57,10 +70,55 @@ export default function ContentLibrary() {
     }
   }
 
-  async function handleUpload(type, file) {
-    setUploading(type.id);
+  async function handleFileSelected(type, file) {
+    // Step 1: Validate with Haiku before uploading
+    setValidating(type.id);
+    setValidationResult(null);
     setUploadResult(null);
     setError(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_type', type.id);
+
+    try {
+      const result = await apiUpload('/api/v1/upload/validate', formData);
+      setValidationResult(result);
+
+      if (result.proceed) {
+        // Validation passed — proceed to upload
+        setPendingFile(file);
+        setPendingType(type);
+      } else {
+        // Validation failed — show warning, let user decide
+        setPendingFile(file);
+        setPendingType(type);
+      }
+    } catch (e) {
+      // Validation endpoint failed — allow upload anyway
+      setPendingFile(file);
+      setPendingType(type);
+      setValidationResult({
+        valid: true,
+        confidence: 0.5,
+        detected_type: type.id,
+        message: 'Validation check unavailable — you can proceed with upload.',
+        proceed: true,
+      });
+    } finally {
+      setValidating(null);
+    }
+  }
+
+  async function proceedWithUpload() {
+    if (!pendingFile || !pendingType) return;
+    const type = pendingType;
+    const file = pendingFile;
+
+    setUploading(type.id);
+    setValidationResult(null);
+    setPendingFile(null);
+    setPendingType(null);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -87,19 +145,30 @@ export default function ContentLibrary() {
     }
   }
 
+  function cancelUpload() {
+    setPendingFile(null);
+    setPendingType(null);
+    setValidationResult(null);
+  }
+
   return (
-    <div>
+    <div className="max-w-[1200px] mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Content Library</h1>
-        <p className="text-sm text-gray-500 mt-1">Upload standards, curriculum guides, and teaching materials</p>
+        <h1 className="font-serif text-[26px]" style={{ color: 'var(--text-dark)' }}>
+          Content Library
+        </h1>
+        <p className="text-[14px] mt-1" style={{ color: 'var(--text-mid)' }}>
+          Upload standards, curriculum guides, and teaching materials
+        </p>
       </div>
 
-      {/* Upload buttons */}
+      {/* Upload cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {UPLOAD_TYPES.map(type => {
-          const Icon = type.icon;
           const isUploading = uploading === type.id;
+          const isValidating = validating === type.id;
+          const isBusy = isUploading || isValidating;
           return (
             <div key={type.id}>
               <input
@@ -108,105 +177,234 @@ export default function ContentLibrary() {
                 accept={type.accept}
                 className="hidden"
                 onChange={e => {
-                  if (e.target.files[0]) handleUpload(type, e.target.files[0]);
+                  if (e.target.files[0]) handleFileSelected(type, e.target.files[0]);
                   e.target.value = '';
                 }}
               />
               <button
                 onClick={() => fileRefs.current[type.id]?.click()}
-                disabled={isUploading}
-                className="w-full flex flex-col items-center gap-3 p-6 bg-white rounded-xl border-2 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all disabled:opacity-50"
+                disabled={isBusy}
+                className="hover-lift w-full flex flex-col items-center gap-3 p-6 rounded-card transition-all disabled:opacity-50"
+                style={{
+                  background: 'var(--warm-card)',
+                  border: '2px dashed var(--border)',
+                }}
               >
-                {isUploading ? (
-                  <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                {isBusy ? (
+                  <div className="w-12 h-12 flex items-center justify-center">
+                    <Loader2
+                      className="w-8 h-8 animate-spin"
+                      style={{ color: type.accent }}
+                    />
+                  </div>
                 ) : (
-                  <Icon className="w-8 h-8 text-indigo-600" />
+                  <Image
+                    src={`/icons/${type.icon}`}
+                    alt=""
+                    width={48}
+                    height={48}
+                    style={{ opacity: 0.85 }}
+                  />
                 )}
-                <span className="font-medium text-gray-800">{type.label}</span>
-                <span className="text-xs text-gray-400">{type.desc}</span>
+                <span className="font-bold text-[14px]" style={{ color: 'var(--text-dark)' }}>
+                  {type.label}
+                </span>
+                <span className="text-[12px]" style={{ color: 'var(--text-light)' }}>
+                  {isValidating ? 'Checking document...' : isUploading ? 'Processing...' : type.desc}
+                </span>
               </button>
             </div>
           );
         })}
       </div>
 
-      {/* Upload result */}
-      {uploadResult && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6">
-          <div className="flex items-center gap-2 text-emerald-700">
-            <CheckCircle className="w-5 h-5" />
-            <span className="font-medium">Upload successful</span>
+      {/* Validation result modal */}
+      {validationResult && pendingFile && (
+        <div
+          className="rounded-card p-5 mb-6"
+          style={{
+            background: validationResult.valid ? 'var(--green-bg, #DCFCE7)' : '#FEF3C7',
+            border: `1px solid ${validationResult.valid ? 'var(--green-text, #16A34A)' : 'var(--amber, #D97706)'}`,
+          }}
+        >
+          <div className="flex items-start gap-3">
+            {validationResult.valid ? (
+              <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--green-text, #16A34A)' }} />
+            ) : (
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--amber, #D97706)' }} />
+            )}
+            <div className="flex-1">
+              <div className="font-bold text-[14px]" style={{ color: 'var(--text-dark)' }}>
+                {validationResult.valid ? 'Document verified' : 'Document mismatch'}
+              </div>
+              <p className="text-[13px] mt-1" style={{ color: 'var(--text-mid)' }}>
+                {validationResult.message}
+              </p>
+              {!validationResult.valid && validationResult.detected_type && (
+                <p className="text-[12px] mt-1" style={{ color: 'var(--text-light)' }}>
+                  This looks more like: <strong>{validationResult.detected_type}</strong>
+                  {validationResult.confidence && ` (${Math.round(validationResult.confidence * 100)}% confidence)`}
+                </p>
+              )}
+              {validationResult.format_info && (
+                <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>
+                  {validationResult.format_info}
+                </p>
+              )}
+              <div className="flex gap-3 mt-3">
+                {!validationResult.hard_reject && (
+                  <button
+                    onClick={proceedWithUpload}
+                    className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white"
+                    style={{ background: validationResult.valid ? 'var(--sage)' : 'var(--amber, #D97706)' }}
+                  >
+                    {validationResult.valid ? 'Upload now' : 'Upload anyway'}
+                  </button>
+                )}
+                <button
+                  onClick={cancelUpload}
+                  className="px-4 py-2 rounded-xl text-[13px] font-semibold"
+                  style={{ color: 'var(--text-mid)', background: 'var(--warm-card)', border: '1px solid var(--border)' }}
+                >
+                  {validationResult.hard_reject ? 'Choose a different file' : 'Cancel'}
+                </button>
+              </div>
+            </div>
+            <button onClick={cancelUpload} style={{ color: 'var(--text-light)' }}>
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <p className="text-sm text-emerald-600 mt-1">
+        </div>
+      )}
+
+      {/* Upload success */}
+      {uploadResult && (
+        <div
+          className="rounded-card p-4 mb-6"
+          style={{ background: 'var(--green-bg, #DCFCE7)', border: '1px solid var(--green-text, #16A34A)' }}
+        >
+          <div className="flex items-center gap-2" style={{ color: 'var(--green-text, #16A34A)' }}>
+            <CheckCircle className="w-5 h-5" />
+            <span className="font-bold text-[14px]">Upload successful</span>
+          </div>
+          <p className="text-[13px] mt-1" style={{ color: 'var(--green-text, #16A34A)' }}>
+            {uploadResult.standards_loaded ? `${uploadResult.standards_loaded} standards loaded` : ''}
+            {uploadResult.standards_loaded && uploadResult.extraction_method === 'haiku_extraction' ? ' (auto-extracted from document)' : ''}
+            {uploadResult.standards_loaded && uploadResult.name ? ` — ${uploadResult.name}` : ''}
             {uploadResult.chunk_count ? `${uploadResult.chunk_count} chunks created` : ''}
             {uploadResult.calendar_entries ? `, ${uploadResult.calendar_entries} calendar entries` : ''}
-            {uploadResult.standards_loaded ? `${uploadResult.standards_loaded} standards loaded` : ''}
           </p>
         </div>
       )}
 
+      {/* Upload error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-          <div className="flex items-center gap-2 text-red-700">
-            <AlertCircle className="w-5 h-5" />
-            <span className="font-medium">Upload failed</span>
+        <div
+          className="rounded-card p-4 mb-6"
+          style={{ background: 'var(--red-bg, #FEF2F2)', border: '1px solid #EF4444' }}
+        >
+          <div className="flex items-center gap-2" style={{ color: '#EF4444' }}>
+            <AlertTriangle className="w-5 h-5" />
+            <span className="font-bold text-[14px]">Upload failed</span>
           </div>
-          <p className="text-sm text-red-600 mt-1">{error}</p>
+          <p className="text-[13px] mt-1" style={{ color: '#EF4444' }}>{error}</p>
         </div>
       )}
 
       {/* Sources list */}
-      <h2 className="text-xl font-semibold text-gray-900 mb-3">Uploaded Sources</h2>
+      <h2 className="font-serif text-[20px] mb-3" style={{ color: 'var(--text-dark)' }}>
+        Uploaded Sources
+      </h2>
+
       {loading ? (
-        <div className="animate-pulse space-y-3">
+        <div className="space-y-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-16 bg-gray-200 rounded-xl"></div>
+            <div
+              key={i}
+              className="h-16 rounded-card animate-pulse"
+              style={{ background: 'var(--border)' }}
+            />
           ))}
         </div>
       ) : sources.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="text-center py-12">
-            <Upload className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No sources uploaded</h3>
-            <p className="text-sm text-gray-500">Upload curriculum guides or teaching materials to build your Knowledge Base</p>
-          </div>
+        <div
+          className="rounded-card text-center py-12"
+          style={{
+            background: 'var(--warm-card)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <Image
+            src="/icons/book.png"
+            alt=""
+            width={48}
+            height={48}
+            className="mx-auto mb-4"
+            style={{ opacity: 0.5 }}
+          />
+          <h3 className="font-serif text-[18px] mb-1" style={{ color: 'var(--text-dark)' }}>
+            No sources uploaded yet
+          </h3>
+          <p className="text-[13px]" style={{ color: 'var(--text-light)' }}>
+            Upload curriculum guides or teaching materials to build your Knowledge Base
+          </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Subject</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Chunks</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Uploaded</th>
+        <div
+          className="rounded-card overflow-hidden"
+          style={{
+            background: 'var(--warm-card)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {['Name', 'Type', 'Subject', 'Status', 'Uploaded'].map(h => (
+                  <th
+                    key={h}
+                    className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider"
+                    style={{ color: 'var(--text-light)' }}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {sources.map(s => (
-                <tr key={s.source_id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-gray-800 font-medium">{s.name}</td>
-                  <td className="px-4 py-3 text-gray-600 uppercase text-xs">{s.file_type}</td>
-                  <td className="px-4 py-3 text-gray-600">{s.subject || '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{s.chunk_count}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      s.processing_status === 'complete'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : s.processing_status === 'failed'
-                        ? 'bg-red-50 text-red-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}>
-                      {s.processing_status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
-                    {new Date(s.uploaded_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
+            <tbody>
+              {sources.map(s => {
+                const statusStyle = STATUS_STYLES[s.processing_status] || STATUS_STYLES.pending;
+                return (
+                  <tr
+                    key={s.source_id}
+                    className="transition-colors"
+                    style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--cream)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td className="px-4 py-3 font-semibold" style={{ color: 'var(--text-dark)' }}>
+                      {s.name}
+                    </td>
+                    <td className="px-4 py-3 uppercase text-[11px]" style={{ color: 'var(--text-mid)' }}>
+                      {s.file_type}
+                    </td>
+                    <td className="px-4 py-3" style={{ color: 'var(--text-mid)' }}>
+                      {s.subject || '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                        style={{ background: statusStyle.bg, color: statusStyle.color }}
+                      >
+                        {s.processing_status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-light)' }}>
+                      {new Date(s.uploaded_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

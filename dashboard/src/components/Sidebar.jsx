@@ -1,63 +1,25 @@
 'use client';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import {
-  Home, Calendar, PlusCircle, FileText, Gamepad2, Joystick, Video,
-  Palette, Upload, Shield, CheckSquare, BookOpen, Users, CreditCard,
-  Settings, Zap, Menu, X, Presentation, ClipboardList,
-} from 'lucide-react';
+import { useState } from 'react';
+import { Menu, X } from 'lucide-react';
 
-const navGroups = [
-  {
-    label: null, // No label for first group
-    items: [
-      { label: 'Dashboard', icon: Home, href: '/' },
-      { label: 'Weekly Planner', icon: Calendar, href: '/planner' },
-      { label: 'New Assignment', icon: PlusCircle, href: '/assignments/new' },
-      { label: 'Assignments', icon: FileText, href: '/assignments' },
-    ],
-  },
-  {
-    label: 'Generate',
-    items: [
-      { label: 'Interactive Activities', icon: Gamepad2, href: '/interactive' },
-      { label: 'Live Games', icon: Joystick, href: '/games' },
-      { label: 'Videos', icon: Video, href: '/videos' },
-      { label: 'Google Slides', icon: Presentation, href: '/slides' },
-      { label: 'Google Forms', icon: ClipboardList, href: '/forms' },
-    ],
-  },
-  {
-    label: 'Tools',
-    items: [
-      { label: 'Content Library', icon: Upload, href: '/library' },
-      { label: 'Accommodations', icon: Shield, href: '/accommodations' },
-      { label: 'Grading', icon: CheckSquare, href: '/grading' },
-      { label: 'Analytics', icon: BookOpen, href: '/analytics' },
-    ],
-  },
-  {
-    label: 'Account',
-    items: [
-      { label: 'Community', icon: Users, href: '/community' },
-      { label: 'Billing', icon: CreditCard, href: '/billing' },
-      { label: 'Settings', icon: Settings, href: '/settings' },
-    ],
-  },
+const navItems = [
+  { label: 'Dashboard',   icon: 'dashboard.png',  href: '/' },
+  { label: 'Curriculum',  icon: 'book.png',       href: '/curriculum' },
+  { label: 'Planner',     icon: 'calendar.png',   href: '/planner' },
+  { label: 'Assignments', icon: 'document.png',   href: '/assignments' },
+  { label: 'Videos',      icon: 'video-camera.png', href: '/videos' },
+  { label: 'Live Games',  icon: 'gamepad.png',    href: '/games' },
+  { label: 'Analytics',   icon: 'chart.png',      href: '/analytics' },
+  { label: 'Grades',      icon: 'check.png',      href: '/grading' },
+  { label: 'Settings',    icon: 'settings.png',   href: '/settings' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [credits, setCredits] = useState(null);
-
-  useEffect(() => {
-    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1/billing/me')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setCredits({ balance: d.credit_balance, monthly: d.credits_per_month }); })
-      .catch(() => {});
-  }, []);
 
   // Don't show sidebar on admin or join pages
   if (pathname?.startsWith('/admin') || pathname === '/join') return null;
@@ -65,9 +27,22 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b flex items-center justify-between px-4 z-30" style={{ borderColor: '#E7E5E4' }}>
-        <span className="text-lg font-semibold" style={{ color: '#F97316', fontFamily: "'DM Serif Display', serif" }}>Lulia</span>
-        <button onClick={() => setOpen(!open)} className="p-2 text-gray-600">
+      <div
+        className="md:hidden fixed top-0 left-0 right-0 h-14 flex items-center justify-between px-4 z-30"
+        style={{ background: 'var(--warm-card)', borderBottom: '1px solid var(--border)' }}
+      >
+        <Link href="/" className="flex items-center gap-2">
+          <div
+            className="w-8 h-8 rounded-[10px] flex items-center justify-center font-serif font-bold text-white text-sm"
+            style={{ background: 'linear-gradient(135deg, var(--coral), var(--coral-light))' }}
+          >
+            L
+          </div>
+          <span className="font-serif text-lg" style={{ color: 'var(--text-dark)' }}>
+            Lulia
+          </span>
+        </Link>
+        <button onClick={() => setOpen(!open)} className="p-2" style={{ color: 'var(--text-mid)' }}>
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
@@ -76,88 +51,113 @@ export default function Sidebar() {
       {open && <div className="md:hidden fixed inset-0 bg-black/30 z-30" onClick={() => setOpen(false)} />}
 
       {/* Sidebar */}
-      <aside className={`
-        fixed top-0 left-0 h-full w-64 bg-white z-40
-        transform transition-transform duration-200
-        md:translate-x-0
-        ${open ? 'translate-x-0' : '-translate-x-full'}
-      `} style={{ borderRight: '1px solid #E7E5E4' }}>
-
+      <aside
+        className={`
+          fixed top-0 left-0 h-full w-[240px] z-40
+          transform transition-transform duration-200
+          md:translate-x-0
+          ${open ? 'translate-x-0' : '-translate-x-full'}
+        `}
+        style={{
+          background: 'var(--warm-card)',
+          borderRight: '1px solid var(--border)',
+          boxShadow: '2px 0 20px var(--shadow)',
+        }}
+      >
         {/* Logo */}
-        <div className="h-16 flex items-center px-6" style={{ borderBottom: '1px solid #E7E5E4' }}>
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#F97316' }}>
-              <BookOpen className="w-4 h-4 text-white" />
+        <div className="px-5 pt-6 pb-5">
+          <Link href="/" className="flex items-center gap-3">
+            <div
+              className="w-[42px] h-[42px] rounded-[12px] flex items-center justify-center font-serif font-extrabold text-white text-[22px]"
+              style={{
+                background: 'linear-gradient(135deg, var(--coral), var(--coral-light))',
+                boxShadow: '0 3px 10px rgba(216, 108, 82, 0.3)',
+              }}
+            >
+              L
             </div>
-            <span className="text-xl font-semibold" style={{ color: '#1C1917', fontFamily: "'DM Serif Display', serif" }}>Lulia</span>
+            <div>
+              <span className="font-serif text-[26px] leading-none" style={{ color: 'var(--text-dark)' }}>
+                Lulia
+              </span>
+              <div className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: 'var(--text-light)', marginTop: '-2px' }}>
+                Lesson Lab
+              </div>
+            </div>
           </Link>
         </div>
 
-        {/* Nav groups */}
-        <nav className="p-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 64px - 80px)' }}>
-          {navGroups.map((group, gi) => (
-            <div key={gi}>
-              {group.label && (
-                <div className="mt-3 mb-1 px-3">
-                  <span style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#A8A29E' }}>
-                    {group.label}
-                  </span>
-                </div>
-              )}
-              {gi > 0 && !group.label && <div style={{ borderTop: '0.5px solid #E7E5E4', margin: '6px 12px' }} />}
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const isActive = item.href === '/'
-                    ? pathname === '/'
-                    : pathname?.startsWith(item.href);
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                      style={isActive
-                        ? { background: '#FFF7ED', color: '#78350F', borderRight: '2px solid #F97316' }
-                        : { color: '#78716C' }
+        {/* Navigation */}
+        <nav className="px-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 130px - 80px)' }}>
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = item.href === '/'
+                ? pathname === '/'
+                : pathname?.startsWith(item.href);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="icon-hover hover-slide flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-semibold"
+                  style={isActive
+                    ? {
+                        background: 'linear-gradient(135deg, var(--coral), var(--coral-light))',
+                        color: '#FFFFFF',
+                        boxShadow: '0 3px 12px rgba(216, 108, 82, 0.35)',
                       }
-                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#FEF9F2'; }}
-                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <Icon className="w-[18px] h-[18px]" style={{ color: isActive ? '#F97316' : '#A8A29E' }} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                    : {
+                        color: 'var(--text-mid)',
+                      }
+                  }
+                >
+                  <Image
+                    src={`/icons/${item.icon}`}
+                    alt=""
+                    width={32}
+                    height={32}
+                    className="nav-icon-img"
+                    style={isActive
+                      ? { filter: 'brightness(0) invert(1)', opacity: 0.9 }
+                      : { opacity: 0.8 }
+                    }
+                  />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
-        {/* Credit meter */}
-        <div className="absolute bottom-3 left-3 right-3">
-          <Link href="/billing" className="block px-3 py-2 rounded-lg transition-colors" style={{ background: '#FFF7ED', border: '1px solid #FDBA74' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#FEF3C7'}
-            onMouseLeave={e => e.currentTarget.style.background = '#FFF7ED'}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4" style={{ color: '#F97316' }} />
-                <span className="text-sm font-semibold" style={{ color: '#78350F' }}>
-                  {credits ? credits.balance : '—'} credits
-                </span>
+        {/* User profile footer */}
+        <div
+          className="absolute bottom-0 left-0 right-0 px-4 py-4"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          <Link
+            href="/settings"
+            className="flex items-center gap-3 px-2 py-2 rounded-xl transition-colors"
+            style={{ color: 'var(--text-dark)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--cream)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <Image
+              src="/icons/avatar.png"
+              alt="Profile"
+              width={40}
+              height={40}
+              className="rounded-full"
+              style={{ border: '2px solid var(--border)' }}
+            />
+            <div>
+              <div className="text-sm font-bold" style={{ color: 'var(--text-dark)' }}>
+                Teacher
               </div>
-              {credits && credits.monthly > 0 && (
-                <span style={{ fontSize: 10, color: '#A8A29E' }}>/ {credits.monthly}</span>
-              )}
+              <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                Pro Plan
+              </div>
             </div>
-            {credits && credits.monthly > 0 && (
-              <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: '#FED7AA' }}>
-                <div className="h-full rounded-full" style={{
-                  width: `${Math.min((credits.balance / credits.monthly) * 100, 100)}%`,
-                  background: '#F97316',
-                }} />
-              </div>
-            )}
           </Link>
         </div>
       </aside>

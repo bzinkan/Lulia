@@ -289,6 +289,7 @@ def _build_user_prompt(
     kb_chunks: Optional[list],
     class_intel_prompt: Optional[str],
     reference_exemplars: Optional[list] = None,
+    curriculum_context: Optional[dict] = None,
 ) -> str:
     """Build the user message for the Sonnet brief generator."""
     standards_text = "\n".join(
@@ -331,6 +332,24 @@ def _build_user_prompt(
             "to null and exemplar_count to 0.\n"
         )
 
+    curriculum_section = ""
+    if curriculum_context:
+        curriculum_section = f"""
+
+CURRICULUM POSITION (the teacher's actual position in their scope & sequence):
+- Current Unit: {curriculum_context.get('current_unit', '?')} (Unit {curriculum_context.get('unit_number', '?')} of {curriculum_context.get('total_units', '?')})
+- Topic: {curriculum_context.get('current_topic', '')}
+- Standards still to teach in this unit: {json.dumps(curriculum_context.get('standards_to_teach', []))}
+- Standards already covered in this unit: {json.dumps(curriculum_context.get('standards_already_covered_in_unit', []))}
+- Year progress: {curriculum_context.get('year_progress_pct', 0)}% of curriculum standards covered
+- Position source: {curriculum_context.get('position_source', 'auto')}
+
+IMPORTANT: Target the UNCOVERED standards in the current unit. Do not re-teach
+standards the teacher has already covered unless the work order explicitly asks
+for review. The curriculum_context section of your brief should reflect this."""
+    else:
+        curriculum_section = "\n\nCURRICULUM POSITION: (no curriculum set for this class — generate from standards alone)\n"
+
     return f"""Generate a Pedagogy Brief for the following assignment request.
 
 WORK ORDER:
@@ -344,6 +363,7 @@ ALIGNED STANDARDS (respect the three-tier hierarchy — these are authoritative)
 {standards_text}
 {kb_section}
 {class_section}
+{curriculum_section}
 {exemplar_section}
 
 Your task: produce a single JSON object matching exactly this schema. Fill every field. Use the pack as your source of truth. Do not include markdown fences or any prose outside the JSON.
@@ -391,6 +411,7 @@ def generate_brief(
     kb_chunks: Optional[list] = None,
     class_intel_prompt: Optional[str] = None,
     reference_exemplars: Optional[list] = None,
+    curriculum_context: Optional[dict] = None,
     client: Optional[anthropic.Anthropic] = None,
 ) -> Optional[dict]:
     """
@@ -404,6 +425,10 @@ def generate_brief(
         reference_exemplars: optional list of reference exemplars from the
             reference_retrieval module — real worksheets/slide decks/etc. from
             the teacher lanes whose structural shape the Content Agent will match
+        curriculum_context: optional dict from get_current_curriculum_context() —
+            the teacher's actual curriculum position (current unit, covered/uncovered
+            standards, year progress). When present, the brief targets uncovered
+            standards in the current unit.
         client: optional pre-initialized Anthropic client
 
     Returns:
@@ -440,7 +465,8 @@ def generate_brief(
         pack_yaml=pack_yaml,
     )
     user = _build_user_prompt(
-        work_order, curriculum_output, kb_chunks, class_intel_prompt, reference_exemplars
+        work_order, curriculum_output, kb_chunks, class_intel_prompt,
+        reference_exemplars, curriculum_context
     )
 
     try:

@@ -2,9 +2,11 @@
 import json
 import logging
 import os
+import re
 import tempfile
 from uuid import uuid4
 
+import anthropic
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, Form, Query, UploadFile, File
@@ -19,8 +21,12 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
+HAIKU = "claude-haiku-4-5-20251001"
+
 # Allowed file extensions for materials
 ALLOWED_EXTENSIONS = {"pdf", "docx", "doc", "txt", "md"}
+# Standards also accepts JSON
+STANDARDS_EXTENSIONS = {"pdf", "docx", "doc", "txt", "md", "json", "csv"}
 
 
 def get_db():
@@ -49,12 +55,141 @@ def get_s3_client():
     )
 
 
+def _extract_text_from_file(content: bytes, filename: str, max_chars: int = 15000) -> str:
+    """Extract text from PDF/DOCX/TXT for Haiku processing."""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext in ("txt", "md", "csv", "json"):
+        return content.decode("utf-8", errors="ignore")[:max_chars]
+
+    if ext == "pdf":
+        try:
+            import fitz
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            try:
+                doc = fitz.open(tmp_path)
+                text = ""
+                for page in doc:
+                    text += page.get_text()
+                    if len(text) > max_chars:
+                        break
+                doc.close()
+                return text[:max_chars]
+            finally:
+                os.unlink(tmp_path)
+        except Exception as e:
+            log.warning(f"PDF extraction failed: {e}")
+            return ""
+
+    if ext in ("docx", "doc"):
+        try:
+            from docx import Document
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            try:
+                doc = Document(tmp_path)
+                text = "\n".join(p.text for p in doc.paragraphs)
+                return text[:max_chars]
+            finally:
+                os.unlink(tmp_path)
+        except Exception as e:
+            log.warning(f"DOCX extraction failed: {e}")
+            return ""
+
+    return ""
+
+
+def _haiku_extract_standards(text: str, filename: str) -> dict:
+    """
+    Use Claude Haiku to extract structured standards from unstructured text.
+
+    Returns {"framework": {...}, "standards": [...]} or raises on failure.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY not set — cannot extract standards from PDF/DOCX")
+
+    client = anthropic.Anthropic(api_key=api_key)
+
+    system = (
+        "You are a standards extraction specialist. You read educational standards "
+        "documents from schools, dioceses, states, and districts and extract every "
+        "individual standard into a structured JSON format. Be thorough — extract "
+        "EVERY standard you can find, not just a sample. Preserve the exact codes "
+        "and descriptions from the document."
+    )
+
+    user = f"""Extract all educational standards from this document into structured JSON.
+
+Document: {filename}
+
+--- DOCUMENT TEXT ---
+{text[:12000]}
+--- END DOCUMENT TEXT ---
+
+Return a JSON object with this exact structure:
+{{
+  "framework": {{
+    "name": "<name of the standards framework, inferred from the document>",
+    "authority": "<organization that published these standards>",
+    "subjects": ["<list of subjects covered>"]
+  }},
+  "standards": [
+    {{
+      "code": "<the standard code exactly as written, e.g. 4.NF.1 or OH.SC.6.ES.1>",
+      "description": "<the full text description of the standard>",
+      "grade": "<grade level, e.g. 4, K, 9-10>",
+      "subject": "<subject area, e.g. Math, ELA, Science>",
+      "domain": "<domain or strand, e.g. Number and Operations, Reading Literature>"
+    }}
+  ]
+}}
+
+Rules:
+- Extract EVERY standard, not just a few examples
+- Use the exact code from the document — do not invent codes
+- If the document uses numbering instead of codes (like "1.", "2."), create codes from the subject, grade, and number
+- If no explicit code exists, create one from context (e.g., "CUSTOM.MATH.4.1")
+- The description should be the full text of what students should know or be able to do
+- Include the grade level for each standard
+- Respond with ONLY the JSON object"""
+
+    resp = client.messages.create(
+        model=HAIKU,
+        max_tokens=8192,
+        system=system,
+        messages=[{"role": "user", "content": user}],
+    )
+
+    text_resp = resp.content[0].text
+
+    # Extract JSON from response
+    try:
+        return json.loads(text_resp)
+    except json.JSONDecodeError:
+        match = re.search(r"\{[\s\S]*\}", text_resp)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        raise ValueError("Could not parse standards from Haiku response")
+
+
 @router.post("/standards")
 async def upload_standards(file: UploadFile = File(...), conn=Depends(get_db)):
     """
     Upload custom standards file (Tier 1 — highest priority).
 
-    Expected JSON format:
+    Accepts:
+      - JSON: Direct structured format (fast-track, no LLM needed)
+      - PDF/DOCX/TXT: Any readable standards document — Claude Haiku
+        extracts the individual standards automatically.
+
+    JSON format (if using JSON directly):
     {
       "framework": {
         "name": "Archdiocese of Cincinnati Standards",
@@ -68,17 +203,66 @@ async def upload_standards(file: UploadFile = File(...), conn=Depends(get_db)):
     }
     """
     content = await file.read()
-    try:
-        data = json.loads(content)
-    except json.JSONDecodeError:
-        return JSONResponse({"error": "Invalid JSON file"}, status_code=400)
+    filename = file.filename or "standards"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
-    fw = data.get("framework", {})
-    standards = data.get("standards", [])
+    if ext not in STANDARDS_EXTENSIONS:
+        return JSONResponse(
+            {"error": f"Unsupported file type: .{ext}. Upload PDF, DOCX, TXT, or JSON."},
+            status_code=400,
+        )
 
-    if not fw.get("name") or not standards:
-        return JSONResponse({"error": "Missing framework name or standards array"}, status_code=400)
+    # ── Path 1: JSON fast-track ──
+    if ext == "json":
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            return JSONResponse({"error": "Invalid JSON file"}, status_code=400)
 
+        fw = data.get("framework", {})
+        standards = data.get("standards", [])
+
+        if not fw.get("name") or not standards:
+            return JSONResponse(
+                {"error": "Missing 'framework.name' or 'standards' array in JSON"},
+                status_code=400,
+            )
+    else:
+        # ── Path 2: PDF/DOCX/TXT → Haiku extraction ──
+        log.info(f"[Standards] Extracting standards from {ext.upper()}: {filename}")
+
+        text = _extract_text_from_file(content, filename)
+        if not text or len(text.strip()) < 50:
+            return JSONResponse(
+                {"error": "Could not extract readable text from this file. The file may be scanned/image-only or corrupted."},
+                status_code=400,
+            )
+
+        try:
+            data = _haiku_extract_standards(text, filename)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        except Exception as e:
+            log.error(f"[Standards] Haiku extraction failed: {e}")
+            return JSONResponse(
+                {"error": f"Standards extraction failed: {str(e)}"},
+                status_code=500,
+            )
+
+        fw = data.get("framework", {})
+        standards = data.get("standards", [])
+
+        if not standards:
+            return JSONResponse(
+                {"error": "No standards could be extracted from this document. Please check that it contains educational standards with codes and descriptions."},
+                status_code=400,
+            )
+
+        # Auto-fill framework name if Haiku didn't provide one
+        if not fw.get("name"):
+            fw["name"] = filename.rsplit(".", 1)[0].replace("_", " ").title()
+
+    # ── Store in database (same for both paths) ──
     cur = conn.cursor()
     framework_id = str(uuid4())
     cur.execute(
@@ -110,12 +294,14 @@ async def upload_standards(file: UploadFile = File(...), conn=Depends(get_db)):
     conn.commit()
     cur.close()
 
+    extraction_method = "json_direct" if ext == "json" else "haiku_extraction"
     return {
         "framework_id": framework_id,
         "name": fw["name"],
         "tier": "custom",
         "priority": 1,
         "standards_loaded": loaded,
+        "extraction_method": extraction_method,
     }
 
 
@@ -197,6 +383,23 @@ async def upload_materials(
             scope=scope,
         )
         result["s3_key"] = s3_key
+
+        # Auto-classify the uploaded source for reference-grounded generation.
+        # This makes the material immediately usable as a structural exemplar.
+        source_id = result.get("source_id")
+        if source_id:
+            try:
+                from src.lms_agents.tools.reference_analyzer import analyze_source
+                meta = analyze_source(source_id, write_to_chunks=True)
+                if meta:
+                    result["reference_metadata"] = {
+                        "artifact_type": meta.get("artifact_type"),
+                        "content_shape": meta.get("content_shape_description"),
+                    }
+                    log.info(f"[Upload] Auto-classified as: {meta.get('artifact_type')}")
+            except Exception as e:
+                log.warning(f"[Upload] Auto-classify failed (non-fatal): {e}")
+
         return result
     except Exception as e:
         log.error(f"Ingestion failed: {e}")

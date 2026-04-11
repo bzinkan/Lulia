@@ -251,6 +251,21 @@ def run_content_agent(
                 kb_context += f"{r['content']}\n"
             log.info(f"[Content Agent] RAG KB returned {len(results)} relevant chunks")
 
+    # Inject textbook grounding from pre-fetched chunks (tagged with [TEXTBOOK])
+    # These are the teacher's uploaded textbook chapters — authoritative content source
+    textbook_chunks = [c for c in (work_order.get("_kb_chunks_injected") or []) if c.get("_is_textbook")]
+    if not textbook_chunks and pedagogy_brief:
+        # Check if the director attached any textbook chunks
+        textbook_chunks = [c for c in (pedagogy_brief.get("_kb_chunks") or []) if c.get("_is_textbook")]
+
+    if textbook_chunks:
+        kb_context += "\n\nTEACHER'S TEXTBOOK (AUTHORITATIVE CONTENT SOURCE — use this vocabulary, "
+        kb_context += "these examples, and these explanations as your primary content reference):\n"
+        for tc in textbook_chunks:
+            kb_context += f"\n--- {tc.get('source_name', 'Textbook')} ---\n"
+            kb_context += f"{tc.get('content', '')}\n"
+        log.info(f"[Content Agent] Textbook grounding: {len(textbook_chunks)} chunks (authoritative)")
+
     standards_text = "\n".join(
         f"- {s['code']}: {s['description']}" for s in curriculum_output.get("standards", [])
     )
@@ -263,6 +278,12 @@ def run_content_agent(
     brief_section = ""
     if pedagogy_brief:
         brief_section = "\n\n" + format_brief_for_prompt(pedagogy_brief) + "\n"
+
+    # Inject teacher style profile if available
+    style_section = ""
+    if teacher_style:
+        from src.lms_agents.tools.teacher_style_analyzer import format_style_for_prompt
+        style_section = "\n\n" + format_style_for_prompt(teacher_style) + "\n"
 
     system = (
         f"You are an expert educational content creator for grade {grade} {subject}. "
@@ -295,6 +316,7 @@ ALIGNED STANDARDS:
 {standards_text}
 {kb_context}
 {brief_section}
+{style_section}
 {revision_section}
 {history_exclusion}
 
@@ -712,6 +734,49 @@ def _fetch_reference_exemplars(work_order: dict, curriculum_output: dict) -> lis
         return None
 
 
+def _fetch_textbook_grounding(work_order: dict, curriculum_output: dict) -> list | None:
+    """
+    Fetch textbook/reference_text chunks uploaded by the teacher.
+
+    These are used differently from worksheet exemplars: textbook content
+    provides vocabulary, examples, and explanations that the Content Agent
+    should USE as its content source. Worksheet exemplars provide structural
+    shape to match. This function returns the content source, not the shape.
+    """
+    try:
+        from src.lms_agents.tools.reference_retrieval import find_reference_exemplars
+
+        subject = work_order.get("subject", "")
+        grade = work_order.get("grade_level", "")
+
+        standards = curriculum_output.get("standards", []) or []
+        if standards:
+            topic_query = " ".join(s.get("description", "") for s in standards[:3])[:500]
+        else:
+            topic_query = f"{subject} grade {grade}"
+
+        # Search specifically for reference_text (textbook chapters)
+        textbook_chunks = find_reference_exemplars(
+            topic_query=topic_query,
+            grade=grade,
+            subject=subject,
+            artifact_type="reference_text",
+            teacher_id=work_order.get("teacher_id"),
+            top_k=3,
+            lanes=["teacher_archive", "teacher_reference"],
+        )
+
+        if textbook_chunks:
+            log.info(
+                f"[AssignmentCrew] Found {len(textbook_chunks)} textbook grounding chunks "
+                f"for {subject} grade {grade}"
+            )
+        return textbook_chunks or None
+    except Exception as e:
+        log.warning(f"[AssignmentCrew] Textbook grounding lookup failed (non-fatal): {e}")
+        return None
+
+
 def run_assignment_crew(work_order: dict) -> dict:
     """
     Run the full 6-step assignment generation crew.
@@ -735,12 +800,58 @@ def run_assignment_crew(work_order: dict) -> dict:
     kb_chunks = _fetch_kb_chunks_for_brief(work_order, curriculum_output)
     class_intel_prompt = _fetch_class_intel_prompt(work_order)
     reference_exemplars = _fetch_reference_exemplars(work_order, curriculum_output)
+
+    # Fetch teacher style profile (aggregated from their uploaded materials)
+    teacher_style = None
+    try:
+        from src.lms_agents.tools.teacher_style_analyzer import get_teacher_style_profile
+        tid = work_order.get("teacher_id")
+        if tid:
+            teacher_style = get_teacher_style_profile(tid)
+            if teacher_style:
+                log.info(
+                    f"[AssignmentCrew] Teacher style: primary={teacher_style.get('primary_artifact_type')}, "
+                    f"avg_questions={teacher_style.get('question_count_avg')}"
+                )
+    except Exception as e:
+        log.warning(f"[AssignmentCrew] Teacher style lookup failed (non-fatal): {e}")
+
+    # Fetch textbook grounding (reference_text artifacts from teacher uploads)
+    textbook_grounding = _fetch_textbook_grounding(work_order, curriculum_output)
+    if textbook_grounding:
+        # Merge textbook excerpts into kb_chunks so the Content Agent sees them
+        # but tagged as authoritative content sources, not just generic RAG hits
+        if kb_chunks is None:
+            kb_chunks = []
+        for tg in textbook_grounding:
+            kb_chunks.append({
+                "source_name": f"[TEXTBOOK] {tg.get('source_name', '')}",
+                "content": tg.get("excerpt", ""),
+                "_is_textbook": True,
+            })
+
+    # Fetch curriculum context if the class has a curriculum
+    curriculum_context = None
+    try:
+        from src.lms_agents.tools.class_intelligence import get_current_curriculum_context
+        class_id = work_order.get("class_id")
+        if class_id:
+            curriculum_context = get_current_curriculum_context(class_id)
+            if curriculum_context:
+                log.info(
+                    f"[AssignmentCrew] Curriculum context: unit={curriculum_context.get('current_unit')}, "
+                    f"progress={curriculum_context.get('year_progress_pct')}%"
+                )
+    except Exception as e:
+        log.warning(f"[AssignmentCrew] Curriculum context lookup failed (non-fatal): {e}")
+
     pedagogy_brief = generate_brief(
         work_order=work_order,
         curriculum_output=curriculum_output,
         kb_chunks=kb_chunks,
         class_intel_prompt=class_intel_prompt,
         reference_exemplars=reference_exemplars,
+        curriculum_context=curriculum_context,
         client=client,
     )
     if pedagogy_brief is None:
@@ -785,10 +896,30 @@ def run_assignment_crew(work_order: dict) -> dict:
 
     # Auto-extract class intelligence (non-fatal)
     try:
-        from src.lms_agents.tools.class_intelligence import auto_extract_from_assignment
+        from src.lms_agents.tools.class_intelligence import (
+            auto_extract_from_assignment,
+            log_standards_batch,
+            auto_advance_position,
+        )
         class_id = work_order.get("class_id")
+        teacher_id = work_order.get("teacher_id", "")
         if class_id and assignment_id:
             auto_extract_from_assignment(class_id, assignment_id)
+
+        # Always-on standard activity logging — fires even without a curriculum
+        standard_codes = [s["code"] for s in curriculum_output.get("standards", []) if s.get("code")]
+        if standard_codes and (class_id or teacher_id):
+            log_standards_batch(
+                class_id=class_id or "no_class",
+                teacher_id=teacher_id,
+                standard_codes=standard_codes,
+                activity_type="assignment_generated",
+                source_id=assignment_id,
+            )
+
+        # Auto-advance curriculum position if class has a curriculum
+        if class_id:
+            auto_advance_position(class_id)
     except Exception as e:
         log.warning(f"[ClassIntel] Auto-extraction hook failed (non-fatal): {e}")
 

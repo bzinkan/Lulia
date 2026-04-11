@@ -55,7 +55,7 @@ export default function ClassTabBar({ onCreateClick, onEditClick }) {
     <>
       {/* Desktop tab bar */}
       <div className="hidden sm:block" style={{
-        background: 'white', borderBottom: '1px solid #E7E5E4',
+        background: 'var(--warm-card)', borderBottom: '1px solid var(--border)',
         position: 'sticky', top: 0, zIndex: 20,
       }}>
         <div style={{
@@ -78,21 +78,21 @@ export default function ClassTabBar({ onCreateClick, onEditClick }) {
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '10px 14px', border: 'none', background: 'transparent',
                   cursor: 'pointer', whiteSpace: 'nowrap', scrollSnapAlign: 'start',
-                  borderBottom: isActive ? '2px solid #F97316' : '2px solid transparent',
-                  color: isActive ? '#78350F' : '#A8A29E',
+                  borderBottom: isActive ? '2px solid var(--coral)' : '2px solid transparent',
+                  color: isActive ? 'var(--text-dark)' : 'var(--text-light)',
                   fontWeight: isActive ? 600 : 400,
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 13,
+                  fontFamily: "'Nunito', sans-serif", fontSize: 13,
                   transition: 'all 0.15s',
                 }}
-                onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = '#78716C'; }}
-                onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = '#A8A29E'; }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--text-mid)'; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--text-light)'; }}
               >
                 <Icon style={{ width: 15, height: 15, flexShrink: 0 }} />
                 <span>{cls.name}</span>
                 <span style={{
                   fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 4,
-                  background: isActive ? '#FFF7ED' : '#F5F5F4',
-                  color: isActive ? '#F97316' : '#A8A29E',
+                  background: isActive ? 'var(--cream)' : 'var(--border)',
+                  color: isActive ? 'var(--coral)' : 'var(--text-light)',
                 }}>{cls.grade_level}</span>
               </button>
             );
@@ -103,12 +103,12 @@ export default function ClassTabBar({ onCreateClick, onEditClick }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '10px 12px', border: 'none', background: 'transparent',
-              cursor: 'pointer', color: '#D6D3D1', fontSize: 12,
-              fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
+              cursor: 'pointer', color: 'var(--text-light)', fontSize: 12,
+              fontFamily: "'Nunito', sans-serif", whiteSpace: 'nowrap',
               borderBottom: '2px solid transparent',
             }}
-            onMouseEnter={e => e.currentTarget.style.color = '#F97316'}
-            onMouseLeave={e => e.currentTarget.style.color = '#D6D3D1'}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--coral)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-light)'}
             title="Add a class"
           >
             <Plus style={{ width: 14, height: 14 }} />
@@ -118,29 +118,29 @@ export default function ClassTabBar({ onCreateClick, onEditClick }) {
 
       {/* Mobile dropdown */}
       <div className="sm:hidden" style={{
-        background: 'white', borderBottom: '1px solid #E7E5E4',
+        background: 'var(--warm-card)', borderBottom: '1px solid var(--border)',
         position: 'sticky', top: 0, zIndex: 20,
         padding: '6px 12px',
       }}>
         <button onClick={() => setMobileOpen(!mobileOpen)} style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 12px', borderRadius: 10, border: '1px solid #E7E5E4',
-          background: 'white', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+          padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border)',
+          background: 'var(--warm-card)', cursor: 'pointer', fontFamily: "'Nunito', sans-serif",
         }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#78350F', fontWeight: 600 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-dark)', fontWeight: 600 }}>
             <ActiveIcon style={{ width: 16, height: 16 }} />
             {activeClass?.name || 'Select a class'}
-            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#FFF7ED', color: '#F97316', fontWeight: 600 }}>
+            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'var(--cream)', color: 'var(--coral)', fontWeight: 600 }}>
               {activeClass?.grade_level}
             </span>
           </span>
-          <ChevronDown style={{ width: 16, height: 16, color: '#A8A29E', transform: mobileOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+          <ChevronDown style={{ width: 16, height: 16, color: 'var(--text-light)', transform: mobileOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
         </button>
 
         {mobileOpen && (
           <div style={{
             position: 'absolute', left: 12, right: 12, top: '100%',
-            background: 'white', borderRadius: 12, border: '1px solid #E7E5E4',
+            background: 'var(--warm-card)', borderRadius: 12, border: '1px solid var(--border)',
             boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 30,
             overflow: 'hidden', marginTop: 4,
           }}>
@@ -151,14 +151,14 @@ export default function ClassTabBar({ onCreateClick, onEditClick }) {
                 <button key={cls.class_id} onClick={() => { setActiveClassId(cls.class_id); setMobileOpen(false); }}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '10px 14px', border: 'none', borderBottom: '1px solid #F5F5F4',
-                    background: isActive ? '#FFF7ED' : 'white', cursor: 'pointer',
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 13,
-                    color: isActive ? '#78350F' : '#1C1917',
+                    padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--border)',
+                    background: isActive ? 'var(--cream)' : 'white', cursor: 'pointer',
+                    fontFamily: "'Nunito', sans-serif", fontSize: 13,
+                    color: isActive ? 'var(--text-dark)' : 'var(--text-dark)',
                   }}>
-                  <Icon style={{ width: 15, height: 15, color: isActive ? '#F97316' : '#A8A29E' }} />
+                  <Icon style={{ width: 15, height: 15, color: isActive ? 'var(--coral)' : 'var(--text-light)' }} />
                   {cls.name}
-                  <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: isActive ? '#F97316' : '#F5F5F4', color: isActive ? 'white' : '#A8A29E', fontWeight: 600, marginLeft: 'auto' }}>
+                  <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: isActive ? 'var(--coral)' : 'var(--border)', color: isActive ? 'white' : 'var(--text-light)', fontWeight: 600, marginLeft: 'auto' }}>
                     {cls.grade_level}
                   </span>
                 </button>
@@ -167,9 +167,9 @@ export default function ClassTabBar({ onCreateClick, onEditClick }) {
             <button onClick={() => { onCreateClick?.(); setMobileOpen(false); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center',
-                padding: '10px 14px', border: 'none', background: '#FFF7ED',
-                cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: 12,
-                color: '#F97316', fontWeight: 600,
+                padding: '10px 14px', border: 'none', background: 'var(--cream)',
+                cursor: 'pointer', fontFamily: "'Nunito', sans-serif", fontSize: 12,
+                color: 'var(--coral)', fontWeight: 600,
               }}>
               <Plus style={{ width: 14, height: 14 }} /> New Class
             </button>
@@ -181,7 +181,7 @@ export default function ClassTabBar({ onCreateClick, onEditClick }) {
       {contextMenu && (
         <div ref={menuRef} style={{
           position: 'fixed', left: contextMenu.x, top: contextMenu.y,
-          background: 'white', borderRadius: 10, border: '1px solid #E7E5E4',
+          background: 'var(--warm-card)', borderRadius: 10, border: '1px solid var(--border)',
           boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 50,
           overflow: 'hidden', minWidth: 140,
         }}>
@@ -191,11 +191,11 @@ export default function ClassTabBar({ onCreateClick, onEditClick }) {
           ].map(item => (
             <button key={item.label} onClick={item.action}
               style={{
-                width: '100%', padding: '8px 14px', border: 'none', background: 'white',
+                width: '100%', padding: '8px 14px', border: 'none', background: 'var(--warm-card)',
                 cursor: 'pointer', textAlign: 'left', fontSize: 12,
-                fontFamily: "'DM Sans', sans-serif", color: item.label === 'Archive' ? '#EF4444' : '#1C1917',
+                fontFamily: "'Nunito', sans-serif", color: item.label === 'Archive' ? '#EF4444' : 'var(--text-dark)',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = '#FFF7ED'}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--cream)'}
               onMouseLeave={e => e.currentTarget.style.background = 'white'}>
               {item.label}
             </button>

@@ -3,7 +3,7 @@
 ## What This Project Is
 Lulia is an AI-powered LMS that replaces Teachers Pay Teachers. Teachers upload curriculum, approve a weekly plan, and the system generates everything: lesson plans, worksheets, task cards, interactive activities, live games, videos, and more — all standards-aligned, TpT-quality, never repeated.
 
-**Current status**: Phases 1–24 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
+**Current status**: Phases 1–25 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
 
 ## Architecture Reference
 The complete architecture document is at `docs/architecture-v3.3.docx`. Read the relevant skills in `.claude/skills/` before starting any work — they contain patterns, code examples, and key decisions.
@@ -66,7 +66,9 @@ src/lms_agents/
 │   ├── pedagogy_director.py        # Phase 22: pack loader, router, brief generator
 │   ├── visual_renderer.py          # Phase 22: 19 visual types, inline SVG
 │   ├── reference_analyzer.py       # Phase 23: Haiku classifier for artifact shape
-│   └── reference_retrieval.py      # Phase 23: find_reference_exemplars()
+│   ├── reference_retrieval.py      # Phase 23: find_reference_exemplars()
+│   ├── curriculum_generator.py     # Phase 25: generate scope & sequence from state standards
+│   └── teacher_style_analyzer.py   # Phase 25: aggregate teacher upload patterns into style profile
 ├── templates/       # 22 output templates + 5 puzzle generators + shared themes
 ├── websocket/       # WebSocket game server
 ├── worker/          # Background worker
@@ -128,7 +130,7 @@ The ingestion pipeline is idempotent — each source gets a deterministic `name`
 - `video-pipeline` — TTS (Polly/ElevenLabs), slide rendering, ffmpeg assembly
 - `interactive-system` — React generation, game shells, WebSocket, student access
 - `lms-master` — Architecture hub, all decisions, build timeline
-- `dashboard-frontend` — Peach & Amber design system, DM Serif Display + DM Sans fonts
+- `dashboard-frontend` — Retro Earth design system, DM Serif Display + Nunito fonts, 3D Pillow icons
 
 ## What's Built (Phases 1–16)
 
@@ -159,6 +161,7 @@ The ingestion pipeline is idempotent — each source gets a deterministic `name`
 | 22 | Pedagogy Director + 16-expert matrix (K-2/3-5/6-8/9-12 × math/ELA/science/social), 20 YAML pedagogy packs (~5,800 lines), brief generator wired into Assignment/Planning/Video crews. Structured visuals: 19 inline-SVG visual types (ten_frame, number_bond, fraction_bar, array, bar_model, area_model, number_line, coordinate_grid, function_table, equation_box, base_ten_blocks, counting_objects, data_table, labeled_diagram, letter_box, word_box, handwriting_lines, picture_choice). Deterministic QA bracket-detector. Fixed hardcoded grade_level='4' bug in planning_crew.approve_plan. All 4 grade bands live-verified against Anthropic API. |
 | 24 | Nationwide standards + full-KB alignment: imported all 50 states + DC (1.21M state standards) from Common Standards Project API. Built `scripts/embed_standards_parallel.py` (24-worker ThreadPoolExecutor, 10x speedup). Built `scripts/align_standards_offline.py` with provider-agnostic dispatch, merge-safe writeback (grade_bands + standards_tags UNIONed via SQL, reference_metadata provably untouched). Ingested 1,134 local reference files (Teaching/ + K-8 material/) into teacher-scoped knowledge base via `scripts/ingest_local_references.py`. Created HNSW index on `standards.embedding`. Fixed 2 FK violation bugs in `import_standards.py`, subject mismatch filter, and Haiku JSON trailing-prose parser. |
 | 23 | Reference-grounded generation: `reference_metadata` JSONB column on `knowledge_chunks` (migration, GIN + partial indexes). `reference_analyzer.py` classifies sources via Haiku into artifact_type + structural/scaffolding features + content_shape_description. `reference_retrieval.py` finds real worksheets/slide decks/lesson plans by structural shape from `teacher_archive` / `teacher_reference` lanes with grade-band-aware lane priority (K-2/3-5 exclude openstax). Pedagogy Brief extended with `reference_exemplar_guidance` section. Assignment Crew pre-fetches exemplars and passes them to the director. Content Agent system prompt updated to treat exemplar shape as authoritative template. A/B test (`test_reference_grounded_generation.py`) validated QA score delta +27 vs un-grounded baseline on 6-8 Earth Science rock cycle fixture. |
+| 25 | Retro Earth dashboard redesign + Curriculum feature + Upload intelligence. **Frontend**: renamed to "Lulia Lesson Lab", new Retro Earth design system (coral/sage/teal/mustard palette, Nunito body font, warm-bg backgrounds, 3D Pillow-generated nav icons), redesigned sidebar (9 flat items, user profile footer), rich dashboard home (hero banner, animated stat counters, Today's Schedule, Quick Actions, Weekly Activity chart, Class Mastery progress, Recent Activity feed), scroll-reveal + counter animations, custom hooks (`useScrollReveal`, `useCounterAnimation`). **Curriculum feature**: living interactive curriculum page (`/curriculum`), 3 entry paths (upload pacing guide / generate from state standards via Sonnet / silent tracking without curriculum), flexible position tracking (`standard_activity_log` always-on, `auto_advance_position`, teacher `override_position` jump-to-unit), `curriculum_generator.py` builds scope & sequence from 1.21M state standards, gaps view with per-unit completion. **Upload intelligence**: two-layer validation (`upload_validate.py` — deterministic format check + Haiku content classification), standards upload now accepts PDF/DOCX with Haiku auto-extraction (not JSON-only), auto-classify on upload via `reference_analyzer`, teacher style profiling (`teacher_style_analyzer.py` aggregates patterns from uploads), textbook grounding (reference_text artifacts routed as authoritative content source to Content Agent). 21/21 diagnostic checks pass. |
 
 ## Local Development
 
@@ -177,5 +180,5 @@ Admin: http://localhost:3001/admin (admin@lulia.com / admin)
 - Pydantic v2 for request/response schemas
 - Type hints everywhere
 - Environment variables via python-dotenv, never hardcoded
-- Peach & Amber design system for all frontend (warm tones, DM Serif Display headings, #F97316 primary)
+- Retro Earth design system for all frontend (coral #D86C52 / sage #6BA08A / teal #4E8C96 / mustard #DAB04E palette, DM Serif Display headings, Nunito body, warm-bg #F5EDE0 background, 3D Pillow-generated nav icons)
 - All generation pages use 3 creation modes: Prompt / Quick Form / From Existing

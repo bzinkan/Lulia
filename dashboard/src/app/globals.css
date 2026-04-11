@@ -2,4 +2,176 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Nunito:wght@400;600;700;800&display=swap');
+
+/* ============================================================
+   RETRO EARTH DESIGN SYSTEM — CSS Custom Properties
+   ============================================================ */
+:root {
+  /* Primary palette */
+  --coral: #D86C52;
+  --coral-light: #E8927A;
+  --coral-dark: #C25A3E;
+  --sage: #6BA08A;
+  --sage-light: #8FBFAB;
+  --mustard: #DAB04E;
+  --mustard-light: #E8C872;
+  --teal: #4E8C96;
+  --teal-light: #6AABB5;
+
+  /* Accents */
+  --dusty-pink: #C3787E;
+  --plum: #8C5A82;
+  --warm-brown: #78503C;
+
+  /* Neutrals & backgrounds */
+  --cream: #FAF5ED;
+  --warm-bg: #F5EDE0;
+  --warm-card: #FFFAF3;
+
+  /* Text */
+  --text-dark: #3D2B1F;
+  --text-mid: #6B5344;
+  --text-light: #9A8678;
+
+  /* Borders & shadows */
+  --border: #E8DDD0;
+  --shadow: rgba(60, 40, 20, 0.08);
+  --shadow-md: rgba(60, 40, 20, 0.12);
+
+  /* Semantic colors */
+  --green: #22C55E;
+  --green-bg: #DCFCE7;
+  --green-text: #16A34A;
+  --red: #EF4444;
+  --red-bg: #FEF2F2;
+  --amber: #D97706;
+  --amber-bg: #FEF3C7;
+  --blue: #2563EB;
+  --blue-bg: #DBEAFE;
+  --pink: #DB2777;
+  --pink-bg: #FCE7F3;
+}
+
+/* ============================================================
+   WARM BACKGROUND ATMOSPHERE
+   ============================================================ */
+
+/* Subtle radial gradient overlay for warmth */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(107,160,138,0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(216,108,82,0.06) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(218,175,78,0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle retro dot-grid texture */
+.retro-pattern {
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%233D2B1F' fill-opacity='1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3Ccircle cx='0' cy='0' r='2'/%3E%3Ccircle cx='60' cy='0' r='2'/%3E%3Ccircle cx='0' cy='60' r='2'/%3E%3Ccircle cx='60' cy='60' r='2'/%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================================
+   SCROLL REVEAL ANIMATIONS
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   KEYFRAME ANIMATIONS
+   ============================================================ */
+
+/* Hero floating shapes */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+@keyframes floatY-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(5deg); }
+}
+
+/* Stat counter fade-in */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Spin for loading */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   CHART & PROGRESS BAR TRANSITIONS
+   ============================================================ */
+.chart-bar {
+  transition: height 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mastery-fill {
+  transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================
+   HOVER UTILITIES
+   ============================================================ */
+
+/* Card hover lift */
+.hover-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 28px var(--shadow-md);
+}
+
+/* Nav item hover slide */
+.hover-slide {
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.hover-slide:hover {
+  transform: translateX(4px);
+}
+
+/* Icon hover effect (apply to parent, targets .nav-icon-img child) */
+.icon-hover .nav-icon-img {
+  transition: transform 0.25s ease;
+}
+.icon-hover:hover .nav-icon-img {
+  transform: scale(1.15) rotate(-5deg);
+}
+
+/* Schedule item hover */
+.schedule-hover {
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.schedule-hover:hover {
+  transform: translateX(5px);
+  background-color: var(--cream);
+}
+
+/* ============================================================
+   TYPOGRAPHY UTILITIES
+   ============================================================ */
+.font-heading {
+  font-family: 'DM Serif Display', serif;
+}

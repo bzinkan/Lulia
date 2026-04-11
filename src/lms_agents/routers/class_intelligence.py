@@ -16,7 +16,11 @@ from src.lms_agents.tools.class_intelligence import (
     update_class_profile as _update_class_profile,
     update_pacing as _update_pacing,
     rebuild_ai_context,
+    get_current_curriculum_context,
+    get_standards_coverage,
+    override_position,
 )
+from src.lms_agents.tools.curriculum_generator import generate_curriculum_from_standards
 
 log = logging.getLogger(__name__)
 
@@ -163,4 +167,82 @@ async def rebuild_endpoint(class_id: str):
         return {"status": "ok", "context_prompt": summary}
     except Exception as e:
         log.error(f"[ClassIntel API] Failed to rebuild context: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ---------------------------------------------------------------------------
+# Curriculum position + generation endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/curriculum/position")
+async def curriculum_position_endpoint(class_id: str):
+    """Get the teacher's current curriculum position for this class."""
+    try:
+        ctx = get_current_curriculum_context(class_id)
+        if ctx is None:
+            return {"has_curriculum": False}
+        return {"has_curriculum": True, **ctx}
+    except Exception as e:
+        log.error(f"[ClassIntel API] Curriculum position failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.get("/curriculum/gaps")
+async def curriculum_gaps_endpoint(class_id: str):
+    """
+    Get standards coverage for a class — works WITH or WITHOUT a curriculum.
+    Without: flat list of covered standards from activity log.
+    With: grouped by unit with per-unit completion percentages.
+    """
+    try:
+        return get_standards_coverage(class_id)
+    except Exception as e:
+        log.error(f"[ClassIntel API] Curriculum gaps failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+class PositionOverrideRequest(BaseModel):
+    target_calendar_id: str
+
+
+@router.post("/curriculum/jump")
+async def curriculum_jump_endpoint(class_id: str, req: PositionOverrideRequest):
+    """Teacher manually jumps to a specific unit."""
+    try:
+        override_position(class_id, req.target_calendar_id)
+        ctx = get_current_curriculum_context(class_id)
+        return {"status": "ok", "new_position": ctx}
+    except Exception as e:
+        log.error(f"[ClassIntel API] Position jump failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+class GenerateCurriculumRequest(BaseModel):
+    grade_level: str
+    subject: str
+    state_code: str
+    scope: str = "full_year"  # "full_year" or "next_unit"
+
+
+@router.post("/curriculum/generate")
+async def generate_curriculum_endpoint(class_id: str, req: GenerateCurriculumRequest):
+    """
+    Generate a curriculum from state standards for this class.
+
+    The teacher picks grade + subject + state, and the system builds a
+    scope & sequence using the standards already loaded in the database.
+    """
+    try:
+        result = generate_curriculum_from_standards(
+            grade_level=req.grade_level,
+            subject=req.subject,
+            state_code=req.state_code,
+            scope=req.scope,
+            class_id=class_id,
+        )
+        if result.get("error"):
+            return JSONResponse({"error": result["error"]}, status_code=400)
+        return result
+    except Exception as e:
+        log.error(f"[ClassIntel API] Curriculum generation failed: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)

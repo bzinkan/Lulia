@@ -614,3 +614,372 @@ def auto_extract_from_lesson_plan(class_id: str, lesson_plan_data: dict) -> None
         log.info(f"[ClassIntel] Auto-extracted from lesson plan for class {class_id}")
     except Exception as e:
         log.warning(f"[ClassIntel] Lesson plan extraction failed for class {class_id}: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Always-on standard activity logging
+# ---------------------------------------------------------------------------
+
+def log_standard_activity(
+    class_id: str,
+    teacher_id: str,
+    standard_code: str,
+    activity_type: str,
+    source_id: str | None = None,
+) -> None:
+    """
+    Append to standard_activity_log. Always fires, curriculum or not.
+
+    This is the foundation for both curriculum position tracking AND the
+    silent standards coverage view for teachers without a curriculum.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """INSERT INTO standard_activity_log
+               (log_id, class_id, teacher_id, standard_code, activity_type, source_id)
+               VALUES (uuid_generate_v4(), %s, %s::uuid, %s, %s, %s)""",
+            (class_id, teacher_id, standard_code, activity_type, source_id),
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        log.warning(f"[ClassIntel] Failed to log standard activity: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+def log_standards_batch(
+    class_id: str,
+    teacher_id: str,
+    standard_codes: list[str],
+    activity_type: str,
+    source_id: str | None = None,
+) -> None:
+    """Log multiple standards at once. Calls log_standard_activity in a batch."""
+    if not standard_codes:
+        return
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        for code in standard_codes:
+            if isinstance(code, str) and code.strip():
+                cur.execute(
+                    """INSERT INTO standard_activity_log
+                       (log_id, class_id, teacher_id, standard_code, activity_type, source_id)
+                       VALUES (uuid_generate_v4(), %s, %s::uuid, %s, %s, %s)""",
+                    (class_id, teacher_id, code.strip(), activity_type, source_id),
+                )
+        conn.commit()
+        log.info(f"[ClassIntel] Logged {len(standard_codes)} standards for class {class_id}")
+    except Exception as e:
+        conn.rollback()
+        log.warning(f"[ClassIntel] Batch standard log failed: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Curriculum position tracking
+# ---------------------------------------------------------------------------
+
+def get_current_curriculum_context(class_id: str) -> dict | None:
+    """
+    Get the teacher's actual curriculum position for this class.
+
+    Returns None if the class has no curriculum.
+    Returns a dict with current_unit, standards_to_teach, standards_covered, etc.
+
+    Used by Planner and Pedagogy Director.
+    """
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # Check if class has a curriculum
+        cur.execute(
+            "SELECT * FROM class_intelligence WHERE class_id = %s",
+            (class_id,),
+        )
+        intel = cur.fetchone()
+        if not intel or not intel.get("has_curriculum"):
+            return None
+
+        # Get all curriculum units for this class
+        cur.execute(
+            """SELECT * FROM curriculum_calendar
+               WHERE class_id = %s
+               ORDER BY COALESCE(sort_order, week_number) ASC""",
+            (class_id,),
+        )
+        units = [dict(r) for r in cur.fetchall()]
+        if not units:
+            return None
+
+        # Get covered standards from class_intelligence
+        covered_raw = intel.get("standards_covered") or []
+        covered = set()
+        for item in covered_raw:
+            if isinstance(item, dict):
+                covered.add(item.get("code", ""))
+            elif isinstance(item, str):
+                covered.add(item)
+
+        # Determine current unit
+        current_unit = None
+        current_cal_id = intel.get("current_calendar_id")
+
+        if current_cal_id:
+            # Teacher has a set position — use it
+            current_unit = next(
+                (u for u in units if str(u["calendar_id"]) == str(current_cal_id)),
+                None,
+            )
+
+        if not current_unit:
+            # Infer: first unit with uncovered standards
+            for u in units:
+                unit_stds = set(_extract_standard_codes(u.get("standards_scheduled")))
+                if not unit_stds.issubset(covered):
+                    current_unit = u
+                    break
+
+        if not current_unit:
+            # Everything covered — use last unit
+            current_unit = units[-1]
+
+        # Compute unit-level stats
+        unit_stds = set(_extract_standard_codes(current_unit.get("standards_scheduled")))
+        total_stds = set()
+        for u in units:
+            total_stds.update(_extract_standard_codes(u.get("standards_scheduled")))
+
+        return {
+            "current_unit": current_unit.get("unit_name", ""),
+            "current_topic": current_unit.get("topic", ""),
+            "current_calendar_id": str(current_unit.get("calendar_id", "")),
+            "unit_number": current_unit.get("sort_order") or current_unit.get("week_number"),
+            "total_units": len(units),
+            "standards_to_teach": sorted(unit_stds - covered),
+            "standards_already_covered_in_unit": sorted(unit_stds & covered),
+            "year_progress_pct": round(
+                len(covered & total_stds) / max(len(total_stds), 1) * 100, 1
+            ),
+            "total_standards_covered": len(covered & total_stds),
+            "total_standards_in_curriculum": len(total_stds),
+            "position_source": intel.get("position_source", "auto"),
+            "unit_status": current_unit.get("unit_status", "planned"),
+        }
+    except Exception as e:
+        log.warning(f"[ClassIntel] get_current_curriculum_context failed: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+
+def _extract_standard_codes(standards_scheduled) -> list[str]:
+    """Extract standard code strings from the JSONB standards_scheduled field."""
+    if not standards_scheduled:
+        return []
+    if isinstance(standards_scheduled, list):
+        return [s if isinstance(s, str) else s.get("code", "") for s in standards_scheduled]
+    return []
+
+
+def override_position(class_id: str, target_calendar_id: str) -> None:
+    """
+    Teacher manually jumps to a specific unit. Does NOT clear coverage history.
+    Skipped units appear as gaps in the coverage view.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        _ensure_row(cur, conn, class_id)
+        cur.execute(
+            """UPDATE class_intelligence
+               SET current_calendar_id = %s,
+                   position_source = 'manual_override'
+               WHERE class_id = %s""",
+            (target_calendar_id, class_id),
+        )
+        conn.commit()
+        log.info(f"[ClassIntel] Position overridden to {target_calendar_id} for class {class_id}")
+    except Exception as e:
+        conn.rollback()
+        log.warning(f"[ClassIntel] Position override failed: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+def auto_advance_position(class_id: str) -> None:
+    """
+    Called after standards_covered changes. If the current unit is fully covered,
+    advance current_calendar_id to the next unit with uncovered standards.
+    """
+    ctx = get_current_curriculum_context(class_id)
+    if not ctx:
+        return
+
+    # If current unit still has uncovered standards, don't advance
+    if ctx.get("standards_to_teach"):
+        return
+
+    # Current unit is fully covered — find the next unit with gaps
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute(
+            """SELECT * FROM curriculum_calendar
+               WHERE class_id = %s
+               ORDER BY COALESCE(sort_order, week_number) ASC""",
+            (class_id,),
+        )
+        units = [dict(r) for r in cur.fetchall()]
+
+        intel_cur = conn.cursor(cursor_factory=RealDictCursor)
+        intel_cur.execute("SELECT standards_covered FROM class_intelligence WHERE class_id = %s", (class_id,))
+        intel = intel_cur.fetchone()
+        intel_cur.close()
+
+        covered_raw = (intel or {}).get("standards_covered") or []
+        covered = set()
+        for item in covered_raw:
+            if isinstance(item, dict):
+                covered.add(item.get("code", ""))
+            elif isinstance(item, str):
+                covered.add(item)
+
+        # Mark current unit as completed
+        current_cal_id = ctx.get("current_calendar_id")
+        if current_cal_id:
+            cur.execute(
+                "UPDATE curriculum_calendar SET unit_status = 'completed' WHERE calendar_id = %s",
+                (current_cal_id,),
+            )
+
+        # Find next unit with uncovered standards
+        found_current = False
+        next_unit = None
+        for u in units:
+            if str(u["calendar_id"]) == str(current_cal_id):
+                found_current = True
+                continue
+            if found_current:
+                unit_stds = set(_extract_standard_codes(u.get("standards_scheduled")))
+                if not unit_stds.issubset(covered):
+                    next_unit = u
+                    break
+
+        if next_unit:
+            cur.execute(
+                """UPDATE class_intelligence
+                   SET current_calendar_id = %s,
+                       position_source = 'auto'
+                   WHERE class_id = %s""",
+                (next_unit["calendar_id"], class_id),
+            )
+            cur.execute(
+                "UPDATE curriculum_calendar SET unit_status = 'in_progress' WHERE calendar_id = %s",
+                (next_unit["calendar_id"],),
+            )
+            conn.commit()
+            log.info(
+                f"[ClassIntel] Auto-advanced class {class_id} to unit: {next_unit.get('unit_name')}"
+            )
+        else:
+            conn.commit()
+            log.info(f"[ClassIntel] All units covered for class {class_id}")
+
+    except Exception as e:
+        conn.rollback()
+        log.warning(f"[ClassIntel] Auto-advance failed: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+def get_standards_coverage(class_id: str) -> dict:
+    """
+    Get standards coverage for a class — works WITH or WITHOUT a curriculum.
+
+    Without curriculum: flat list of covered standard codes from activity log.
+    With curriculum: grouped by unit with per-unit completion percentages.
+    """
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # Get all standards this class has touched (from activity log)
+        cur.execute(
+            """SELECT DISTINCT standard_code, COUNT(*) AS times_touched,
+                      MIN(created_at) AS first_touched, MAX(created_at) AS last_touched
+               FROM standard_activity_log
+               WHERE class_id = %s
+               GROUP BY standard_code
+               ORDER BY standard_code""",
+            (class_id,),
+        )
+        activity = [dict(r) for r in cur.fetchall()]
+        covered_codes = {a["standard_code"] for a in activity}
+
+        # Check if class has curriculum
+        cur.execute("SELECT has_curriculum FROM class_intelligence WHERE class_id = %s", (class_id,))
+        intel = cur.fetchone()
+        has_curriculum = (intel or {}).get("has_curriculum", False)
+
+        if has_curriculum:
+            # Get curriculum units
+            cur.execute(
+                """SELECT calendar_id, unit_name, topic, standards_scheduled,
+                          COALESCE(sort_order, week_number) AS seq, unit_status
+                   FROM curriculum_calendar
+                   WHERE class_id = %s
+                   ORDER BY COALESCE(sort_order, week_number) ASC""",
+                (class_id,),
+            )
+            units = []
+            total_stds = 0
+            total_covered = 0
+            for row in cur.fetchall():
+                unit_stds = _extract_standard_codes(row["standards_scheduled"])
+                unit_covered = [s for s in unit_stds if s in covered_codes]
+                total_stds += len(unit_stds)
+                total_covered += len(unit_covered)
+                units.append({
+                    "calendar_id": str(row["calendar_id"]),
+                    "unit_name": row["unit_name"],
+                    "topic": row["topic"],
+                    "unit_number": row["seq"],
+                    "unit_status": row["unit_status"],
+                    "standards_total": len(unit_stds),
+                    "standards_covered": len(unit_covered),
+                    "standards_list": [
+                        {"code": s, "covered": s in covered_codes}
+                        for s in unit_stds
+                    ],
+                    "pct": round(len(unit_covered) / max(len(unit_stds), 1) * 100, 1),
+                })
+
+            return {
+                "has_curriculum": True,
+                "units": units,
+                "total_standards": total_stds,
+                "total_covered": total_covered,
+                "year_progress_pct": round(total_covered / max(total_stds, 1) * 100, 1),
+            }
+        else:
+            return {
+                "has_curriculum": False,
+                "covered_standards": activity,
+                "total_covered": len(covered_codes),
+            }
+
+    except Exception as e:
+        log.warning(f"[ClassIntel] get_standards_coverage failed: {e}")
+        return {"has_curriculum": False, "covered_standards": [], "total_covered": 0}
+    finally:
+        cur.close()
+        conn.close()
