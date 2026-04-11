@@ -21,6 +21,7 @@ services:
       - ./tests:/app/tests
       - ./data/state_standards:/app/data/state_standards:ro
       - ./data/content:/data/content
+      - "C:/Users/zinka/OneDrive/Desktop/Lulia Reference Material:/refs:ro"
     command: uvicorn src.lms_agents.main:app --host 0.0.0.0 --port 8000 --reload
 
   worker:

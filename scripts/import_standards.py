@@ -199,17 +199,31 @@ def load_standard_set(
     if not standards_dict:
         return 0
 
-    # Build the CSP ID -> our UUID mapping for parent references
+    # First pass: build id_map only for standards that survive the description filter.
+    # The Common Standards Project data sometimes has empty-description "container"
+    # entries that we skip — but some of their children reference them as parents via
+    # CSP's internal parentId. If we map those skipped parents to UUIDs that never get
+    # inserted, the children will fail with a FK violation on standards_parent_id_fkey.
+    # Only map parents that we're actually going to insert.
     id_map: dict[str, str] = {}
     standards_list = []
 
     for csp_id, std in standards_dict.items():
+        if not (std.get("description") or "").strip():
+            continue  # skip empty-description containers so they don't end up in id_map
         our_id = str(uuid4())
         id_map[csp_id] = our_id
         standards_list.append((csp_id, our_id, std))
 
-    # Sort by position for consistent ordering
-    standards_list.sort(key=lambda x: x[2].get("position", 0))
+    # Sort by depth FIRST, then position. Depth-first ordering guarantees that
+    # parents (depth 0) are inserted before their children (depth 1+) within the
+    # same execute_values batch — without this, Postgres enforces the parent_id
+    # FK row-by-row during insert and a child appearing before its parent fails
+    # with standards_parent_id_fkey. Caught after the first fix on MA/NJ/NY/RI
+    # when AZ and ID hit the same error (different ordering inside those sets).
+    standards_list.sort(
+        key=lambda x: (x[2].get("depth", 0), x[2].get("position", 0))
+    )
 
     rows = []
     for csp_id, our_id, std in standards_list:
@@ -221,8 +235,11 @@ def load_standard_set(
         )
         description = std.get("description", "").strip()
         if not description:
-            continue
+            continue  # defensive — already filtered above, keep in case upstream changes
 
+        # Parent lookup: only resolve if the parent survived the filter AND is in our
+        # id_map. Parents outside this set (cross-set references) and filtered-out
+        # parents both fall through to None, which is safe (the FK permits NULL).
         parent_csp_id = std.get("parentId")
         parent_id = id_map.get(parent_csp_id) if parent_csp_id else None
 
@@ -415,10 +432,15 @@ def main():
     parser = argparse.ArgumentParser(description="Import standards from Common Standards Project")
     parser.add_argument("--national", action="store_true", help="Import national standards (Tier 3)")
     parser.add_argument("--state", type=str, help="Import a single state (e.g. OH)")
+    parser.add_argument(
+        "--states",
+        type=str,
+        help="Import a comma-separated list of states (e.g. CA,OR,WA). Commits after each state.",
+    )
     parser.add_argument("--all-states", action="store_true", help="Import all 50 states + DC")
     args = parser.parse_args()
 
-    if not args.national and not args.state and not args.all_states:
+    if not args.national and not args.state and not args.states and not args.all_states:
         parser.print_help()
         sys.exit(1)
 
@@ -436,6 +458,23 @@ def main():
         if args.state:
             import_state(cur, client, args.state)
             conn.commit()
+
+        if args.states:
+            state_codes = [s.strip().upper() for s in args.states.split(",") if s.strip()]
+            invalid = [s for s in state_codes if s not in US_STATES]
+            if invalid:
+                log.error(f"Unknown state code(s): {invalid}. Valid codes: {sorted(US_STATES.keys())}")
+                sys.exit(1)
+            log.info(f"=== Importing {len(state_codes)} states: {','.join(state_codes)} ===")
+            for code in state_codes:
+                try:
+                    import_state(cur, client, code)
+                    conn.commit()
+                    log.info(f"  ✓ {code} committed")
+                except Exception as e:
+                    conn.rollback()
+                    log.error(f"  ✗ {code} failed: {e}")
+                    # Continue with remaining states — idempotency means re-running skips completed ones
 
         if args.all_states:
             import_all_states(cur, client)

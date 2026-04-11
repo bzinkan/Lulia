@@ -10,6 +10,7 @@ import os
 from typing import Optional
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 
 log = logging.getLogger(__name__)
@@ -18,14 +19,26 @@ _client: Optional[object] = None
 
 
 def _get_client():
-    """Lazy-init the Bedrock Runtime client."""
+    """Lazy-init the Bedrock Runtime client.
+
+    Pool size is bumped to 50 so concurrent embedder scripts (e.g.
+    scripts/embed_standards_parallel.py with 16+ workers) don't thrash
+    connections. Default botocore pool is 10, which caused 'connection pool
+    is full, discarding connection' warnings and dropped throughput from
+    ~140/sec to ~53/sec during the Phase 2 standards embed pass.
+    """
     global _client
     if _client is None:
+        config = Config(
+            region_name=os.environ.get("AWS_REGION", "us-east-1"),
+            max_pool_connections=50,
+            retries={"max_attempts": 3, "mode": "standard"},
+        )
         _client = boto3.client(
             "bedrock-runtime",
-            region_name=os.environ.get("AWS_REGION", "us-east-1"),
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            config=config,
         )
     return _client
 

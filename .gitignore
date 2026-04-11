@@ -47,3 +47,6 @@ data/content/
 # Uploaded files (these live in MinIO/S3)
 uploads/
 scans/
+scripts/align_batch_*.jsonl
+scripts/align_sync_part_*.jsonl
+scripts/align_batch_meta.json

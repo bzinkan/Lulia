@@ -3,7 +3,7 @@
 ## What This Project Is
 Lulia is an AI-powered LMS that replaces Teachers Pay Teachers. Teachers upload curriculum, approve a weekly plan, and the system generates everything: lesson plans, worksheets, task cards, interactive activities, live games, videos, and more — all standards-aligned, TpT-quality, never repeated.
 
-**Current status**: Phases 1–23 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
+**Current status**: Phases 1–24 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
 
 ## Architecture Reference
 The complete architecture document is at `docs/architecture-v3.3.docx`. Read the relevant skills in `.claude/skills/` before starting any work — they contain patterns, code examples, and key decisions.
@@ -29,7 +29,7 @@ Additional docs:
 
 ## Key Architectural Decisions (Do Not Change)
 1. Three LLM providers: Claude (reasoning), Gemini 2.5 Flash (Google Slides/Forms, with Claude Haiku fallback), Bedrock (embedding). Zero overlap.
-2. Three-tier standards: Custom > State (50+DC pre-loaded) > National (Common Core, NGSS, C3).
+2. Three-tier standards: Custom > State (all 50 + DC, ~1.21M standards loaded from Common Standards Project API via `scripts/import_standards.py --all-states`) > National (Common Core loaded, NGSS + C3 pending). All loaded standards are embedded in pgvector via Bedrock Titan v2 for dense retrieval. Active framework joins in standards_alignment use `is_active=true` so chunks get codes from every state simultaneously.
 3. Per-procedure standard citations on every lesson plan phase.
 4. Generation History prevents content from ever repeating (SHA-256 fingerprinting).
 5. Format Agent renders via template library (22 templates + 5 puzzles), not LLM-generated HTML.
@@ -90,7 +90,10 @@ scripts/             # DB init, standards import, seed data, Lulings generation,
 ├── align_standards.py   # Standards embedding + chunk alignment CLI
 ├── migrate_class_tabs.py        # class_id columns migration
 ├── migrate_class_intelligence.py # class_intelligence table migration
-└── migrate_canva.py             # canva OAuth columns migration
+├── migrate_canva.py             # canva OAuth columns migration
+├── ingest_local_references.py   # Ingest Teaching/ + K-8 material/ from bind-mounted /refs/
+├── embed_standards_parallel.py  # Parallel standards embedder (ThreadPoolExecutor, 24 workers)
+└── align_standards_offline.py   # Provider-agnostic chunk alignment (prepare/submit/poll/writeback/run-sync)
 docs/                # DEVELOPMENT.md, STRIPE_SETUP.md, PRE_AWS_CHECKLIST.md
 tests/               # pytest critical path tests (15 tests)
 data/content/        # Local OER content storage (gitignored, S3 in prod)
@@ -149,11 +152,12 @@ The ingestion pipeline is idempotent — each source gets a deterministic `name`
 | 15 | Stripe billing (5 tiers, credit system, webhooks, atomic charging) |
 | 16 | Local polish (tests, seed data, docs, tablet responsive) |
 | 17 | OER Content Ingestion Framework: shared core pipeline, OpenStax adapter (82 books, CNXML parsing), LibreTexts adapter (Playwright scraping), LoC adapter (primary sources), unified CLI, 40K+ RAG chunks |
-| 18 | Standards Alignment Agent: 62K standards embedded to pgvector, two-step chunk alignment (dense retrieval + Claude Haiku judgment), reading_level + grade_bands metadata, retrieve_for_standard() API |
+| 18 | Standards Alignment Agent: 1.21M standards (50 states + DC + Common Core) loaded from Common Standards Project API, all embedded to pgvector via Bedrock Titan v2 (HNSW index on `standards.embedding`). Two-step chunk alignment (dense retrieval + LLM judgment) via `scripts/align_standards_offline.py` — provider-agnostic (OpenAI/Anthropic/Groq/Ollama), merge-safe writeback (grade_bands + standards_tags UNIONed, never overwritten; reference_metadata untouched). 33K+ chunks aligned with reading_level + grade_bands + alignment_scores. retrieve_for_standard() API. |
 | 19 | Class Tabs + Per-Class Intelligence: class_id FK on knowledge_sources/videos/templates, CRUD router, RAG scoping, per-class standards/vocab/ratings tracking, auto-extraction from assignments, AI context prompts |
 | 20 | Design Studio SCRAPPED. Replaced with generation-first assignment flow. Carbone.io integrated for PDF rendering. Google Slides + Forms pages added. Canva OAuth built but parked (needs AWS). |
 | 21 | Google Slides/Forms pages, Canva Connect API OAuth flow (OC-AZ1rX8nIER1H), video pipeline fix (hardcoded grade/subject bug), Content Library hides system OER, Sidebar updated |
 | 22 | Pedagogy Director + 16-expert matrix (K-2/3-5/6-8/9-12 × math/ELA/science/social), 20 YAML pedagogy packs (~5,800 lines), brief generator wired into Assignment/Planning/Video crews. Structured visuals: 19 inline-SVG visual types (ten_frame, number_bond, fraction_bar, array, bar_model, area_model, number_line, coordinate_grid, function_table, equation_box, base_ten_blocks, counting_objects, data_table, labeled_diagram, letter_box, word_box, handwriting_lines, picture_choice). Deterministic QA bracket-detector. Fixed hardcoded grade_level='4' bug in planning_crew.approve_plan. All 4 grade bands live-verified against Anthropic API. |
+| 24 | Nationwide standards + full-KB alignment: imported all 50 states + DC (1.21M state standards) from Common Standards Project API. Built `scripts/embed_standards_parallel.py` (24-worker ThreadPoolExecutor, 10x speedup). Built `scripts/align_standards_offline.py` with provider-agnostic dispatch, merge-safe writeback (grade_bands + standards_tags UNIONed via SQL, reference_metadata provably untouched). Ingested 1,134 local reference files (Teaching/ + K-8 material/) into teacher-scoped knowledge base via `scripts/ingest_local_references.py`. Created HNSW index on `standards.embedding`. Fixed 2 FK violation bugs in `import_standards.py`, subject mismatch filter, and Haiku JSON trailing-prose parser. |
 | 23 | Reference-grounded generation: `reference_metadata` JSONB column on `knowledge_chunks` (migration, GIN + partial indexes). `reference_analyzer.py` classifies sources via Haiku into artifact_type + structural/scaffolding features + content_shape_description. `reference_retrieval.py` finds real worksheets/slide decks/lesson plans by structural shape from `teacher_archive` / `teacher_reference` lanes with grade-band-aware lane priority (K-2/3-5 exclude openstax). Pedagogy Brief extended with `reference_exemplar_guidance` section. Assignment Crew pre-fetches exemplars and passes them to the director. Content Agent system prompt updated to treat exemplar shape as authoritative template. A/B test (`test_reference_grounded_generation.py`) validated QA score delta +27 vs un-grounded baseline on 6-8 Earth Science rock cycle fixture. |
 
 ## Local Development
