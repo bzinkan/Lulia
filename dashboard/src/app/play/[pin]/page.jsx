@@ -50,7 +50,22 @@ export default function TeacherPlayPage() {
   function handleMessage(msg) {
     setState(prev => {
       const next = { ...(prev || {}) };
-      if (msg.type === 'player_joined') {
+      if (msg.type === 'game_state') {
+        // Teacher snapshot on connect — pulls everything needed to render the board
+        const s = msg.state || {};
+        next.status = s.status;
+        next.title = s.title;
+        next.game_shell_id = s.game_shell_id;
+        next.players = s.players || [];
+        next.question_index = s.current_question ?? -1;
+        next.total_questions = s.total_questions ?? 0;
+        next.questions = s.all_questions || [];
+        next.settings = s.settings || {};
+        // If a game is already mid-flight, set current_question
+        if (s.current_question >= 0 && next.questions[s.current_question]) {
+          next.current_question = next.questions[s.current_question];
+        }
+      } else if (msg.type === 'player_joined') {
         next.player_count = msg.player_count;
         next.players = msg.players || next.players;
       } else if (msg.type === 'game_started' || msg.type === 'new_question') {
@@ -58,6 +73,8 @@ export default function TeacherPlayPage() {
         next.current_question = msg.question;
         next.question_index = msg.current_question ?? next.question_index ?? 0;
         next.total_questions = msg.total_questions ?? next.total_questions ?? 0;
+        // game_started broadcasts the full question pool so shells can build their boards
+        if (msg.all_questions) next.questions = msg.all_questions;
         if (next.game_shell_id === 'bingo_blitz' && msg.question?.answer) {
           setCalledAnswers(prev => [...prev, msg.question.answer]);
         }
