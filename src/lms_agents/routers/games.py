@@ -32,11 +32,25 @@ def get_db():
         conn.close()
 
 
+class QuestionSource(BaseModel):
+    """Discriminated union for how a game gets its questions."""
+    type: str  # 'assignment' | 'standards' | 'custom'
+    assignment_id: Optional[str] = None
+    standards: Optional[list[str]] = None
+    prompt: Optional[str] = None
+    question_count: int = 15
+
+
 class CreateGameRequest(BaseModel):
-    assignment_id: str
-    game_shell_id: str = "classic_quiz"
+    game_shell_id: str = "quiz_race"
     teacher_id: str = "00000000-0000-0000-0000-000000000001"
+    class_id: Optional[str] = None
+    question_source: QuestionSource
     settings: Optional[dict] = None
+
+
+class ReplayRequest(BaseModel):
+    teacher_id: str = "00000000-0000-0000-0000-000000000001"
 
 
 @router.get("/api/v1/games/shells")
@@ -48,12 +62,59 @@ async def list_game_shells():
 
 @router.post("/api/v1/games/create")
 async def create_game(req: CreateGameRequest):
-    """Create a new game session. Returns PIN."""
+    """
+    Create a new game session.
+    Question source determines credit charging:
+      - assignment: free
+      - standards:  free (pulls from teacher's existing assignments tagged to those standards)
+      - custom:     charges live_game_custom_questions credits (Haiku generation)
+    """
     result = create_game_session(
         teacher_id=req.teacher_id,
-        assignment_id=req.assignment_id,
         game_shell_id=req.game_shell_id,
+        class_id=req.class_id,
+        question_source=req.question_source.model_dump(),
         settings=req.settings,
+    )
+    if not result.get("success", True):
+        return JSONResponse(result, status_code=402 if result.get("reason") == "insufficient_credits" else 400)
+    return result
+
+
+@router.post("/api/v1/games/{session_id}/replay")
+async def replay_game(session_id: UUID, req: ReplayRequest, conn=Depends(get_db)):
+    """
+    Replay a prior session — same questions, same settings, new PIN.
+    Never charges credits, even if the original was a custom-generated game.
+    """
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        """SELECT game_shell_id, class_id, assignment_id, settings_json
+           FROM game_sessions_v2 WHERE session_id = %s""",
+        (str(session_id),),
+    )
+    prior = cur.fetchone()
+    cur.close()
+    if not prior:
+        return JSONResponse({"error": "Original session not found"}, status_code=404)
+
+    settings_json = prior["settings_json"] or {}
+    cached_questions = settings_json.get("generated_questions")
+    # Build a replay question source: use cached questions if present, else point at the same assignment
+    if cached_questions:
+        replay_source = {"type": "cached", "cached_questions": cached_questions, "question_count": len(cached_questions)}
+    elif prior["assignment_id"]:
+        replay_source = {"type": "assignment", "assignment_id": str(prior["assignment_id"])}
+    else:
+        return JSONResponse({"error": "Cannot replay — no cached questions and no assignment"}, status_code=400)
+
+    result = create_game_session(
+        teacher_id=req.teacher_id,
+        game_shell_id=prior["game_shell_id"],
+        class_id=str(prior["class_id"]) if prior["class_id"] else None,
+        question_source=replay_source,
+        settings=settings_json,
+        is_replay=True,
     )
     return result
 

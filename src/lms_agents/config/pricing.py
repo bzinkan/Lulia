@@ -18,7 +18,10 @@ CREDIT_COSTS = {
     "lab_activity": 2, "lab_report": 1,
     "word_search": 1, "crossword": 2, "board_game": 3, "scavenger_hunt": 3, "escape_room": 5,
     "lesson_plan": 3, "video_short": 5, "video_long": 10, "video_voice_clone": 15,
-    "interactive_activity": 3, "live_game": 4, "accommodation_version": 1, "ai_fill_template": 2,
+    "interactive_activity": 3, "live_game": 0, "accommodation_version": 1, "ai_fill_template": 2,
+    # Live Games: only the ad-hoc Haiku question generation path charges credits.
+    # Assignment-sourced and standards-sourced games are always free. Replays are free.
+    "live_game_custom_questions": 2,
 }
 
 # Short Clips (Veo 3 Fast): 3 credits per second of generated clip.
