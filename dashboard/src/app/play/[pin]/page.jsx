@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Play, SkipForward, StopCircle, Users, Copy, CheckCircle } from 'lucide-react';
+import { Play, SkipForward, StopCircle, Users, Copy, CheckCircle, ExternalLink, Eye } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import QuizRace from '@/components/games/shells/QuizRace';
 import Jeopardy from '@/components/games/shells/Jeopardy';
@@ -17,10 +17,13 @@ export default function TeacherPlayPage() {
   const { pin } = useParams();
   const [state, setState] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const [ended, setEnded] = useState(null);
   const [calledAnswers, setCalledAnswers] = useState([]);
   const [answeredCells, setAnsweredCells] = useState([]);
   const wsRef = useRef(null);
+
+  const joinUrl = typeof window !== 'undefined' ? `${window.location.origin}/join?pin=${pin}` : '';
 
   useEffect(() => {
     if (!pin) return;
@@ -104,6 +107,12 @@ export default function TeacherPlayPage() {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  function copyJoinUrl() {
+    navigator.clipboard.writeText(joinUrl);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 1500);
+  }
+
   if (!state) {
     return <div className="p-8 text-center" style={{ color: 'var(--text-light)' }}>Loading game…</div>;
   }
@@ -114,48 +123,93 @@ export default function TeacherPlayPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="rounded-card p-4 mb-4 flex items-center justify-between flex-wrap gap-3"
+      <div className="rounded-card p-5 mb-4"
         style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Game PIN</span>
-          <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-[32px] tracking-wider" style={{ color: 'var(--coral)' }}>{pin}</span>
-            <button onClick={copyPin}
-              className="p-1.5 rounded-lg"
-              style={{ color: 'var(--text-mid)', background: 'var(--cream)', border: '1px solid var(--border)', cursor: 'pointer' }}>
-              {copied ? <CheckCircle className="w-4 h-4" style={{ color: 'var(--sage)' }} /> : <Copy className="w-4 h-4" />}
-            </button>
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          {/* Join info — left */}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* QR code */}
+            {joinUrl && (
+              <div className="p-2 rounded-xl" style={{ background: 'white', border: '1px solid var(--border)' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=0&data=${encodeURIComponent(joinUrl)}`}
+                  alt="Join QR" width={120} height={120}
+                />
+              </div>
+            )}
+            {/* PIN + URL block */}
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
+                Game PIN
+              </span>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-mono font-bold text-[40px] leading-none tracking-wider" style={{ color: 'var(--coral)' }}>{pin}</span>
+                <button onClick={copyPin}
+                  className="p-2 rounded-lg"
+                  style={{ color: 'var(--text-mid)', background: 'var(--cream)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                  title="Copy PIN">
+                  {copied ? <CheckCircle className="w-4 h-4" style={{ color: 'var(--sage)' }} /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
+                Or share this link
+              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <a href={joinUrl} target="_blank" rel="noreferrer"
+                  className="text-[13px] font-semibold flex items-center gap-1 underline"
+                  style={{ color: 'var(--coral)' }}>
+                  {joinUrl.replace(/^https?:\/\//, '')}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button onClick={copyJoinUrl}
+                  className="p-1.5 rounded-lg"
+                  style={{ color: 'var(--text-mid)', background: 'var(--cream)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                  title="Copy link">
+                  {copiedUrl ? <CheckCircle className="w-3.5 h-3.5" style={{ color: 'var(--sage)' }} /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
           </div>
-          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>
-            Share with students: join at <strong>/join?pin={pin}</strong>
-          </p>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-[14px] font-bold" style={{ color: 'var(--text-dark)' }}>
-            <Users className="w-4 h-4" /> {players.length} player{players.length !== 1 ? 's' : ''}
+          {/* Controls — right */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 text-[14px] font-bold px-3 py-2 rounded-xl"
+              style={{ color: 'var(--text-dark)', background: 'var(--cream)', border: '1px solid var(--border)' }}>
+              <Users className="w-4 h-4" /> {players.length} player{players.length !== 1 ? 's' : ''}
+            </div>
+            {state.status === 'lobby' && (
+              <>
+                {players.length === 0 && (
+                  <button onClick={startGame}
+                    className="px-3 py-2 rounded-xl font-semibold text-[12px] flex items-center gap-1.5"
+                    style={{ color: 'var(--text-mid)', background: 'var(--cream)', border: '1px solid var(--border)', cursor: 'pointer' }}
+                    title="Start without players — just for previewing the game">
+                    <Eye className="w-3.5 h-3.5" /> Preview
+                  </button>
+                )}
+                <button onClick={startGame}
+                  className="px-4 py-2 rounded-xl font-bold text-[14px] text-white flex items-center gap-2"
+                  style={{ background: 'var(--sage)', opacity: players.length === 0 ? 0.7 : 1 }}>
+                  <Play className="w-4 h-4" /> Start Game
+                </button>
+              </>
+            )}
+            {state.status === 'playing' && (
+              <>
+                <button onClick={nextQuestion}
+                  className="px-4 py-2 rounded-xl font-bold text-[14px] text-white flex items-center gap-2"
+                  style={{ background: 'var(--coral)' }}>
+                  <SkipForward className="w-4 h-4" /> Next
+                </button>
+                <button onClick={endGame}
+                  className="px-3 py-2 rounded-xl font-bold text-[13px] flex items-center gap-2"
+                  style={{ color: '#B91C1C', background: 'var(--cream)', border: '1px solid #EF4444', cursor: 'pointer' }}>
+                  <StopCircle className="w-4 h-4" /> End
+                </button>
+              </>
+            )}
           </div>
-          {state.status === 'lobby' && (
-            <button onClick={startGame} disabled={players.length === 0}
-              className="px-4 py-2 rounded-xl font-bold text-[14px] text-white flex items-center gap-2 disabled:opacity-50"
-              style={{ background: 'var(--sage)' }}>
-              <Play className="w-4 h-4" /> Start Game
-            </button>
-          )}
-          {state.status === 'playing' && (
-            <>
-              <button onClick={nextQuestion}
-                className="px-4 py-2 rounded-xl font-bold text-[14px] text-white flex items-center gap-2"
-                style={{ background: 'var(--coral)' }}>
-                <SkipForward className="w-4 h-4" /> Next
-              </button>
-              <button onClick={endGame}
-                className="px-3 py-2 rounded-xl font-bold text-[13px] flex items-center gap-2"
-                style={{ color: '#B91C1C', background: 'var(--cream)', border: '1px solid #EF4444', cursor: 'pointer' }}>
-                <StopCircle className="w-4 h-4" /> End
-              </button>
-            </>
-          )}
         </div>
       </div>
 
