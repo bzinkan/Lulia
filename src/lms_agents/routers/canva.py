@@ -24,13 +24,13 @@ router = APIRouter(prefix="/canva", tags=["Canva"])
 
 CANVA_AUTH_URL = "https://www.canva.com/api/oauth/authorize"
 CANVA_TOKEN_URL = "https://api.canva.com/rest/v1/oauth/token"
-CANVA_SCOPES = "design:content:write design:content:read design:meta:read"
+CANVA_SCOPES = "design:content:read design:content:write design:meta:read asset:read asset:write profile:read"
 
 
 def _callback_uri() -> str:
     return os.environ.get(
         "CANVA_REDIRECT_URI",
-        "http://localhost:8000/api/v1/canva/auth/callback",
+        "http://127.0.0.1:8000/api/v1/canva/auth/callback",
     )
 
 

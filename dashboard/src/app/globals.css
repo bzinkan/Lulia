@@ -175,3 +175,42 @@ body::before {
 .font-heading {
   font-family: 'DM Serif Display', serif;
 }
+
+/* ============================================================
+   PRINTER ANIMATION — Print & Go nav icon
+   Continuous gentle paper-feed bounce; intensifies on hover.
+   ============================================================ */
+@keyframes printer-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-1.5px); }
+}
+.printer-anim {
+  animation: printer-bounce 2.4s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+.printer-anim::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 10px;
+  height: 4px;
+  margin-left: -5px;
+  background: var(--mustard, #E9B44C);
+  border-radius: 1px;
+  transform: translateY(-2px);
+  opacity: 0;
+  animation: printer-paper 2.4s ease-in-out infinite;
+}
+@keyframes printer-paper {
+  0%, 30%   { transform: translateY(-4px); opacity: 0; }
+  55%       { transform: translateY(0);    opacity: 1; }
+  80%, 100% { transform: translateY(8px);  opacity: 0; }
+}
+.icon-hover:hover .printer-anim {
+  animation-duration: 0.8s;
+}
+.icon-hover:hover .printer-anim::after {
+  animation-duration: 0.8s;
+}

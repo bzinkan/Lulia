@@ -3,17 +3,18 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Printer, NotebookPen } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard',   icon: 'dashboard.png',  href: '/' },
   { label: 'Curriculum',  icon: 'book.png',       href: '/curriculum' },
-  { label: 'Planner',     icon: 'calendar.png',   href: '/planner' },
-  { label: 'Assignments', icon: 'document.png',   href: '/assignments' },
+  { label: 'Planner',     icon: 'planner.png',    href: '/planner' },
+  { label: 'Print & Go',  icon: 'printer.png',    animate: 'printer', iconComponent: Printer, href: '/print-go' },
+  { label: 'Calendar',    icon: 'calendar.png',   href: '/calendar' },
   { label: 'Videos',      icon: 'video-camera.png', href: '/videos' },
   { label: 'Live Games',  icon: 'gamepad.png',    href: '/games' },
   { label: 'Analytics',   icon: 'chart.png',      href: '/analytics' },
-  { label: 'Grades',      icon: 'check.png',      href: '/grading' },
+  { label: 'Grades',      icon: 'check.png',      href: '/grades' },
   { label: 'Settings',    icon: 'settings.png',   href: '/settings' },
 ];
 
@@ -112,17 +113,47 @@ export default function Sidebar() {
                       }
                   }
                 >
-                  <Image
-                    src={`/icons/${item.icon}`}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className="nav-icon-img"
-                    style={isActive
-                      ? { filter: 'brightness(0) invert(1)', opacity: 0.9 }
-                      : { opacity: 0.8 }
-                    }
-                  />
+                  {item.icon ? (
+                    <span
+                      className={item.animate === 'printer' ? 'printer-anim' : ''}
+                      style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Image
+                        src={`/icons/${item.icon}`}
+                        alt=""
+                        width={32}
+                        height={32}
+                        className="nav-icon-img"
+                        onError={(e) => {
+                          if (item.iconComponent) e.currentTarget.style.display = 'none';
+                        }}
+                        style={{ opacity: 1 }}
+                      />
+                      {item.iconComponent && (
+                        <item.iconComponent
+                          className="w-[20px] h-[20px] lucide-fallback"
+                          style={{ color: isActive ? '#FFFFFF' : 'var(--coral)', display: 'none' }}
+                          strokeWidth={2.25}
+                        />
+                      )}
+                    </span>
+                  ) : item.iconComponent ? (
+                    <span
+                      className={item.animate === 'printer' ? 'printer-anim' : ''}
+                      style={{
+                        width: 32, height: 32,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        borderRadius: 8,
+                        background: isActive ? 'rgba(255,255,255,0.18)' : 'var(--cream)',
+                      }}
+                    >
+                      <item.iconComponent
+                        className="w-[18px] h-[18px]"
+                        style={{ color: isActive ? '#FFFFFF' : 'var(--coral)' }}
+                        strokeWidth={2.25}
+                      />
+                    </span>
+                  ) : null}
                   {item.label}
                 </Link>
               );

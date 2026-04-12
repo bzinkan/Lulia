@@ -112,9 +112,10 @@ async def class_week_view(
 async def class_calendar(
     class_id: UUID,
     month: str = Query(None),
+    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
     conn=Depends(get_db),
 ):
-    """Month calendar with assignment counts per day."""
+    """Month calendar: per-day assignments + school_calendar overlay (day_type, label, notes)."""
     if month:
         year, m = month.split("-")
         start = date(int(year), int(m), 1)
@@ -125,18 +126,119 @@ async def class_calendar(
         end = date(start.year + 1, 1, 1)
     else:
         end = date(start.year, start.month + 1, 1)
+    last_day = end - timedelta(days=1)
+
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    # Assignments per day (full rows, not just counts)
+    cur.execute(
+        """SELECT assignment_id, title, output_template_id, status, assigned_date,
+                  (SELECT COUNT(*) FROM submissions WHERE assignment_id = a.assignment_id) as submissions
+           FROM assignments a
+           WHERE class_id = %s AND assigned_date >= %s AND assigned_date < %s
+           ORDER BY assigned_date, created_at""",
+        (str(class_id), start, end),
+    )
+    assignments_by_date: dict[str, list[dict]] = {}
+    for row in cur.fetchall():
+        d = row["assigned_date"].isoformat()
+        assignments_by_date.setdefault(d, []).append({
+            "assignment_id": str(row["assignment_id"]),
+            "title": row["title"],
+            "output_template_id": row["output_template_id"],
+            "status": row["status"],
+            "submissions": row["submissions"],
+        })
+
+    # School calendar overlay for this teacher in the same month
+    cur.execute(
+        """SELECT date, day_type, label, notes
+           FROM school_calendar
+           WHERE teacher_id = %s AND date >= %s AND date < %s""",
+        (teacher_id, start, end),
+    )
+    school_by_date: dict[str, dict] = {}
+    for row in cur.fetchall():
+        d = row["date"].isoformat()
+        school_by_date[d] = {
+            "day_type": row["day_type"],
+            "label": row["label"],
+            "notes": row["notes"],
+            "is_school_day": row["day_type"] in ("school_day", "half_day"),
+        }
+
+    cur.close()
+
+    # Merge into a single day-keyed dict for the entire month
+    days: dict[str, dict] = {}
+    cur_date = start
+    while cur_date < end:
+        key = cur_date.isoformat()
+        days[key] = {
+            "assignments": assignments_by_date.get(key, []),
+            "school": school_by_date.get(key),
+        }
+        cur_date += timedelta(days=1)
+
+    return {
+        "class_id": str(class_id),
+        "month": start.isoformat()[:7],
+        "first_day": start.isoformat(),
+        "last_day": last_day.isoformat(),
+        "days": days,
+    }
+
+
+class SchoolDayUpsert(BaseModel):
+    teacher_id: str = "00000000-0000-0000-0000-000000000001"
+    day_type: str  # school_day | no_school | holiday | half_day | snow_day | professional_development | break
+    notes: Optional[str] = None
+    label: Optional[str] = None
+
+
+@router.put("/school-calendar/{date_iso}")
+async def upsert_school_day(date_iso: str, req: SchoolDayUpsert, conn=Depends(get_db)):
+    """
+    Upsert a single day in the teacher's school calendar.
+    Used by the Calendar tab's day-detail modal to toggle school status and save a per-day note.
+    """
+    try:
+        target = date.fromisoformat(date_iso)
+    except ValueError:
+        return JSONResponse({"error": "Invalid date format, expected YYYY-MM-DD"}, status_code=400)
+
+    valid_types = {"school_day", "no_school", "holiday", "half_day", "snow_day", "professional_development", "break"}
+    if req.day_type not in valid_types:
+        return JSONResponse({"error": f"day_type must be one of {sorted(valid_types)}"}, status_code=400)
+
+    # Derive school_year from the date (Jul–Dec = year/year+1, Jan–Jun = year-1/year)
+    if target.month >= 7:
+        school_year = f"{target.year}-{target.year + 1}"
+    else:
+        school_year = f"{target.year - 1}-{target.year}"
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
-        """SELECT assigned_date, COUNT(*) as count, array_agg(title) as titles
-           FROM assignments
-           WHERE class_id = %s AND assigned_date >= %s AND assigned_date < %s
-           GROUP BY assigned_date ORDER BY assigned_date""",
-        (str(class_id), start, end),
+        """INSERT INTO school_calendar (teacher_id, school_year, date, day_type, label, notes)
+           VALUES (%s, %s, %s, %s, %s, %s)
+           ON CONFLICT (teacher_id, date) DO UPDATE SET
+             day_type = EXCLUDED.day_type,
+             label = EXCLUDED.label,
+             notes = EXCLUDED.notes,
+             school_year = EXCLUDED.school_year
+           RETURNING date, day_type, label, notes""",
+        (req.teacher_id, school_year, target, req.day_type, req.label, req.notes),
     )
-    days = {str(r["assigned_date"]): dict(r) for r in cur.fetchall()}
+    row = cur.fetchone()
+    conn.commit()
     cur.close()
-    return {"class_id": str(class_id), "month": start.isoformat()[:7], "days": days}
+    return {
+        "date": row["date"].isoformat(),
+        "day_type": row["day_type"],
+        "label": row["label"],
+        "notes": row["notes"],
+        "is_school_day": row["day_type"] in ("school_day", "half_day"),
+    }
 
 
 # --- Grading Inbox ---

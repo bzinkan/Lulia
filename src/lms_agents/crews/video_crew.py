@@ -150,6 +150,7 @@ def generate_video(
     theme: str = "modern_clean",
     subject_override: str | None = None,
     grade_override: str | None = None,
+    topic_override: str | None = None,
 ) -> dict:
     """
     Full video generation pipeline.
@@ -175,10 +176,16 @@ def generate_video(
     if not assignment:
         return {"error": "Assignment not found"}
 
+    # Honor teacher's topic override from the planner refinement step.
+    # This narrows the script to a specific angle (e.g. "Mars rovers" instead
+    # of the broader assignment title "Solar System Phenomena Investigation").
+    effective_title = topic_override.strip() if topic_override and topic_override.strip() else assignment["title"]
     content = {
-        "title": assignment["title"],
+        "title": effective_title,
         "questions": assignment["questions"] if isinstance(assignment["questions"], list) else [],
     }
+    if topic_override and topic_override.strip() and topic_override.strip() != assignment["title"]:
+        log.info(f"[Video] Topic override: '{topic_override}' (assignment title: '{assignment['title']}')")
     standards = assignment.get("standards_ids", []) or []
 
     # Derive grade and subject: overrides > class > defaults

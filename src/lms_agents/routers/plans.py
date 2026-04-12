@@ -1,4 +1,5 @@
 """Plan routes — suggest, approve, modify, start-over, list."""
+import logging
 import os
 from datetime import date
 from typing import Optional
@@ -11,6 +12,8 @@ from psycopg2.extras import Json, RealDictCursor
 from pydantic import BaseModel
 
 from src.lms_agents.crews.planning_crew import run_planner, approve_plan
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/plans", tags=["Plans"])
 
@@ -29,6 +32,17 @@ def get_db():
         conn.close()
 
 
+def get_db_conn():
+    """Direct connection (not a generator) for use in background threads."""
+    return psycopg2.connect(
+        host=os.environ.get("DB_HOST", "db"),
+        port=int(os.environ.get("DB_PORT", 5432)),
+        dbname=os.environ.get("DB_NAME", "lulia"),
+        user=os.environ.get("DB_USER", "lulia"),
+        password=os.environ.get("DB_PASSWORD", "devpassword"),
+    )
+
+
 class SuggestPlanRequest(BaseModel):
     class_id: str = "00000000-0000-0000-0000-000000000010"
     teacher_id: str = "00000000-0000-0000-0000-000000000001"
@@ -36,6 +50,11 @@ class SuggestPlanRequest(BaseModel):
     selected_days: list[str] | None = None
     week_start_date: str | None = None
     design_theme: str = "modern_clean"
+    # Teacher preferences for what to generate
+    material_types: list[str] | None = None       # ['worksheet', 'interactive', 'quiz_test', 'slides', 'video', 'forms']
+    content_source: str | None = None              # 'curriculum' | 'standards' | 'custom'
+    custom_prompt: str | None = None               # teacher's description of what to teach
+    standards_input: str | None = None             # comma-separated standard codes
 
 
 class ModifyPlanRequest(BaseModel):
@@ -62,15 +81,69 @@ async def suggest_plan(req: SuggestPlanRequest):
         selected_days=req.selected_days,
         week_start_date=week_start,
         design_theme=req.design_theme,
+        material_types=req.material_types,
+        content_source=req.content_source,
+        custom_prompt=req.custom_prompt,
+        standards_input=req.standards_input,
     )
     return result
 
 
+class ApproveRequest(BaseModel):
+    sync_to_classroom: bool = False
+
+
 @router.put("/{plan_id}/approve")
-async def approve(plan_id: UUID):
-    """Approve the plan — triggers generation of all work_orders."""
-    result = approve_plan(str(plan_id))
-    return result
+async def approve(plan_id: UUID, req: ApproveRequest = ApproveRequest()):
+    """
+    Approve the plan — kicks off material generation in the background.
+
+    Returns immediately with status='generating'. The frontend polls
+    GET /plans/{id} to check progress. The plan_data.generation_progress
+    field updates after each material finishes:
+      { completed: 2, total: 5, assignments: [...] }
+
+    When all materials are done, plan status changes to 'complete'.
+    """
+    import threading
+
+    plan_id_str = str(plan_id)
+
+    # Update status to generating immediately
+    conn_pre = get_db_conn()
+    cur_pre = conn_pre.cursor()
+    cur_pre.execute(
+        "UPDATE lesson_plans SET status = 'generating', approved_at = NOW() WHERE plan_id = %s",
+        (plan_id_str,),
+    )
+    conn_pre.commit()
+    cur_pre.close()
+    conn_pre.close()
+
+    # Run generation in background thread
+    def _run():
+        try:
+            approve_plan(plan_id_str, sync_to_classroom=req.sync_to_classroom)
+        except Exception as e:
+            log.error(f"Background generation failed for plan {plan_id_str}: {e}")
+            # Mark plan as failed
+            try:
+                conn_err = get_db_conn()
+                cur_err = conn_err.cursor()
+                cur_err.execute(
+                    "UPDATE lesson_plans SET status = 'failed' WHERE plan_id = %s",
+                    (plan_id_str,),
+                )
+                conn_err.commit()
+                cur_err.close()
+                conn_err.close()
+            except Exception:
+                pass
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    return {"plan_id": plan_id_str, "status": "generating"}
 
 
 @router.put("/{plan_id}/modify")

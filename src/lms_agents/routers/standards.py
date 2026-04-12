@@ -136,6 +136,112 @@ async def query_standards(
     }
 
 
+@router.get("/standards/match")
+async def match_standards(
+    topic: str = Query(..., min_length=2, description="Free-text topic to match"),
+    subject: Optional[str] = Query(None),
+    grade: Optional[str] = Query(None),
+    state_code: Optional[str] = Query(None),
+    limit: int = Query(3, ge=1, le=10),
+    conn=Depends(get_db),
+):
+    """
+    Match a free-text topic against the filtered standards pool.
+
+    Two-stage:
+      1) Cheap keyword/full-text scoring against descriptions + codes.
+      2) If top score is weak (< 0.15), call Haiku to pick the best matches.
+
+    Used by Print & Go to auto-suggest standards as the teacher types a topic.
+    """
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    conditions = ["f.is_active = true"]
+    params: list = []
+    if subject:
+        conditions.append("s.subject ILIKE %s")
+        params.append(f"%{subject}%")
+    if grade:
+        conditions.append("s.grade_level = %s")
+        params.append(grade)
+    if state_code:
+        conditions.append("f.state_code = %s")
+        params.append(state_code.upper())
+
+    where = " AND ".join(conditions)
+    cur.execute(
+        f"""SELECT s.standard_id, s.code, s.description, s.domain
+            FROM standards s
+            JOIN standards_frameworks f ON s.framework_id = f.framework_id
+            WHERE {where}
+            LIMIT 500""",
+        params,
+    )
+    pool = [dict(r) for r in cur.fetchall()]
+    cur.close()
+
+    if not pool:
+        return {"matches": [], "method": "none"}
+
+    # Stage 1: keyword scoring
+    topic_lower = topic.lower()
+    tokens = [t for t in topic_lower.replace(",", " ").split() if len(t) >= 3]
+    scored = []
+    for std in pool:
+        desc = (std.get("description") or "").lower()
+        code = (std.get("code") or "").lower()
+        domain = (std.get("domain") or "").lower()
+        haystack = f"{desc} {code} {domain}"
+        hits = sum(1 for t in tokens if t in haystack)
+        if hits == 0:
+            continue
+        score = hits / max(len(tokens), 1)
+        scored.append((score, std))
+    scored.sort(key=lambda x: -x[0])
+
+    if scored and scored[0][0] >= 0.15:
+        top = [s for _, s in scored[:limit]]
+        return {"matches": top, "method": "keyword"}
+
+    # Stage 2: Haiku fallback for fuzzy matches
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {"matches": [s for _, s in scored[:limit]], "method": "keyword_weak"}
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        # Send the pool's codes + short descriptions to Haiku
+        candidates = [
+            {"code": s["code"], "description": (s["description"] or "")[:160]}
+            for s in pool[:80]  # cap for token budget
+        ]
+        prompt = (
+            f"Topic: {topic}\n\n"
+            f"Pick the {limit} standards that best match this topic. "
+            f"Return ONLY a JSON array of codes, e.g. [\"5.NBT.B.5\"].\n\n"
+            f"Standards:\n" + "\n".join(f"- {c['code']}: {c['description']}" for c in candidates)
+        )
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = msg.content[0].text.strip()
+        # Extract JSON array
+        import re as _re
+        match = _re.search(r"\[.*?\]", text, _re.DOTALL)
+        if match:
+            picked_codes = json.loads(match.group(0))
+            by_code = {s["code"]: s for s in pool}
+            picks = [by_code[c] for c in picked_codes if c in by_code]
+            return {"matches": picks[:limit], "method": "haiku"}
+    except Exception as e:
+        log.warning(f"[Standards] Haiku match failed: {e}")
+
+    return {"matches": [s for _, s in scored[:limit]], "method": "keyword_weak"}
+
+
 @router.get("/standards/states")
 async def list_states(conn=Depends(get_db)):
     """List all states that have standards loaded — for the settings dropdown."""

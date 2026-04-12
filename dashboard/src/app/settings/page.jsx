@@ -45,7 +45,7 @@ function SettingsPage() {
   }
 
   async function handleCanvaConnect() {
-    window.location.href = 'http://localhost:8000/api/v1/canva/auth/start';
+    window.location.href = 'http://127.0.0.1:8000/api/v1/canva/auth/start';
   }
 
   async function handleCanvaDisconnect() {

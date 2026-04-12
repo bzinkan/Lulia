@@ -51,8 +51,8 @@ export default function AssignmentDetail() {
       <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
         <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
         <p className="text-red-700">{error || 'Assignment not found'}</p>
-        <Link href="/assignments" className="text-indigo-600 hover:text-indigo-700 text-sm mt-2 inline-block">
-          Back to assignments
+        <Link href="/calendar" className="text-indigo-600 hover:text-indigo-700 text-sm mt-2 inline-block">
+          Back to Calendar
         </Link>
       </div>
     );
@@ -64,9 +64,9 @@ export default function AssignmentDetail() {
   return (
     <div>
       {/* Back link */}
-      <Link href="/assignments" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
+      <Link href="/calendar" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
         <ArrowLeft className="w-4 h-4" />
-        Back to Assignments
+        Back to Calendar
       </Link>
 
       {/* Header */}

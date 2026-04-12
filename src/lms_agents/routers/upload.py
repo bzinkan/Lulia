@@ -4,9 +4,11 @@ import logging
 import os
 import re
 import tempfile
+from typing import Optional
 from uuid import uuid4
 
 import anthropic
+from pydantic import BaseModel
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, Form, Query, UploadFile, File
@@ -476,3 +478,106 @@ async def upload_curriculum(
         return JSONResponse({"error": f"Processing failed: {str(e)}"}, status_code=500)
     finally:
         os.unlink(tmp_path)
+
+
+@router.post("/school-calendar")
+async def upload_school_calendar(
+    file: UploadFile = File(...),
+    teacher_id: str = Form("00000000-0000-0000-0000-000000000001"),
+    school_year: str = Form("2025-2026"),
+):
+    """
+    Legacy one-shot: parse AND store in one call.
+    Prefer /school-calendar/parse + /school-calendar/confirm for the teacher review flow.
+    """
+    from src.lms_agents.tools.school_calendar import (
+        parse_school_calendar_with_haiku,
+        store_school_calendar,
+    )
+
+    content = await file.read()
+    filename = file.filename or "school_calendar"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in {"pdf", "docx", "doc", "txt", "csv"}:
+        return JSONResponse({"error": f"Unsupported file type: .{ext}"}, status_code=400)
+
+    text = _extract_text_from_file(content, filename)
+    if not text or len(text.strip()) < 30:
+        return JSONResponse({"error": "Could not extract readable text from this file."}, status_code=400)
+
+    entries = parse_school_calendar_with_haiku(text, school_year)
+    if not entries:
+        return JSONResponse({"error": "No calendar dates could be extracted from this document."}, status_code=400)
+
+    stored = store_school_calendar(teacher_id, entries, school_year)
+    return {
+        "stored": stored,
+        "total_extracted": len(entries),
+        "school_year": school_year,
+        "sample": entries[:5],
+    }
+
+
+@router.post("/school-calendar/parse")
+async def parse_school_calendar(
+    file: UploadFile = File(...),
+    school_year: str = Form("2025-2026"),
+):
+    """
+    Phase 1 of review-before-save: extract entries via Haiku and return to teacher.
+    Does NOT write to the database.
+    """
+    from src.lms_agents.tools.school_calendar import parse_school_calendar_with_haiku
+
+    content = await file.read()
+    filename = file.filename or "school_calendar"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in {"pdf", "docx", "doc", "txt", "csv"}:
+        return JSONResponse({"error": f"Unsupported file type: .{ext}"}, status_code=400)
+
+    text = _extract_text_from_file(content, filename)
+    if not text or len(text.strip()) < 30:
+        return JSONResponse({"error": "Could not extract readable text from this file."}, status_code=400)
+
+    entries = parse_school_calendar_with_haiku(text, school_year)
+    if not entries:
+        return JSONResponse({"error": "No calendar dates could be extracted from this document."}, status_code=400)
+
+    try:
+        entries.sort(key=lambda e: e.get("date", ""))
+    except Exception:
+        pass
+
+    return {
+        "school_year": school_year,
+        "entries": entries,
+        "total": len(entries),
+    }
+
+
+class ConfirmEntry(BaseModel):
+    date: str
+    day_type: str
+    label: Optional[str] = None
+
+
+class ConfirmCalendarRequest(BaseModel):
+    teacher_id: str = "00000000-0000-0000-0000-000000000001"
+    school_year: str = "2025-2026"
+    entries: list[ConfirmEntry]
+
+
+@router.post("/school-calendar/confirm")
+async def confirm_school_calendar(req: ConfirmCalendarRequest):
+    """Phase 2 of review-before-save: store only the teacher-approved entries."""
+    from src.lms_agents.tools.school_calendar import store_school_calendar
+
+    entries = [e.model_dump() for e in req.entries]
+    stored = store_school_calendar(req.teacher_id, entries, req.school_year)
+    return {
+        "stored": stored,
+        "total_submitted": len(entries),
+        "school_year": req.school_year,
+    }
