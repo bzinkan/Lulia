@@ -11,7 +11,7 @@ const navItems = [
   { label: 'Planner',     icon: 'planner.png',    href: '/planner' },
   { label: 'Print & Go',  icon: 'printer.png',    animate: 'printer', iconComponent: Printer, href: '/print-go' },
   { label: 'Calendar',    icon: 'calendar.png',   href: '/calendar' },
-  { label: 'Videos',      icon: 'video-camera.png', href: '/videos' },
+  { label: 'Short Clips', icon: 'video-camera.png', href: '/clips' },
   { label: 'Live Games',  icon: 'gamepad.png',    href: '/games' },
   { label: 'Analytics',   icon: 'chart.png',      href: '/analytics' },
   { label: 'Grades',      icon: 'check.png',      href: '/grades' },

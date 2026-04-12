@@ -33,7 +33,7 @@ from src.lms_agents.routers import (
     auth, plans, upload, upload_validate, assignments, activities, student_auth,
     grading, analytics, classroom, calendar, credits,
     accommodations, sharing, settings, chat, standards, knowledge, history, admin, videos, games, lulings, design, assignment_manager, onboarding, admin_extended, support, billing, stripe_webhooks, assistant, images, classes, class_intelligence, google_generate,
-    canva,
+    canva, clips,
 )
 
 app.include_router(auth.router, prefix="/api/v1")
@@ -57,6 +57,7 @@ app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(history.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(videos.router, prefix="/api/v1")
+app.include_router(clips.router, prefix="/api/v1")
 app.include_router(games.router)  # Games router has its own prefixes including WebSocket
 app.include_router(lulings.router, prefix="/api/v1")
 app.include_router(design.router, prefix="/api/v1")

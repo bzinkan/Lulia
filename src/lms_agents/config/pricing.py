@@ -8,7 +8,7 @@ TIERS = {
     "basic": {"price_cents": 1499, "credits_per_month": 75, "max_classes": 3, "max_students": 100, "stripe_price_env": "STRIPE_PRICE_BASIC"},
     "plus": {"price_cents": 2999, "credits_per_month": 200, "max_classes": 6, "max_students": 200, "stripe_price_env": "STRIPE_PRICE_PLUS"},
     "premium": {"price_cents": 4999, "credits_per_month": 400, "max_classes": 12, "max_students": 500, "stripe_price_env": "STRIPE_PRICE_PREMIUM"},
-    "max": {"price_cents": 9999, "credits_per_month": -1, "max_classes": -1, "max_students": -1, "stripe_price_env": "STRIPE_PRICE_MAX"},
+    "max": {"price_cents": 9999, "credits_per_month": 1500, "max_classes": -1, "max_students": -1, "stripe_price_env": "STRIPE_PRICE_MAX"},
 }
 
 CREDIT_COSTS = {
@@ -21,11 +21,19 @@ CREDIT_COSTS = {
     "interactive_activity": 3, "live_game": 4, "accommodation_version": 1, "ai_fill_template": 2,
 }
 
+# Short Clips (Veo 3 Fast): 3 credits per second of generated clip.
+# Used by routers/clips.py — charged at generation time against the
+# dual-bucket credit wallet (monthly first, then purchased).
+CLIP_CREDITS_PER_SECOND = 3
+
+# Credit packs (one-time purchase, never expire, roll over until used).
+# Prices mirror subscription tiers so per-credit rate is consistent
+# whether a teacher subscribes higher or tops up via packs.
 CREDIT_PACKS = [
-    {"id": "credits_50", "credits": 50, "price_cents": 999, "name": "50 Credits", "stripe_price_env": "STRIPE_PRICE_CREDITS_50"},
-    {"id": "credits_150", "credits": 150, "price_cents": 2499, "name": "150 Credits", "savings": "17%", "stripe_price_env": "STRIPE_PRICE_CREDITS_150"},
-    {"id": "credits_500", "credits": 500, "price_cents": 6999, "name": "500 Credits", "savings": "30%", "stripe_price_env": "STRIPE_PRICE_CREDITS_500"},
-    {"id": "credits_1500", "credits": 1500, "price_cents": 17999, "name": "1500 Credits", "savings": "40%", "stripe_price_env": "STRIPE_PRICE_CREDITS_1500"},
+    {"id": "credits_75",   "credits": 75,   "price_cents": 1499, "name": "75 Credits",   "stripe_price_env": "STRIPE_PRICE_CREDITS_75"},
+    {"id": "credits_200",  "credits": 200,  "price_cents": 2999, "name": "200 Credits",  "stripe_price_env": "STRIPE_PRICE_CREDITS_200"},
+    {"id": "credits_400",  "credits": 400,  "price_cents": 4999, "name": "400 Credits",  "stripe_price_env": "STRIPE_PRICE_CREDITS_400"},
+    {"id": "credits_1500", "credits": 1500, "price_cents": 9999, "name": "1500 Credits", "stripe_price_env": "STRIPE_PRICE_CREDITS_1500"},
 ]
 
 
