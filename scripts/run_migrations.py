@@ -95,9 +95,15 @@ def run_pending() -> dict:
 
         log.info(f"[migrations] running {name}")
         try:
+            # Ensure child process can import the `src` package.
+            # Migration scripts assume they run from /app with PYTHONPATH including project root.
+            env = os.environ.copy()
+            project_root = str(scripts_dir.parent)
+            env["PYTHONPATH"] = project_root + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
             result = subprocess.run(
                 [sys.executable, str(script)],
                 capture_output=True, text=True, timeout=300,
+                cwd=project_root, env=env,
             )
             if result.returncode == 0:
                 _mark(conn, name, "success", result.stdout)
