@@ -33,6 +33,17 @@ def migrate():
         cur.execute("ALTER TABLE teachers ADD COLUMN credits_purchased INT NOT NULL DEFAULT 0")
         log.info("Added teachers.credits_purchased (default 0)")
 
+    # Add clip_previews_used_this_month (6 free per month for Plus+ tiers, resets monthly)
+    cur.execute("""
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'teachers' AND column_name = 'clip_previews_used_this_month'
+    """)
+    if cur.fetchone():
+        log.info("teachers.clip_previews_used_this_month already exists — skipping add")
+    else:
+        cur.execute("ALTER TABLE teachers ADD COLUMN clip_previews_used_this_month INT NOT NULL DEFAULT 0")
+        log.info("Added teachers.clip_previews_used_this_month (default 0)")
+
     # Backfill: any existing Max tier teachers had "unlimited" (-1) credits.
     # Reset their monthly balance to the new 1500 cap so billing behaves consistently.
     cur.execute("""

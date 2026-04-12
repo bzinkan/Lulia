@@ -30,6 +30,7 @@ def generate_clip(
     aspect_ratio: str = "16:9",
     negative_prompt: Optional[str] = None,
     seed: Optional[int] = None,
+    reference_image_uri: Optional[str] = None,
 ) -> dict:
     """
     Generate a video clip via Veo 3 Fast.
@@ -102,11 +103,18 @@ def generate_clip(
             if seed is not None:
                 config_kwargs["seed"] = seed + i
 
-            operation = client.models.generate_videos(
-                model=model_id,
-                prompt=prompt,
-                config=GenerateVideosConfig(**config_kwargs),
-            )
+            gen_kwargs = {"model": model_id, "prompt": prompt, "config": GenerateVideosConfig(**config_kwargs)}
+            # First segment uses the teacher-picked preview image as style anchor (if provided).
+            # Subsequent segments chain from the previous segment's final frame for continuity,
+            # which the Vertex SDK handles internally once you provide an initial image.
+            if reference_image_uri and i == 0:
+                try:
+                    from google.genai.types import Image
+                    gen_kwargs["image"] = Image(gcs_uri=reference_image_uri) if reference_image_uri.startswith("gs://") else Image(image_bytes=reference_image_uri)
+                except Exception as ref_err:
+                    log.warning(f"[Veo] Could not attach reference image: {ref_err}")
+
+            operation = client.models.generate_videos(**gen_kwargs)
 
             # Poll operation until done (Veo is async, typically 30-120s per segment)
             start = time.time()

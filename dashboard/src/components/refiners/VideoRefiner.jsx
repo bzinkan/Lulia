@@ -58,7 +58,7 @@ export default function VideoRefiner({ workOrder, dayTitle, onConfirm }) {
         style={{ background: 'rgba(216,108,82,0.06)', border: '1px solid rgba(216,108,82,0.25)' }}>
         <Film className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--coral)' }} />
         <span className="text-[11px]" style={{ color: 'var(--text-mid)' }}>
-          Short Clip — AI-generated video via Veo 3 Fast. Charges credits at generation time.
+          Short Clip — Lulia-generated video. Charges credits at generation time.
         </span>
       </div>
 

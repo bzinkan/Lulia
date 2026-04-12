@@ -26,6 +26,12 @@ CREDIT_COSTS = {
 # dual-bucket credit wallet (monthly first, then purchased).
 CLIP_CREDITS_PER_SECOND = 3
 
+# Short Clip previews (Imagen 3): 4 still thumbnails from the same prompt
+# so teachers can pick the visual style before committing to Veo.
+CLIP_PREVIEW_IMAGES = 4          # images per preview set
+CLIP_FREE_PREVIEWS_PER_MONTH = 6  # ≈ $1/mo Imagen cost per teacher
+CLIP_PREVIEW_CREDITS = 1          # after the free allowance, teacher pays 1 credit per set (break-even)
+
 # Credit packs (one-time purchase, never expire, roll over until used).
 # Prices mirror subscription tiers so per-credit rate is consistent
 # whether a teacher subscribes higher or tops up via packs.

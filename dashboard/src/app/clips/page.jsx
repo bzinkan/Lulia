@@ -2,16 +2,16 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Film, Play, Sparkles, Zap, BookOpen, Clock, AlertTriangle, Plus } from 'lucide-react';
+import { Film, Play, AlertTriangle, Plus } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useClassContext } from '@/components/ClassContext';
 import ClipCostModal from '@/components/ClipCostModal';
 
 const USE_CASES = [
-  { icon: Zap,       title: 'Lesson hooks',      desc: '10-15 sec attention grabbers at the start of class.' },
-  { icon: Sparkles,  title: 'Concept demos',     desc: '30-45 sec visual demos of abstract ideas.' },
-  { icon: BookOpen,  title: 'Vocabulary intros', desc: '15-30 sec quick-cut definitions that stick.' },
-  { icon: Clock,     title: 'End-of-unit recap', desc: '45-60 sec highlights of what you covered.' },
+  { title: 'Lesson hooks',      desc: '10-15 sec attention grabbers at the start of class.' },
+  { title: 'Concept demos',     desc: '30-45 sec visual demos of abstract ideas.' },
+  { title: 'Vocabulary intros', desc: '15-30 sec quick-cut definitions that stick.' },
+  { title: 'End-of-unit recap', desc: '45-60 sec highlights of what you covered.' },
 ];
 
 export default function ClipsPage() {
@@ -52,7 +52,7 @@ export default function ClipsPage() {
               Short Clips
             </h1>
             <p className="text-[14px]" style={{ color: 'var(--text-mid)' }}>
-              AI-generated video clips for your lessons.
+              Lulia-generated short video clips for your lessons.
             </p>
           </div>
         </div>
@@ -89,8 +89,7 @@ export default function ClipsPage() {
           {USE_CASES.map(u => (
             <div key={u.title} className="p-3 rounded-xl"
               style={{ background: 'var(--cream)', border: '1px solid var(--border)' }}>
-              <u.icon className="w-5 h-5 mb-2" style={{ color: 'var(--coral)' }} />
-              <h4 className="text-[12px] font-bold mb-1" style={{ color: 'var(--text-dark)' }}>{u.title}</h4>
+              <h4 className="text-[13px] font-bold mb-1" style={{ color: 'var(--text-dark)' }}>{u.title}</h4>
               <p className="text-[11px]" style={{ color: 'var(--text-mid)' }}>{u.desc}</p>
             </div>
           ))}
@@ -138,7 +137,7 @@ export default function ClipsPage() {
           <button onClick={() => setShowModal(true)} disabled={!canOpenModal}
             className="w-full py-3 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50"
             style={{ background: 'var(--coral)', boxShadow: '0 4px 14px rgba(216,108,82,0.3)' }}>
-            <Play className="w-4 h-4" /> Preview &amp; Generate
+            <Play className="w-4 h-4" /> Preview Styles
           </button>
         </div>
       </div>
