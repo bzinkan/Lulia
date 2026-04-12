@@ -225,6 +225,13 @@ def load_standard_set(
         key=lambda x: (x[2].get("depth", 0), x[2].get("position", 0))
     )
 
+    # Track domain inheritance as we iterate. Because standards_list is sorted by
+    # (depth, position), parents are always processed before their children — so
+    # the parent's domain is already in domain_by_csp_id by the time a child looks
+    # it up. This prevents the "93% NULL domain" bug that required a separate
+    # backfill pass (see scripts/backfill_standards_domain.py for the historical fix).
+    domain_by_csp_id: dict[str, str] = {}
+
     rows = []
     for csp_id, our_id, std in standards_list:
         code = (
@@ -243,14 +250,27 @@ def load_standard_set(
         parent_csp_id = std.get("parentId")
         parent_id = id_map.get(parent_csp_id) if parent_csp_id else None
 
-        domain = None
         cluster = None
         depth = std.get("depth", 0)
         label = (std.get("statementLabel") or "").lower()
 
+        # Determine this node's OWN domain (only depth-0 nodes or "domain"-labeled).
+        own_domain = None
         if depth == 0 or "domain" in label:
-            domain = description[:255]
-        elif depth == 1 or "cluster" in label:
+            own_domain = description[:255]
+
+        # Inherit from parent if this node doesn't have its own domain.
+        # Cross-set parent references (parent in different standard_set) won't be in
+        # domain_by_csp_id and fall through to None — those become orphans whose
+        # subtrees stay NULL until a backfill or Haiku classifier touches them.
+        domain = own_domain or (domain_by_csp_id.get(parent_csp_id) if parent_csp_id else None)
+
+        # Remember the resolved domain so descendants in this set can inherit it.
+        if domain:
+            domain_by_csp_id[csp_id] = domain
+
+        # Cluster: only set on depth-1 nodes, no inheritance (matches original behavior).
+        if depth == 1 or "cluster" in label:
             cluster = description[:255]
 
         # Determine cognitive level from label
