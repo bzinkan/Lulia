@@ -1,4 +1,5 @@
 """Live Game routes — create sessions, manage gameplay, view results."""
+import logging
 import os
 from typing import Optional
 from uuid import UUID
@@ -8,6 +9,8 @@ from fastapi.responses import JSONResponse
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
+
+log = logging.getLogger(__name__)
 
 from src.lms_agents.tools.game_session_manager import (
     create_game_session, join_game, start_game, end_game, GAME_SHELLS,
@@ -58,6 +61,95 @@ async def list_game_shells():
     """List available game shell types."""
     shells = [{"id": sid, **info} for sid, info in GAME_SHELLS.items()]
     return {"shells": shells}
+
+
+@router.get("/api/v1/games/standards-match-count")
+async def standards_match_count(
+    standards: str = Query(..., description="Comma-separated standard codes"),
+    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    conn=Depends(get_db),
+):
+    """
+    How many questions in the teacher's existing assignments match these standards?
+    If 0, the setup modal flips the cost pill to '2 credits' because the game
+    will fall through to Haiku generation.
+    """
+    codes = [c.strip() for c in standards.split(",") if c.strip()]
+    if not codes:
+        return {"match_count": 0, "standards": []}
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT COUNT(*)
+           FROM assignments a, jsonb_array_elements(a.questions) q
+           WHERE a.teacher_id = %s::uuid
+             AND q->>'standard_code' = ANY(%s)""",
+        (teacher_id, codes),
+    )
+    count = cur.fetchone()[0] or 0
+    cur.close()
+    return {"match_count": count, "standards": codes, "will_generate_via_ai": count == 0}
+
+
+class SuggestCategoriesRequest(BaseModel):
+    source_type: str  # 'assignment' | 'standards' | 'custom'
+    assignment_id: Optional[str] = None
+    standards: Optional[list[str]] = None
+    prompt: Optional[str] = None
+    teacher_id: str = "00000000-0000-0000-0000-000000000001"
+
+
+@router.post("/api/v1/games/suggest-categories")
+async def suggest_categories(req: SuggestCategoriesRequest, conn=Depends(get_db)):
+    """
+    Suggest 5 Jeopardy category names based on the selected content source.
+    Returns a list of up to 5 category strings.
+    """
+    context_label = ""
+    if req.source_type == "assignment" and req.assignment_id:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT title, subject FROM assignments WHERE assignment_id = %s", (req.assignment_id,))
+        a = cur.fetchone()
+        cur.close()
+        if a:
+            context_label = f"an assignment titled '{a['title']}' (subject: {a.get('subject', 'general')})"
+    elif req.source_type == "standards" and req.standards:
+        context_label = f"standards: {', '.join(req.standards[:8])}"
+    elif req.source_type == "custom" and req.prompt:
+        context_label = f"topic: {req.prompt[:200]}"
+
+    if not context_label:
+        # Fallback — return generic-ish defaults
+        return {"categories": ["Vocab", "Facts", "People", "Events", "Applications"]}
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {"categories": ["Vocab", "Facts", "People", "Events", "Applications"]}
+
+    try:
+        import anthropic
+        import json as _json
+        import re as _re
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = (
+            f"Suggest exactly 5 Jeopardy category names (1-3 words each) for a classroom game "
+            f"about {context_label}. Return ONLY a JSON array of strings. "
+            f"Examples: [\"Fractions\",\"Place Value\",\"Word Problems\",\"Decimals\",\"Measurement\"]"
+        )
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = resp.content[0].text.strip()
+        match = _re.search(r"\[.*?\]", text, _re.DOTALL)
+        arr = _json.loads(match.group()) if match else []
+        cats = [c.strip() for c in arr if isinstance(c, str)][:5]
+        while len(cats) < 5:
+            cats.append(f"Topic {len(cats)+1}")
+        return {"categories": cats}
+    except Exception as e:
+        log.error(f"[Games] Suggest categories failed: {e}")
+        return {"categories": ["Vocab", "Facts", "People", "Events", "Applications"]}
 
 
 @router.post("/api/v1/games/create")

@@ -39,6 +39,12 @@ export const GAME_SHELLS = [
     max_players: 40,
     play_time_min: 10,
     best_for: 'Any subject, any grade',
+    // Teacher controls question_count freely
+    question_count_default: 15,
+    question_count_min: 5,
+    question_count_max: 50,
+    question_count_locked: false,
+    needs_categories: false,
     extra_settings: [],
   },
   {
@@ -52,10 +58,15 @@ export const GAME_SHELLS = [
     max_players: 30,
     play_time_min: 20,
     best_for: 'Review & end of unit',
+    // Jeopardy is locked to 25 (5 categories × 5 values). Teacher can't change this.
+    question_count_default: 25,
+    question_count_locked: true,
+    needs_categories: true,  // modal shows a "Suggest" button next to the category field
     extra_settings: [
       { key: 'categories', type: 'text', label: 'Category names (5, comma-separated)',
         default: 'Vocab, Facts, Events, People, Dates',
-        placeholder: 'Vocab, Facts, Events, People, Dates' },
+        placeholder: 'Vocab, Facts, Events, People, Dates',
+        suggestable: true },
       { key: 'daily_double', type: 'toggle', label: 'Include Daily Double tile', default: true },
     ],
   },
@@ -70,6 +81,11 @@ export const GAME_SHELLS = [
     max_players: 40,
     play_time_min: 15,
     best_for: 'Vocabulary & definitions',
+    // Bingo question_count is derived from board_size (set in GameSetupModal)
+    question_count_default: 25,
+    question_count_locked: true,
+    question_count_derived_from: 'board_size',  // modal computes board_size² on change
+    needs_categories: false,
     extra_settings: [
       { key: 'board_size', type: 'select', label: 'Board size',
         options: [

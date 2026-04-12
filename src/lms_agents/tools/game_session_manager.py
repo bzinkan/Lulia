@@ -85,15 +85,48 @@ def create_game_session(
         if not standards:
             return {"error": "standards list required for type='standards'"}
         raw_questions, matched_assignment_ids = _load_from_standards(teacher_id, standards, count)
-        if not raw_questions:
-            return {
-                "error": "No existing assignments cover these standards for this teacher. Switch to Custom to generate new questions.",
-                "reason": "no_standards_match",
-            }
-        title = f"Game: {', '.join(standards[:3])}{'...' if len(standards) > 3 else ''}"
-        # If all matched questions come from one assignment, link it for nicer analytics
-        if len(set(matched_assignment_ids)) == 1:
-            assignment_id_for_row = matched_assignment_ids[0]
+        if raw_questions:
+            title = f"Game: {', '.join(standards[:3])}{'...' if len(standards) > 3 else ''}"
+            if len(set(matched_assignment_ids)) == 1:
+                assignment_id_for_row = matched_assignment_ids[0]
+        else:
+            # Fall through to Haiku generation keyed to the selected standards.
+            # Credits charged as if this were 'custom'.
+            from src.lms_agents.tools.credit_manager import charge_credits, grant_credits
+            from src.lms_agents.config.pricing import CREDIT_COSTS
+            cost = CREDIT_COSTS.get("live_game_custom_questions", 2)
+            charge = charge_credits(
+                teacher_id, cost,
+                reference_type="live_game_standards_fallback",
+                description=f"Live Game from standards ({count} questions, no match found)",
+            )
+            if not charge["success"]:
+                return {
+                    "error": charge.get("error", "Credit charge failed"),
+                    "reason": "insufficient_credits",
+                    **charge,
+                }
+            from src.lms_agents.tools.question_generator import generate_questions
+            topic_from_standards = f"Content aligned to these standards: {', '.join(standards)}"
+            gen_result = generate_questions(
+                topic=topic_from_standards, grade="5", subject="General",
+                count=count, standard_codes=standards,
+            )
+            if not gen_result.get("success"):
+                grant_credits(teacher_id, cost, reason="Refund: Haiku gen failed", bucket="purchased")
+                return {"error": gen_result.get("error", "Question generation failed")}
+            raw_questions = [
+                {
+                    "question_number": i + 1,
+                    "question_text": q["question"],
+                    "answer": q["answer"],
+                    "distractors": q.get("distractors", []),
+                    "standard_code": q.get("standard_code") or (standards[i % len(standards)] if standards else ""),
+                }
+                for i, q in enumerate(gen_result["questions"])
+            ]
+            generated_questions_cache = raw_questions  # Replay stays free
+            title = f"Game: {', '.join(standards[:3])}{'...' if len(standards) > 3 else ''}"
 
     elif source_type == "custom":
         prompt = question_source.get("prompt", "").strip()
