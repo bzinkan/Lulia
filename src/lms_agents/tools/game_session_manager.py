@@ -91,7 +91,6 @@ def create_game_session(
                 assignment_id_for_row = matched_assignment_ids[0]
         else:
             # Fall through to Haiku generation keyed to the selected standards.
-            # Credits charged as if this were 'custom'.
             from src.lms_agents.tools.credit_manager import charge_credits, grant_credits
             from src.lms_agents.config.pricing import CREDIT_COSTS
             cost = CREDIT_COSTS.get("live_game_custom_questions", 2)
@@ -106,10 +105,20 @@ def create_game_session(
                     "reason": "insufficient_credits",
                     **charge,
                 }
+            # Use the class's actual grade + subject (not hardcoded defaults)
+            class_grade, class_subject = _class_grade_subject(class_id)
+            # Look up real descriptions so Haiku knows what standard codes mean
+            standard_details = _fetch_standard_descriptions(standards)
+            topic_from_standards = (
+                f"{class_subject} for Grade {class_grade}. "
+                f"Cover these standards:\n" + "\n".join(
+                    f"  - {d['code']}: {d['description']}" for d in standard_details
+                )
+            )
             from src.lms_agents.tools.question_generator import generate_questions
-            topic_from_standards = f"Content aligned to these standards: {', '.join(standards)}"
             gen_result = generate_questions(
-                topic=topic_from_standards, grade="5", subject="General",
+                topic=topic_from_standards,
+                grade=class_grade, subject=class_subject,
                 count=count, standard_codes=standards,
             )
             if not gen_result.get("success"):
@@ -126,7 +135,7 @@ def create_game_session(
                 for i, q in enumerate(gen_result["questions"])
             ]
             generated_questions_cache = raw_questions  # Replay stays free
-            title = f"Game: {', '.join(standards[:3])}{'...' if len(standards) > 3 else ''}"
+            title = f"{class_subject} — {', '.join(standards[:3])}{'...' if len(standards) > 3 else ''}"
 
     elif source_type == "custom":
         prompt = question_source.get("prompt", "").strip()
@@ -148,10 +157,11 @@ def create_game_session(
                 "reason": "insufficient_credits",
                 **charge,
             }
-        # Generate via Haiku
+        # Generate via Haiku — use the class's actual grade/subject
+        class_grade, class_subject = _class_grade_subject(class_id)
         from src.lms_agents.tools.question_generator import generate_questions
         gen_result = generate_questions(
-            topic=prompt, grade="5", subject="General", count=count,
+            topic=prompt, grade=class_grade, subject=class_subject, count=count,
         )
         if not gen_result.get("success"):
             # Refund on failure
@@ -247,6 +257,44 @@ def _load_assignment(assignment_id: str) -> tuple[list, str]:
         return [], ""
     questions = row["questions"] if isinstance(row["questions"], list) else []
     return questions, row["title"] or "Live Game"
+
+
+def _class_grade_subject(class_id: str | None) -> tuple[str, str]:
+    """Fetch the class's grade_level and subject for Haiku context. Defaults: 5 / General."""
+    if not class_id:
+        return "5", "General"
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT grade_level, subject FROM classes WHERE class_id = %s::uuid", (class_id,))
+        row = cur.fetchone()
+        cur.close(); conn.close()
+        if row:
+            return str(row[0] or "5"), str(row[1] or "General")
+    except Exception as e:
+        log.warning(f"[Games] class lookup failed for {class_id}: {e}")
+    return "5", "General"
+
+
+def _fetch_standard_descriptions(codes: list[str]) -> list[dict]:
+    """Look up descriptions for standard codes so Haiku knows what they mean."""
+    if not codes:
+        return []
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            "SELECT code, description FROM standards WHERE code = ANY(%s) LIMIT 50",
+            (codes,),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        # Preserve the original order and fill missing codes with a placeholder
+        by_code = {r["code"]: r["description"] for r in rows}
+        return [{"code": c, "description": by_code.get(c, "(description not found)")} for c in codes]
+    except Exception as e:
+        log.warning(f"[Games] standards lookup failed: {e}")
+        return [{"code": c, "description": ""} for c in codes]
 
 
 def _load_from_standards(teacher_id: str, standards: list[str], count: int) -> tuple[list, list[str]]:
