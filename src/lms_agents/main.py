@@ -2,8 +2,13 @@
 Lulia — AI-Powered Learning Management System
 FastAPI Application Entry Point
 """
+import logging
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Lulia API",
@@ -12,6 +17,31 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+@app.on_event("startup")
+async def run_pending_migrations():
+    """Auto-apply any un-run migrate_*.py scripts on API boot.
+    Controlled by AUTO_MIGRATE env var (default on).
+    Set FAIL_ON_MIGRATION_ERROR=true in prod to hard-fail on bad migrations.
+    """
+    if os.environ.get("AUTO_MIGRATE", "true").lower() != "true":
+        log.info("[boot] AUTO_MIGRATE disabled, skipping migrations")
+        return
+    try:
+        from scripts.run_migrations import run_pending
+        result = run_pending()
+        log.info(
+            f"[boot] migrations: {len(result['ran'])} applied, "
+            f"{len(result['skipped'])} already-applied, "
+            f"{len(result['failed'])} failed"
+        )
+        if result["failed"] and os.environ.get("FAIL_ON_MIGRATION_ERROR", "false").lower() == "true":
+            raise RuntimeError(f"Migration failures: {[n for n,_ in result['failed']]}")
+    except Exception as e:
+        log.error(f"[boot] migration runner error: {e}")
+        if os.environ.get("FAIL_ON_MIGRATION_ERROR", "false").lower() == "true":
+            raise
 
 # CORS for dashboard
 app.add_middleware(
