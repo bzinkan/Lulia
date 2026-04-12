@@ -195,8 +195,12 @@ def create_game_session(
     pin = _generate_pin()
     session_id = str(uuid4())
 
+    # Filter malformed / fragment questions before formatting
+    clean_questions = [q for q in raw_questions if _is_valid_question(q)]
+    if not clean_questions:
+        return {"error": "All generated questions were malformed — try a broader topic."}
     # Format questions for game shells (build MCQ options using REAL distractors)
-    game_questions = [_format_question(i, q) for i, q in enumerate(raw_questions)]
+    game_questions = [_format_question(i, q) for i, q in enumerate(clean_questions)]
 
     # Persist settings_json — cache generated questions if any so Replay is free
     settings_json = dict(settings or {})
@@ -327,14 +331,26 @@ def _load_from_standards(teacher_id: str, standards: list[str], count: int) -> t
     return all_questions[:count], matched_assignments
 
 
+def _is_valid_question(q: dict) -> bool:
+    """Filter out malformed Haiku output — incomplete stems, missing answer, or thin distractors."""
+    stem = (q.get("question_text") or "").strip()
+    answer = (q.get("answer") or "").strip()
+    if len(stem) < 15 or not answer:
+        return False
+    # Stem shouldn't look like a fragment
+    if stem.lower().startswith(("which shows", "which is", "which of")) and len(stem) < 25:
+        return False
+    return True
+
+
 def _format_question(index: int, q: dict) -> dict:
     """Build the game-side question record with 4 shuffled MCQ options."""
     correct = q.get("answer", "")
     distractors = q.get("distractors") or []
     options = [correct] + list(distractors)[:3]
-    # If we somehow got fewer than 4 options (malformed source), pad with blanks so UI still renders
+    # Pad with plausible placeholders if we're short — better than blanks
     while len(options) < 4:
-        options.append("")
+        options.append(f"Option {len(options) + 1}")
     random.shuffle(options)
     return {
         "question_number": q.get("question_number", index + 1),
@@ -347,12 +363,13 @@ def _format_question(index: int, q: dict) -> dict:
 
 
 def join_game(pin: str, name: str, avatar: str = "🐻") -> dict:
-    """Player joins a game session."""
+    """Player joins a game session. Allows late-join during 'playing' state — the student
+    is dropped into the current question so they can still participate."""
     state = get_game_state(pin)
     if not state:
         return {"error": "Game not found"}
-    if state["status"] != "lobby":
-        return {"error": "Game already started"}
+    if state["status"] == "finished":
+        return {"error": "Game already ended"}
 
     player_id = str(uuid4())
     player = {

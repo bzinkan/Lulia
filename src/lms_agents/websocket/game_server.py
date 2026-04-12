@@ -145,6 +145,18 @@ async def handle_game_websocket(websocket: WebSocket, pin: str):
                         "player_count": result["player_count"],
                         "players": [_player_summary(p) for p in state.get("players", [])],
                     })
+                    # Late-join sync: if the game is already playing, send current question + pool
+                    if state.get("status") == "playing":
+                        q_idx = state.get("current_question", 0)
+                        questions = state.get("questions", [])
+                        q = questions[q_idx] if 0 <= q_idx < len(questions) else None
+                        await websocket.send_text(json.dumps({
+                            "type": "current_question",
+                            "question": _teacher_question(q),
+                            "current_question": q_idx,
+                            "total_questions": len(questions),
+                            "all_questions": questions,
+                        }))
                 else:
                     await websocket.send_text(json.dumps({"type": "error", "message": result["error"]}))
 

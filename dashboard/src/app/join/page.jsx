@@ -68,24 +68,29 @@ function JoinInner() {
 
   function joinGame() {
     if (!name.trim()) return;
+    setError('');
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const host = window.location.hostname;
     const ws = new WebSocket(`${proto}://${host}:8000/ws/games/${pin}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
+      // Don't advance the UI yet — wait for `joined` confirmation from server
       ws.send(JSON.stringify({
         type: 'join',
         name: name.trim(),
         avatar: avatarDisplay,
       }));
-      setStep('lobby');
     };
 
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
       if (msg.type === 'joined') {
         setPlayerId(msg.player_id);
+        setStep('lobby');
+      } else if (msg.type === 'error') {
+        setError(msg.message || 'Could not join game');
+        ws.close();
       } else if (msg.type === 'game_started' || msg.type === 'new_question') {
         setCurrentQuestion(msg.question);
         setQuestionIndex(msg.current_question ?? 0);
@@ -96,6 +101,13 @@ function JoinInner() {
           setCalledAnswers(prev => [...prev, msg.question.answer]);
         }
         if (msg.all_questions) setAllQuestions(msg.all_questions);
+      } else if (msg.type === 'current_question') {
+        // Late-join sync: game already in playing state
+        setCurrentQuestion(msg.question);
+        setQuestionIndex(msg.current_question ?? 0);
+        setTotalQuestions(msg.total_questions ?? 0);
+        if (msg.all_questions) setAllQuestions(msg.all_questions);
+        setStep('playing');
       } else if (msg.type === 'answer_result') {
         setLastResult({ correct: msg.correct, points: msg.points, correct_answer: msg.correct_answer });
       } else if (msg.type === 'game_finished') {
@@ -104,7 +116,10 @@ function JoinInner() {
       }
     };
 
-    ws.onerror = () => setError('Connection lost');
+    ws.onerror = () => setError('Connection lost — check that the API is running');
+    ws.onclose = (ev) => {
+      if (ev.code === 4004) setError('Game not found');
+    };
   }
 
   function submitAnswer(answer) {
@@ -199,6 +214,7 @@ function JoinInner() {
                   padding: '12px 16px', fontSize: 16,
                   outline: 'none', textAlign: 'center',
                 }} />
+              {error && <p style={{ color: '#EF4444', fontSize: 13, marginTop: 8 }}>{error}</p>}
               <button onClick={joinGame} disabled={!name.trim()}
                 style={{
                   width: '100%', marginTop: 12,
