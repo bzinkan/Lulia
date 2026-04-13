@@ -1,8 +1,11 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Play, SkipForward, StopCircle, Users, Copy, CheckCircle, ExternalLink, Eye } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, SkipForward, StopCircle, Users, Copy, CheckCircle, ExternalLink, Eye, Trophy } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { play as playSound } from '@/lib/gameSounds';
+import { winnerCelebration } from '@/lib/confetti';
 import QuizRace from '@/components/games/shells/QuizRace';
 import Jeopardy from '@/components/games/shells/Jeopardy';
 import BingoBlitz from '@/components/games/shells/BingoBlitz';
@@ -87,6 +90,9 @@ export default function TeacherPlayPage() {
       } else if (msg.type === 'game_finished') {
         next.status = 'finished';
         setEnded({ leaderboard: msg.leaderboard || [] });
+        // Fire the celebration moment
+        setTimeout(() => { playSound('drumroll'); }, 150);
+        setTimeout(() => { playSound('fanfare'); winnerCelebration(); }, 1200);
       }
       return next;
     });
@@ -271,30 +277,76 @@ export default function TeacherPlayPage() {
         />
       )}
 
-      {/* Ended view */}
-      {ended && (
-        <div className="rounded-card p-6 mt-4"
-          style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
-          <h2 className="font-serif text-[24px] text-center mb-4" style={{ color: 'var(--text-dark)' }}>
-            Final Leaderboard
-          </h2>
-          <div className="space-y-2 max-w-xl mx-auto">
-            {ended.leaderboard.map((p, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-xl"
-                style={{ background: i === 0 ? 'rgba(233,180,76,0.12)' : 'var(--cream)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-[20px]" style={{ color: i === 0 ? 'var(--mustard, #E9B44C)' : 'var(--text-mid)' }}>
-                    #{p.rank}
-                  </span>
-                  <span className="text-[22px]">{p.avatar || '🐻'}</span>
-                  <span className="font-serif text-[16px]" style={{ color: 'var(--text-dark)' }}>{p.name}</span>
-                </div>
-                <span className="font-bold text-[16px]" style={{ color: 'var(--coral)' }}>{p.score}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Ended view — staggered leaderboard reveal */}
+      <AnimatePresence>
+        {ended && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="rounded-card p-8 mt-4"
+            style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
+            <motion.h2
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+              className="font-serif text-[32px] text-center mb-2"
+              style={{ color: 'var(--text-dark)' }}>
+              Game Over!
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+              className="text-center text-[14px] mb-6" style={{ color: 'var(--text-mid)' }}>
+              Final Leaderboard
+            </motion.p>
+
+            <div className="max-w-xl mx-auto space-y-2">
+              {[...ended.leaderboard]
+                .sort((a, b) => a.rank - b.rank)
+                .map((p, i) => (
+                  <motion.div key={`${p.name}-${i}`}
+                    initial={{ opacity: 0, x: i === 0 ? 0 : -40, scale: i === 0 ? 0.85 : 1 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    transition={{
+                      delay: 1.4 + (ended.leaderboard.length - i) * 0.18,
+                      type: 'spring', stiffness: 300, damping: 22,
+                    }}
+                    className="flex items-center justify-between p-4 rounded-xl"
+                    style={{
+                      background: i === 0
+                        ? 'linear-gradient(135deg, rgba(233,180,76,0.18), rgba(233,180,76,0.08))'
+                        : 'var(--cream)',
+                      border: `2px solid ${i === 0 ? 'var(--mustard, #E9B44C)' : 'var(--border)'}`,
+                      boxShadow: i === 0 ? '0 6px 20px rgba(233,180,76,0.25)' : 'none',
+                    }}>
+                    <div className="flex items-center gap-4">
+                      <span className="font-bold text-[24px] w-10 text-center" style={{
+                        color: i === 0 ? '#B48838' : i === 1 ? '#78716C' : i === 2 ? '#92400E' : 'var(--text-mid)',
+                      }}>
+                        {i === 0 ? '🏆' : `#${p.rank}`}
+                      </span>
+                      <span className="text-[28px]">{p.avatar || '🐻'}</span>
+                      <span className="font-serif" style={{
+                        color: 'var(--text-dark)',
+                        fontSize: i === 0 ? 22 : 16,
+                        fontWeight: i === 0 ? 700 : 500,
+                      }}>
+                        {p.name}
+                      </span>
+                    </div>
+                    <motion.span
+                      initial={{ scale: 0 }} animate={{ scale: 1 }}
+                      transition={{ delay: 1.6 + (ended.leaderboard.length - i) * 0.18, type: 'spring', stiffness: 400 }}
+                      className="font-bold" style={{
+                        color: 'var(--coral)',
+                        fontSize: i === 0 ? 22 : 16,
+                      }}>
+                      {p.score}
+                    </motion.span>
+                  </motion.div>
+                ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
