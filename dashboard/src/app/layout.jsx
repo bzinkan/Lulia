@@ -2,6 +2,7 @@ import './globals.css';
 import Sidebar from '@/components/Sidebar';
 import ChatSidebar from '@/components/ChatSidebar';
 import AppShell from '@/components/AppShell';
+import MainContentShell from '@/components/MainContentShell';
 
 export const metadata = {
   title: 'Lulia Lesson Lab — AI-Powered LMS',
@@ -15,12 +16,11 @@ export default function RootLayout({ children }) {
         {/* Retro dot-grid texture overlay */}
         <div className="retro-pattern" />
         <Sidebar />
-        {/* Main content area */}
-        <main className="md:ml-[240px] pt-14 md:pt-0 min-h-screen relative z-10">
+        <MainContentShell>
           <AppShell>
             {children}
           </AppShell>
-        </main>
+        </MainContentShell>
         <ChatSidebar />
       </body>
     </html>

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ClassProvider, useClassContext } from './ClassContext';
 import ClassTabBar from './ClassTabBar';
 import ClassFormModal from './ClassFormModal';
@@ -116,6 +117,14 @@ function AppShellInner({ children }) {
 }
 
 export default function AppShell({ children }) {
+  const pathname = usePathname() || '';
+  // Student-facing / live-game routes get no dashboard chrome (no ClassTabBar, no wrappers).
+  const isStandalone = pathname === '/join'
+    || pathname.startsWith('/join/')
+    || pathname.startsWith('/play/');
+  if (isStandalone) {
+    return <>{children}</>;
+  }
   return (
     <ClassProvider>
       <AppShellInner>{children}</AppShellInner>

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -11,6 +12,7 @@ const SUGGESTIONS = [
 ];
 
 export default function ChatSidebar() {
+  const pathname = usePathname() || '';
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -50,6 +52,11 @@ export default function ChatSidebar() {
         <MessageCircle className="w-6 h-6" />
       </button>
     );
+  }
+
+  // Hide on student-facing + live-game pages (hooks run above regardless)
+  if (pathname === '/join' || pathname.startsWith('/join/') || pathname.startsWith('/play/')) {
+    return null;
   }
 
   return (
