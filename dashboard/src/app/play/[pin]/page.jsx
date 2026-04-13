@@ -6,9 +6,10 @@ import { Play, SkipForward, StopCircle, Users, Copy, CheckCircle, ExternalLink, 
 import { apiFetch } from '@/lib/api';
 import { play as playSound } from '@/lib/gameSounds';
 import { winnerCelebration } from '@/lib/confetti';
-import QuizRace from '@/components/games/shells/QuizRace';
-import Jeopardy from '@/components/games/shells/Jeopardy';
-import BingoBlitz from '@/components/games/shells/BingoBlitz';
+import dynamic from 'next/dynamic';
+const QuizRace    = dynamic(() => import('@/components/games/shells/QuizRace'),    { ssr: false });
+const Jeopardy    = dynamic(() => import('@/components/games/shells/Jeopardy'),    { ssr: false });
+const BingoBlitz  = dynamic(() => import('@/components/games/shells/BingoBlitz'),  { ssr: false });
 
 const SHELL_COMPONENTS = {
   quiz_race: QuizRace,

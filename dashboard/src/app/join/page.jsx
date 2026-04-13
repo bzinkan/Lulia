@@ -4,9 +4,11 @@ import { useSearchParams } from 'next/navigation';
 import { Gamepad2, Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import LulingSelector from '@/components/LulingSelector';
-import QuizRace from '@/components/games/shells/QuizRace';
-import Jeopardy from '@/components/games/shells/Jeopardy';
-import BingoBlitz from '@/components/games/shells/BingoBlitz';
+import dynamic from 'next/dynamic';
+// Shells use Web Audio + canvas-confetti — client-only, no SSR
+const QuizRace    = dynamic(() => import('@/components/games/shells/QuizRace'),    { ssr: false });
+const Jeopardy    = dynamic(() => import('@/components/games/shells/Jeopardy'),    { ssr: false });
+const BingoBlitz  = dynamic(() => import('@/components/games/shells/BingoBlitz'),  { ssr: false });
 
 const SHELL_COMPONENTS = {
   quiz_race: QuizRace,
