@@ -89,6 +89,30 @@ Pack prices now mirror subscription tiers so per-credit rate is consistent.
 - [ ] In the Stripe webhook handler (`stripe_webhooks.py`), verify that **credit-pack purchases call `grant_credits(..., bucket="purchased")`** — purchased credits never expire; they must not land in the monthly-reset bucket
 - [ ] Verify: test pack purchase in Stripe test mode → check `teachers.credits_purchased` increments, `teachers.credit_balance` untouched
 
+### Live Games — multi-instance WebSocket readiness
+
+The game WebSocket now uses **Redis pub/sub** for broadcast so connections
+sharded across multiple Fargate tasks still see the same events. ALB +
+CloudFront must be configured for WebSocket passthrough and stickiness.
+
+- [ ] Set ECS env var `NEXT_PUBLIC_WS_URL=wss://school-pilot.net` on the
+      dashboard container (or whatever the production hostname is)
+- [ ] ALB target group for API has `stickiness.enabled = true`, type
+      `lb_cookie`, duration ~2 hours. Without this, a student's WebSocket
+      can bounce mid-game between tasks and lose state.
+- [ ] CloudFront cache behavior for `/ws/*`: forward all headers, bypass
+      cache (`CachePolicy: Managed-CachingDisabled`, `OriginRequestPolicy:
+      Managed-AllViewer`). WebSocket upgrade headers must pass through.
+- [ ] CloudFront distribution supports WebSocket: confirmed on modern
+      distributions by default but verify "WebSocket support" isn't
+      explicitly disabled.
+- [ ] Redis: ensure `REDIS_HOST`/`REDIS_PORT` point to ElastiCache or
+      Redis container reachable from all API tasks. The pub/sub channel
+      is `game:{pin}:events` — no setup required, Redis creates on demand.
+- [ ] Fargate task definition has **at least 2 API tasks** to actually
+      exercise the multi-instance path. Single-task runs use local
+      delivery via the same code path (Redis publish still works).
+
 ### End-to-end verification
 - [ ] Generate a 30-sec clip from `/clips` page — charges 90 credits, monthly-first spend order in `credit_transactions_v2.metadata`
 - [ ] Tier gate: Free/Basic account hitting `POST /clips/generate` returns 402 with upgrade prompt
@@ -96,3 +120,10 @@ Pack prices now mirror subscription tiers so per-credit rate is consistent.
 - [ ] Planner refiner "Short Clip" option saves `output_template_id: 'short_clip'` on work order; approve_plan routes to Veo (not the old slides pipeline)
 - [ ] On Veo failure, credits auto-refund to the `purchased` bucket
 - [ ] `/videos` URL redirects to `/clips` (for bookmarks)
+- [ ] Live Games multi-instance test: run 2+ Fargate tasks. Teacher on
+      laptop, 2 students on separate phones/tabs with different IPs. All
+      3 sockets should receive `new_question` simultaneously. If a student
+      misses an event, suspect ALB stickiness or Redis pub/sub config.
+- [ ] WebSocket URL: browser DevTools Network tab → WS filter → confirm
+      connection URL is `wss://school-pilot.net/ws/games/...`, not a
+      port-8000 variant.

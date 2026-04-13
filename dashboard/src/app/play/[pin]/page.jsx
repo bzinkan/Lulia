@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, SkipForward, StopCircle, Users, Copy, CheckCircle, ExternalLink, Eye, Trophy } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { getGameWebSocketUrl } from '@/lib/gameWebSocket';
 import { play as playSound } from '@/lib/gameSounds';
 import { winnerCelebration } from '@/lib/confetti';
 import dynamic from 'next/dynamic';
@@ -38,10 +39,7 @@ export default function TeacherPlayPage() {
   }, [pin]);
 
   function connectWebSocket() {
-    const proto = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    const wsPort = 8000;
-    wsRef.current = new WebSocket(`${proto}://${host}:${wsPort}/ws/games/${pin}`);
+    wsRef.current = new WebSocket(getGameWebSocketUrl(pin));
     wsRef.current.onopen = () => {
       wsRef.current.send(JSON.stringify({ type: 'teacher_connect' }));
     };

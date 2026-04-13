@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Gamepad2, Loader2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { getGameWebSocketUrl } from '@/lib/gameWebSocket';
 import LulingSelector from '@/components/LulingSelector';
 import dynamic from 'next/dynamic';
 // Shells use Web Audio + canvas-confetti — client-only, no SSR
@@ -71,9 +72,7 @@ function JoinInner() {
   function joinGame() {
     if (!name.trim()) return;
     setError('');
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = window.location.hostname;
-    const ws = new WebSocket(`${proto}://${host}:8000/ws/games/${pin}`);
+    const ws = new WebSocket(getGameWebSocketUrl(pin));
     wsRef.current = ws;
 
     ws.onopen = () => {
