@@ -26,12 +26,24 @@ export const BASE_SETTINGS = [
   { key: 'shuffle', type: 'toggle', label: 'Randomize question order', default: true },
 ];
 
+export const ARCADE_CATEGORIES = [
+  { id: 'ALL', label: 'ALL' },
+  { id: 'TRIVIA', label: 'TRIVIA' },
+  { id: 'TEAM', label: 'TEAM' },
+  { id: 'SOLO', label: 'SOLO' },
+  { id: 'COOP', label: 'COOP' },
+  { id: 'REVIEW', label: 'REVIEW' },
+];
+
 export const GAME_SHELLS = [
   // Phase 1 — fully playable
   {
     id: 'quiz_race',
     name: 'Quiz Race',
+    marquee_name: 'QUIZ RACE',
     desc: 'Kahoot-style MC — fastest correct answer wins the most points.',
+    arcade_tagline: 'INSERT COIN TO PLAY',
+    arcade_category: 'TRIVIA',
     icon: 'game_quiz_race.png',
     icon_fallback: 'gamepad.png',
     phase: 1,
@@ -39,7 +51,6 @@ export const GAME_SHELLS = [
     max_players: 40,
     play_time_min: 10,
     best_for: 'Any subject, any grade',
-    // Teacher controls question_count freely
     question_count_default: 15,
     question_count_min: 5,
     question_count_max: 50,
@@ -50,7 +61,10 @@ export const GAME_SHELLS = [
   {
     id: 'jeopardy',
     name: 'Jeopardy',
+    marquee_name: 'JEOPARDY',
     desc: '5×5 category board. Students pick a value, answer the question.',
+    arcade_tagline: 'CHOOSE YOUR CATEGORY',
+    arcade_category: 'REVIEW',
     icon: 'game_jeopardy.png',
     icon_fallback: 'gamepad.png',
     phase: 1,
@@ -58,10 +72,9 @@ export const GAME_SHELLS = [
     max_players: 30,
     play_time_min: 20,
     best_for: 'Review & end of unit',
-    // Jeopardy is locked to 25 (5 categories × 5 values). Teacher can't change this.
     question_count_default: 25,
     question_count_locked: true,
-    needs_categories: true,  // modal shows a "Suggest" button next to the category field
+    needs_categories: true,
     extra_settings: [
       { key: 'categories', type: 'text', label: 'Category names (5, comma-separated)',
         default: 'Vocab, Facts, Events, People, Dates',
@@ -73,7 +86,10 @@ export const GAME_SHELLS = [
   {
     id: 'bingo_blitz',
     name: 'Bingo Blitz',
+    marquee_name: 'BINGO BLITZ',
     desc: 'Students get a 5×5 card. Teacher calls questions; mark the answer to win.',
+    arcade_tagline: 'MARK THE ANSWERS',
+    arcade_category: 'TRIVIA',
     icon: 'game_bingo.png',
     icon_fallback: 'gamepad.png',
     phase: 1,
@@ -81,10 +97,9 @@ export const GAME_SHELLS = [
     max_players: 40,
     play_time_min: 15,
     best_for: 'Vocabulary & definitions',
-    // Bingo question_count is derived from board_size (set in GameSetupModal)
     question_count_default: 25,
     question_count_locked: true,
-    question_count_derived_from: 'board_size',  // modal computes board_size² on change
+    question_count_derived_from: 'board_size',
     needs_categories: false,
     extra_settings: [
       { key: 'board_size', type: 'select', label: 'Board size',
@@ -99,17 +114,17 @@ export const GAME_SHELLS = [
   },
 
   // Phase 2 — coming soon
-  { id: 'millionaire',     name: 'Millionaire',      desc: '15 escalating questions, 3 lifelines.',             icon: 'game_millionaire.png',    icon_fallback: 'gamepad.png', phase: 2, min_players: 1, max_players: 30, play_time_min: 15, best_for: 'Whole-class challenge' },
-  { id: 'battle_royale',   name: 'Battle Royale',    desc: 'Wrong answer = eliminated. Last student standing.', icon: 'game_battle_royale.png',  icon_fallback: 'gamepad.png', phase: 2, min_players: 5, max_players: 40, play_time_min: 12, best_for: 'Fast review' },
-  { id: 'team_tug_of_war', name: 'Team Tug of War',  desc: 'Two teams pull the rope with correct answers.',     icon: 'game_tug_of_war.png',     icon_fallback: 'gamepad.png', phase: 2, min_players: 6, max_players: 40, play_time_min: 15, best_for: 'Class competition' },
-  { id: 'memory_match',    name: 'Memory Match',     desc: 'Match question ↔ answer pairs, speed bonus.',       icon: 'game_memory.png',          icon_fallback: 'gamepad.png', phase: 2, min_players: 1, max_players: 30, play_time_min: 10, best_for: 'Vocabulary, concepts' },
+  { id: 'millionaire',     name: 'Millionaire',      marquee_name: 'MILLIONAIRE',  desc: '15 escalating questions, 3 lifelines.',             arcade_tagline: 'FINAL ANSWER?',      arcade_category: 'SOLO',   icon: 'game_millionaire.png',    icon_fallback: 'gamepad.png', phase: 2, min_players: 1, max_players: 30, play_time_min: 15, best_for: 'Whole-class challenge' },
+  { id: 'battle_royale',   name: 'Battle Royale',    marquee_name: 'BATTLE ROYALE',desc: 'Wrong answer = eliminated. Last student standing.', arcade_tagline: 'SURVIVE THE ROUND',  arcade_category: 'TEAM',   icon: 'game_battle_royale.png',  icon_fallback: 'gamepad.png', phase: 2, min_players: 5, max_players: 40, play_time_min: 12, best_for: 'Fast review' },
+  { id: 'team_tug_of_war', name: 'Team Tug of War',  marquee_name: 'TUG OF WAR',   desc: 'Two teams pull the rope with correct answers.',     arcade_tagline: 'PULL THE ROPE',      arcade_category: 'TEAM',   icon: 'game_tug_of_war.png',     icon_fallback: 'gamepad.png', phase: 2, min_players: 6, max_players: 40, play_time_min: 15, best_for: 'Class competition' },
+  { id: 'memory_match',    name: 'Memory Match',     marquee_name: 'MEMORY MATCH', desc: 'Match question ↔ answer pairs, speed bonus.',       arcade_tagline: 'FIND THE PAIRS',     arcade_category: 'SOLO',   icon: 'game_memory.png',          icon_fallback: 'gamepad.png', phase: 2, min_players: 1, max_players: 30, play_time_min: 10, best_for: 'Vocabulary, concepts' },
 
   // Phase 3 — coming soon
-  { id: 'speed_rush',      name: 'Speed Rush',       desc: 'Rapid-fire sprint — finish the deck fastest.',      icon: 'game_speed_rush.png',      icon_fallback: 'gamepad.png', phase: 3, min_players: 1, max_players: 30, play_time_min: 8,  best_for: 'Fact fluency' },
-  { id: 'escape_room',     name: 'Escape Room',      desc: 'Cooperative puzzle — unlock rooms with answers.',   icon: 'game_escape.png',          icon_fallback: 'gamepad.png', phase: 3, min_players: 2, max_players: 10, play_time_min: 25, best_for: 'Collaborative review' },
-  { id: 'card_duel',       name: 'Card Duel',        desc: '1v1 turn-based elimination.',                        icon: 'game_card_duel.png',       icon_fallback: 'gamepad.png', phase: 3, min_players: 2, max_players: 8,  play_time_min: 10, best_for: 'Math / vocabulary' },
-  { id: 'wheel_spin',      name: 'Wheel Spin',       desc: 'Spin for a category, answer the question.',          icon: 'game_wheel.png',            icon_fallback: 'gamepad.png', phase: 3, min_players: 1, max_players: 30, play_time_min: 12, best_for: 'Mixed review' },
-  { id: 'tournament',      name: 'Tournament',       desc: 'Single-elimination bracket between students.',       icon: 'game_tournament.png',      icon_fallback: 'gamepad.png', phase: 3, min_players: 4, max_players: 32, play_time_min: 25, best_for: 'End-of-unit event' },
+  { id: 'speed_rush',      name: 'Speed Rush',       marquee_name: 'SPEED RUSH',   desc: 'Rapid-fire sprint — finish the deck fastest.',      arcade_tagline: 'BEAT THE CLOCK',     arcade_category: 'SOLO',   icon: 'game_speed_rush.png',      icon_fallback: 'gamepad.png', phase: 3, min_players: 1, max_players: 30, play_time_min: 8,  best_for: 'Fact fluency' },
+  { id: 'escape_room',     name: 'Escape Room',      marquee_name: 'ESCAPE ROOM',  desc: 'Cooperative puzzle — unlock rooms with answers.',   arcade_tagline: 'FIND THE KEY',       arcade_category: 'COOP',   icon: 'game_escape.png',          icon_fallback: 'gamepad.png', phase: 3, min_players: 2, max_players: 10, play_time_min: 25, best_for: 'Collaborative review' },
+  { id: 'card_duel',       name: 'Card Duel',        marquee_name: 'CARD DUEL',    desc: '1v1 turn-based elimination.',                       arcade_tagline: 'DRAW. PLAY. WIN.',   arcade_category: 'TEAM',   icon: 'game_card_duel.png',       icon_fallback: 'gamepad.png', phase: 3, min_players: 2, max_players: 8,  play_time_min: 10, best_for: 'Math / vocabulary' },
+  { id: 'wheel_spin',      name: 'Wheel Spin',       marquee_name: 'WHEEL SPIN',   desc: 'Spin for a category, answer the question.',         arcade_tagline: 'SPIN THE WHEEL',     arcade_category: 'REVIEW', icon: 'game_wheel.png',            icon_fallback: 'gamepad.png', phase: 3, min_players: 1, max_players: 30, play_time_min: 12, best_for: 'Mixed review' },
+  { id: 'tournament',      name: 'Tournament',       marquee_name: 'TOURNAMENT',   desc: 'Single-elimination bracket between students.',      arcade_tagline: 'CLIMB THE BRACKET',  arcade_category: 'TEAM',   icon: 'game_tournament.png',      icon_fallback: 'gamepad.png', phase: 3, min_players: 4, max_players: 32, play_time_min: 25, best_for: 'End-of-unit event' },
 ];
 
 export function getShell(id) {
