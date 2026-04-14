@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import { useClassContext } from '@/components/ClassContext';
 import { apiFetch } from '@/lib/api';
 import { ARCADE_CATEGORIES, GAME_SHELLS } from '@/lib/gameShellConfigs';
 import GameSetupModal from '@/components/games/GameSetupModal';
+import CabinetScreen from '@/components/games/CabinetScreen';
 
 /**
  * Lulia Arcade — /games route.
@@ -593,31 +593,3 @@ export default function GamesPage() {
   );
 }
 
-function CabinetScreen({ shell }) {
-  // Renders the game's 3D icon centered on the CRT screen with a subtle neon glow.
-  // Falls back to gamepad if the specific icon PNG doesn't exist yet.
-  const [src, setSrc] = useState(`/icons/${shell.icon}`);
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      gap: 8,
-    }}>
-      <Image
-        src={src}
-        alt={shell.name}
-        width={64} height={64}
-        onError={() => setSrc(`/icons/${shell.icon_fallback || 'gamepad.png'}`)}
-        style={{ filter: 'drop-shadow(0 0 10px rgba(255,138,110,0.4))' }}
-      />
-      <div style={{
-        fontFamily: "'Press Start 2P', monospace",
-        fontSize: 8,
-        color: '#9ED4BC',
-        letterSpacing: 2,
-        textShadow: '0 0 6px #6BA08A',
-      }}>
-        READY
-      </div>
-    </div>
-  );
-}
