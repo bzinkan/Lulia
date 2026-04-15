@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, Clock, Users, Trophy, Volume2, VolumeX } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Users, Trophy, Volume2, VolumeX, Flame } from 'lucide-react';
 import { play, setMuted, isMuted } from '@/lib/gameSounds';
 import { correctAnswer } from '@/lib/confetti';
 
@@ -25,6 +25,8 @@ export default function QuizRace({
   const [remaining, setRemaining] = useState(timer);
   const [selected, setSelected] = useState(null);
   const [muted, setMutedState] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const prevIndexRef = useRef(questionIndex);
   const tickRef = useRef(null);
 
@@ -52,7 +54,7 @@ export default function QuizRace({
     return () => clearTimeout(tickRef.current);
   }, [remaining, timer, selected]);
 
-  // Play result sound + confetti when answer result arrives
+  // Play result sound + confetti + streak tracking
   const resultSeen = useRef(null);
   useEffect(() => {
     if (lastResult && resultSeen.current !== questionIndex) {
@@ -60,11 +62,27 @@ export default function QuizRace({
       if (lastResult.correct) {
         play('correct');
         correctAnswer({ x: 0.5, y: 0.55 });
+        setStreak(s => s + 1);
       } else {
         play('incorrect');
+        setStreak(0);
       }
     }
   }, [lastResult, questionIndex]);
+
+  // Teacher-only: between-question leaderboard reveal when question advances
+  const prevQuestionIdRef = useRef(questionIndex);
+  useEffect(() => {
+    if (view !== 'teacher') return;
+    if (questionIndex > prevQuestionIdRef.current && players.length > 0) {
+      setShowLeaderboard(true);
+      play('drumroll');
+      const t = setTimeout(() => setShowLeaderboard(false), 2200);
+      prevQuestionIdRef.current = questionIndex;
+      return () => clearTimeout(t);
+    }
+    prevQuestionIdRef.current = questionIndex;
+  }, [questionIndex, view, players.length]);
 
   function toggleMute() {
     const v = !muted;
@@ -90,15 +108,31 @@ export default function QuizRace({
     <div className="max-w-3xl mx-auto relative">
       {/* Top meta bar */}
       <div className="flex items-center justify-between mb-4">
-        <motion.span
-          key={`q-${questionIndex}`}
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-[11px] font-bold uppercase tracking-[2px] px-3 py-1 rounded-full"
-          style={{ color: 'white', background: 'var(--coral)' }}>
-          Question {questionIndex + 1} of {totalQuestions}
-        </motion.span>
+        <div className="flex items-center gap-2">
+          <motion.span
+            key={`q-${questionIndex}`}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="text-[11px] font-bold uppercase tracking-[2px] px-3 py-1 rounded-full"
+            style={{ color: 'white', background: 'var(--coral)' }}>
+            Question {questionIndex + 1} of {totalQuestions}
+          </motion.span>
+          <AnimatePresence>
+            {view === 'student' && streak >= 2 && (
+              <motion.span
+                key={`streak-${streak}`}
+                initial={{ opacity: 0, scale: 0.6, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.6 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+                className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[1px] px-3 py-1 rounded-full"
+                style={{ color: 'white', background: 'linear-gradient(135deg, #F97316, #DC2626)', boxShadow: '0 0 12px rgba(249,115,22,0.55)' }}>
+                <Flame className="w-3 h-3" /> {streak} in a row
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1 text-[13px] font-bold" style={{ color: 'var(--text-mid)' }}>
             <Users className="w-4 h-4" /> {players.length}
@@ -147,6 +181,48 @@ export default function QuizRace({
       )}
 
       {/* Teacher: show answer + player grid */}
+      {/* Between-question leaderboard reveal — teacher only, after teacher advances */}
+      <AnimatePresence>
+        {view === 'teacher' && showLeaderboard && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+            className="fixed inset-0 z-40 flex items-center justify-center p-6"
+            style={{ background: 'rgba(60,40,20,0.55)', backdropFilter: 'blur(6px)' }}>
+            <div className="rounded-card w-full max-w-md p-6"
+              style={{ background: 'var(--warm-card)', border: '2px solid var(--coral)', boxShadow: '0 12px 40px rgba(60,40,20,0.3)' }}>
+              <h3 className="font-serif text-[22px] text-center mb-4" style={{ color: 'var(--text-dark)' }}>
+                Leaderboard
+              </h3>
+              <div className="space-y-2">
+                {[...players].sort((a,b) => (b.score||0) - (a.score||0)).slice(0, 5).map((p, i) => (
+                  <motion.div key={p.player_id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.12 }}
+                    className="flex items-center justify-between p-2.5 rounded-xl"
+                    style={{
+                      background: i === 0 ? 'rgba(233,180,76,0.15)' : 'var(--cream)',
+                      border: `1px solid ${i === 0 ? 'var(--mustard, #E9B44C)' : 'var(--border)'}`,
+                    }}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[14px] w-6 text-center" style={{ color: i === 0 ? '#B48838' : 'var(--text-mid)' }}>
+                        {i === 0 ? '🏆' : `#${i + 1}`}
+                      </span>
+                      <span className="text-[20px]">{p.avatar || '🐻'}</span>
+                      <span className="font-serif text-[14px]" style={{ color: 'var(--text-dark)' }}>{p.name}</span>
+                    </div>
+                    <span className="font-bold text-[14px]" style={{ color: 'var(--coral)' }}>{p.score || 0}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {view === 'teacher' && (
         <div>
           <motion.div
