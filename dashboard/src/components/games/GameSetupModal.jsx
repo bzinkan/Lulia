@@ -1,14 +1,16 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { X, Play, Loader2, FileText, Bookmark, Sparkles, Info, Wand2 } from 'lucide-react';
+import { X, Play, Loader2, FileText, Bookmark, Sparkles, Info, Wand2, BookOpen } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { BASE_SETTINGS } from '@/lib/gameShellConfigs';
 import StandardsPickerModal from '@/components/StandardsPickerModal';
+import CurriculumPickerModal from '@/components/CurriculumPickerModal';
 import { useClassContext } from '@/components/ClassContext';
 
 const SOURCE_TABS = [
   { id: 'assignment', label: 'From Assignment', desc: 'Reuse a worksheet you already made', icon: FileText, baseCost: 0 },
+  { id: 'curriculum', label: 'From Curriculum', desc: 'Pick a unit from your curriculum — questions align with its topic + standards', icon: BookOpen, baseCost: 0 },
   { id: 'standards',  label: 'From Standards',  desc: 'Pull questions from assignments tagged to these standards (or generate fresh if none match)', icon: Bookmark, baseCost: 0 },
   { id: 'custom',     label: 'Describe Topic',  desc: 'Generate fresh questions from a prompt', icon: Sparkles, baseCost: 2 },
 ];
@@ -23,6 +25,8 @@ export default function GameSetupModal({ shell, teacherId, classId, onLaunched, 
   const [standards, setStandards] = useState([]);
   const [showStandardsPicker, setShowStandardsPicker] = useState(false);
   const [prompt, setPrompt] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState(null); // { calendar_id, unit_name, topic, standards }
+  const [showCurriculumPicker, setShowCurriculumPicker] = useState(false);
 
   // Standards-match-count probe → tells us if Standards mode will fall through to Haiku
   const [standardsMatchCount, setStandardsMatchCount] = useState(null);
@@ -113,6 +117,16 @@ export default function GameSetupModal({ shell, teacherId, classId, onLaunched, 
     if (source === 'assignment') {
       if (!assignmentId) { setError('Pick an assignment first.'); return; }
       questionSource = { type: 'assignment', assignment_id: assignmentId };
+    } else if (source === 'curriculum') {
+      if (!selectedUnit) { setError('Pick a curriculum unit first.'); return; }
+      questionSource = {
+        type: 'curriculum',
+        calendar_id: selectedUnit.calendar_id,
+        unit_name: selectedUnit.unit_name,
+        topic: selectedUnit.topic,
+        standards: selectedUnit.standards || [],
+        question_count: settings.question_count,
+      };
     } else if (source === 'standards') {
       if (standards.length === 0) { setError('Pick at least one standard.'); return; }
       questionSource = { type: 'standards', standards, question_count: settings.question_count };
@@ -233,6 +247,67 @@ export default function GameSetupModal({ shell, teacherId, classId, onLaunched, 
             </div>
           )}
 
+          {source === 'curriculum' && (
+            <div>
+              <label className="block text-[12px] font-bold mb-1" style={{ color: 'var(--text-mid)' }}>
+                Pick a curriculum unit
+              </label>
+              {selectedUnit ? (
+                <div className="mb-2 p-3 rounded-xl" style={{ background: 'var(--cream)', border: '1px solid var(--border)' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-[13px] font-bold" style={{ color: 'var(--text-dark)' }}>
+                        {selectedUnit.unit_name}
+                      </div>
+                      {selectedUnit.topic && (
+                        <div className="text-[11px]" style={{ color: 'var(--text-mid)' }}>
+                          {selectedUnit.topic}
+                        </div>
+                      )}
+                      {selectedUnit.standards?.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {selectedUnit.standards.slice(0, 5).map(s => (
+                            <span key={s} className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold"
+                              style={{ background: 'rgba(216,108,82,0.1)', color: 'var(--coral)' }}>
+                              {s}
+                            </span>
+                          ))}
+                          {selectedUnit.standards.length > 5 && (
+                            <span className="text-[9px]" style={{ color: 'var(--text-light)' }}>
+                              +{selectedUnit.standards.length - 5} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={() => setShowCurriculumPicker(true)}
+                      className="text-[11px] font-semibold px-2 py-1 rounded-lg"
+                      style={{ color: 'var(--coral)', background: 'transparent', border: '1px solid var(--coral)', cursor: 'pointer' }}>
+                      Change
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[11px] italic mb-2" style={{ color: 'var(--text-light)' }}>None selected yet.</p>
+              )}
+              {!selectedUnit && (
+                <button onClick={() => setShowCurriculumPicker(true)}
+                  className="text-[12px] font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ color: 'var(--coral)', background: 'var(--cream)', border: '1px solid var(--border)', cursor: 'pointer' }}>
+                  Pick a unit
+                </button>
+              )}
+              <div className="mt-2 p-2.5 rounded-lg flex items-start gap-2 text-[11px]"
+                style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', color: 'var(--text-mid)' }}>
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: '#3B82F6' }} />
+                <span>
+                  We first check your assignments for questions tagged to this unit&apos;s standards (free).
+                  If none match, Lulia generates fresh questions from the unit topic for <strong>2 credits</strong>.
+                </span>
+              </div>
+            </div>
+          )}
+
           {source === 'standards' && (
             <div>
               <label className="block text-[12px] font-bold mb-1" style={{ color: 'var(--text-mid)' }}>
@@ -345,6 +420,13 @@ export default function GameSetupModal({ shell, teacherId, classId, onLaunched, 
           </div>
         </div>
 
+        {showCurriculumPicker && (
+          <CurriculumPickerModal
+            classId={classId}
+            onSelect={(unit) => { setSelectedUnit(unit); setShowCurriculumPicker(false); }}
+            onClose={() => setShowCurriculumPicker(false)}
+          />
+        )}
         {showStandardsPicker && (
           <StandardsPickerModal
             subject={activeClass?.subject || ''}

@@ -109,12 +109,23 @@ def create_game_session(
             class_grade, class_subject = _class_grade_subject(class_id)
             # Look up real descriptions so Haiku knows what standard codes mean
             standard_details = _fetch_standard_descriptions(standards)
-            topic_from_standards = (
-                f"{class_subject} for Grade {class_grade}. "
-                f"Cover these standards:\n" + "\n".join(
-                    f"  - {d['code']}: {d['description']}" for d in standard_details
+            # Warn early if no descriptions were found — Haiku will guess wildly otherwise
+            missing_descriptions = [d for d in standard_details if not d.get("description") or d["description"] == "(description not found)"]
+            if missing_descriptions:
+                log.warning(
+                    f"[Games] Standards missing descriptions — Haiku may drift off-subject. "
+                    f"Missing: {[d['code'] for d in missing_descriptions]}"
                 )
+            topic_from_standards = (
+                f"SUBJECT: {class_subject} (MUST stay on-subject — do NOT produce questions from other subjects)\n"
+                f"GRADE LEVEL: Grade {class_grade}\n"
+                f"STANDARDS TO COVER:\n" + "\n".join(
+                    f"  - {d['code']}: {d['description']}" for d in standard_details
+                ) +
+                f"\n\nEvery question MUST be about {class_subject} content at the Grade {class_grade} level, "
+                f"directly aligned to at least one of the listed standards above."
             )
+            log.info(f"[Games] Standards-fallback prompt for class_id={class_id}:\n{topic_from_standards[:500]}")
             from src.lms_agents.tools.question_generator import generate_questions
             gen_result = generate_questions(
                 topic=topic_from_standards,
@@ -136,6 +147,87 @@ def create_game_session(
             ]
             generated_questions_cache = raw_questions  # Replay stays free
             title = f"{class_subject} — {', '.join(standards[:3])}{'...' if len(standards) > 3 else ''}"
+
+    elif source_type == "curriculum":
+        calendar_id = question_source.get("calendar_id")
+        unit_name = question_source.get("unit_name", "")
+        unit_topic = question_source.get("topic", "")
+        unit_standards = question_source.get("standards") or []
+        count = question_source.get("question_count", 15)
+        if not calendar_id and not unit_topic:
+            return {"error": "calendar_id or topic required for type='curriculum'"}
+
+        # Look up the class context
+        class_grade, class_subject = _class_grade_subject(class_id)
+        # Enriched standards descriptions
+        standard_details = _fetch_standard_descriptions(unit_standards) if unit_standards else []
+
+        # Prefer existing teacher assignments tagged to this unit's standards — free
+        if unit_standards:
+            raw_questions, matched_assignment_ids = _load_from_standards(teacher_id, unit_standards, count)
+            if raw_questions:
+                title = f"{unit_name or 'Unit'}: {unit_topic}".strip(': ')
+                if len(set(matched_assignment_ids)) == 1:
+                    assignment_id_for_row = matched_assignment_ids[0]
+                # Done — skip Haiku path
+                # Fall through to formatting
+            else:
+                raw_questions = None
+        else:
+            raw_questions = None
+
+        if not raw_questions:
+            # Charge credits and Haiku-generate from unit topic + standards
+            from src.lms_agents.tools.credit_manager import charge_credits, grant_credits
+            from src.lms_agents.config.pricing import CREDIT_COSTS
+            cost = CREDIT_COSTS.get("live_game_custom_questions", 2)
+            charge = charge_credits(
+                teacher_id, cost,
+                reference_type="live_game_curriculum",
+                description=f"Live Game from curriculum unit '{unit_name}' ({count} questions)",
+            )
+            if not charge["success"]:
+                return {
+                    "error": charge.get("error", "Credit charge failed"),
+                    "reason": "insufficient_credits",
+                    **charge,
+                }
+            standards_section = ""
+            if standard_details:
+                standards_section = "\nSTANDARDS TO COVER:\n" + "\n".join(
+                    f"  - {d['code']}: {d['description']}" for d in standard_details
+                )
+            topic_from_unit = (
+                f"SUBJECT: {class_subject} (MUST stay on-subject — do NOT produce questions from other subjects)\n"
+                f"GRADE LEVEL: Grade {class_grade}\n"
+                f"UNIT: {unit_name or 'Untitled Unit'}\n"
+                f"UNIT TOPIC: {unit_topic or '(not specified)'}"
+                f"{standards_section}\n\n"
+                f"Every question MUST be about {class_subject} content at the Grade {class_grade} level, "
+                f"directly tied to the unit topic above."
+            )
+            log.info(f"[Games] Curriculum prompt for class_id={class_id}, unit={unit_name}:\n{topic_from_unit[:500]}")
+            from src.lms_agents.tools.question_generator import generate_questions
+            gen_result = generate_questions(
+                topic=topic_from_unit,
+                grade=class_grade, subject=class_subject,
+                count=count, standard_codes=unit_standards,
+            )
+            if not gen_result.get("success"):
+                grant_credits(teacher_id, cost, reason="Refund: Haiku gen failed", bucket="purchased")
+                return {"error": gen_result.get("error", "Question generation failed")}
+            raw_questions = [
+                {
+                    "question_number": i + 1,
+                    "question_text": q["question"],
+                    "answer": q["answer"],
+                    "distractors": q.get("distractors", []),
+                    "standard_code": q.get("standard_code") or (unit_standards[i % len(unit_standards)] if unit_standards else ""),
+                }
+                for i, q in enumerate(gen_result["questions"])
+            ]
+            generated_questions_cache = raw_questions
+            title = f"{class_subject} — {unit_name}: {unit_topic}".strip(': ')
 
     elif source_type == "custom":
         prompt = question_source.get("prompt", "").strip()

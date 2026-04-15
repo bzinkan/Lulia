@@ -60,12 +60,17 @@ def generate_questions(
 
     system = (
         "You write grade-appropriate multiple-choice questions for K-12 classrooms. "
+        "CRITICAL: Every question must stay strictly on the specified SUBJECT and GRADE. "
+        "If the subject is 'Math', every question is a math question — no ELA, science, or civics. "
+        "If the subject is 'Science', every question is science — no math drills or vocabulary. "
         "Every question has ONE correct answer and THREE plausible but wrong distractors. "
         "Distractors must be realistic misconceptions a student might genuinely believe — "
         "never placeholders like 'Not X' or 'None of the above'. Output clean JSON only."
     )
-    user = f"""Generate {count} multiple-choice questions for Grade {grade} {subject} students.
+    user = f"""Generate {count} Grade {grade} {subject} multiple-choice questions.
 
+SUBJECT (strict): {subject}
+GRADE: {grade}
 TOPIC: {topic}
 {standards_hint}
 
