@@ -7,14 +7,32 @@ import { getGameWebSocketUrl } from '@/lib/gameWebSocket';
 import LulingSelector from '@/components/LulingSelector';
 import dynamic from 'next/dynamic';
 // Shells use Web Audio + canvas-confetti — client-only, no SSR
-const QuizRace    = dynamic(() => import('@/components/games/shells/QuizRace'),    { ssr: false });
-const Jeopardy    = dynamic(() => import('@/components/games/shells/Jeopardy'),    { ssr: false });
-const BingoBlitz  = dynamic(() => import('@/components/games/shells/BingoBlitz'),  { ssr: false });
+const QuizRace     = dynamic(() => import('@/components/games/shells/QuizRace'),     { ssr: false });
+const Jeopardy     = dynamic(() => import('@/components/games/shells/Jeopardy'),     { ssr: false });
+const BingoBlitz   = dynamic(() => import('@/components/games/shells/BingoBlitz'),   { ssr: false });
+const Millionaire  = dynamic(() => import('@/components/games/shells/Millionaire'),  { ssr: false });
+const BattleRoyale = dynamic(() => import('@/components/games/shells/BattleRoyale'), { ssr: false });
+const TugOfWar     = dynamic(() => import('@/components/games/shells/TugOfWar'),     { ssr: false });
+const MemoryMatch  = dynamic(() => import('@/components/games/shells/MemoryMatch'),  { ssr: false });
+const SpeedRush    = dynamic(() => import('@/components/games/shells/SpeedRush'),    { ssr: false });
+const EscapeRoom   = dynamic(() => import('@/components/games/shells/EscapeRoom'),   { ssr: false });
+const CardDuel     = dynamic(() => import('@/components/games/shells/CardDuel'),     { ssr: false });
+const WheelSpin    = dynamic(() => import('@/components/games/shells/WheelSpin'),    { ssr: false });
+const Tournament   = dynamic(() => import('@/components/games/shells/Tournament'),   { ssr: false });
 
 const SHELL_COMPONENTS = {
   quiz_race: QuizRace,
   jeopardy: Jeopardy,
   bingo_blitz: BingoBlitz,
+  millionaire: Millionaire,
+  battle_royale: BattleRoyale,
+  team_tug_of_war: TugOfWar,
+  memory_match: MemoryMatch,
+  speed_rush: SpeedRush,
+  escape_room: EscapeRoom,
+  card_duel: CardDuel,
+  wheel_spin: WheelSpin,
+  tournament: Tournament,
 };
 
 function JoinInner() {
