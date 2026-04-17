@@ -1,32 +1,53 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, Clock, Users, Trophy, Volume2, VolumeX, Flame } from 'lucide-react';
-import { play, setMuted, isMuted } from '@/lib/gameSounds';
+import { CheckCircle, XCircle, Users, Flame } from 'lucide-react';
+import { play } from '@/lib/gameSounds';
 import { correctAnswer } from '@/lib/confetti';
+import { ArcadeChip, ArcadeLedTimer } from '@/components/games/CabinetStage';
+import Racetrack from '@/components/games/Racetrack';
 
 /**
- * Quiz Race — Kahoot-style MC with full polish:
- *   - Framer Motion staggered entrances, spring feedback, shake on wrong
- *   - Synthesized sound effects (Web Audio, no external files)
- *   - Confetti on correct answers
- *   - Circular countdown ring with urgent ticking at ≤5s
- *   - Animated score counter on update
- *   - Dual view: student (big tiles), teacher (answer reveal + player grid)
+ * Quiz Race — Kahoot-style MC, arcade-cabinet edition.
+ *
+ * v2 (April 2026): fully adopts the shared in-cabinet chrome (dark neon,
+ * Press Start 2P marquee, LED segment timer, arcade-button tiles). The
+ * outer frame (marquee + scanlines + accent color) is provided by
+ * CabinetStage which wraps this shell in /play and /join.
+ *
+ * This file now owns the interior gameplay only:
+ *   - Question "screen" (dark panel with accent border + inner glow)
+ *   - Four arcade-button answer tiles (coral / teal / mustard / sage)
+ *   - Streak banner with escalating glow
+ *   - Result splash on correct/wrong
+ *   - Teacher leaderboard reveal between questions
+ *
+ * Shell contract (unchanged):
+ *   question, players, view, onAnswer, config,
+ *   questionIndex, totalQuestions, lastResult
  */
 
-const TILE_COLORS = ['#D86C52', '#6BA08A', '#4E8C96', '#E9B44C']; // coral / sage / teal / mustard
+const TILE_COLORS = ['#FF3864', '#3A86FF', '#FFBE0B', '#2EC4B6']; // coral / teal / mustard / sage
 
 export default function QuizRace({
   question, players = [], view = 'student', onAnswer, config = {},
   questionIndex = 0, totalQuestions = 1, lastResult = null,
+  playerId = null,
 }) {
+  // Student view needs at least its own player row on the track. When the
+  // student joins, /join passes playerId; we synthesize a lightweight "self"
+  // entry if the players array is empty (teacher hasn't broadcast it yet).
+  const trackPlayers = (players && players.length > 0)
+    ? players
+    : (view === 'student' && playerId
+        ? [{ player_id: playerId, name: 'YOU', score: 0 }]
+        : []);
   const timer = config.timer_seconds || 20;
   const [remaining, setRemaining] = useState(timer);
   const [selected, setSelected] = useState(null);
-  const [muted, setMutedState] = useState(false);
   const [streak, setStreak] = useState(0);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [splash, setSplash] = useState(null); // { kind: 'win'|'lose', points, correctLetter }
   const prevIndexRef = useRef(questionIndex);
   const tickRef = useRef(null);
 
@@ -34,6 +55,7 @@ export default function QuizRace({
   useEffect(() => {
     setSelected(null);
     setRemaining(timer);
+    setSplash(null);
     if (question && prevIndexRef.current !== questionIndex) {
       play('whoosh');
       prevIndexRef.current = questionIndex;
@@ -54,21 +76,26 @@ export default function QuizRace({
     return () => clearTimeout(tickRef.current);
   }, [remaining, timer, selected]);
 
-  // Play result sound + confetti + streak tracking
+  // Play result sound + confetti + streak tracking + splash
   const resultSeen = useRef(null);
   useEffect(() => {
     if (lastResult && resultSeen.current !== questionIndex) {
       resultSeen.current = questionIndex;
+      const correctLetter = findLetter(question?.options, lastResult.correct_answer);
       if (lastResult.correct) {
         play('correct');
         correctAnswer({ x: 0.5, y: 0.55 });
         setStreak(s => s + 1);
+        setSplash({ kind: 'win', points: lastResult.points });
       } else {
         play('incorrect');
         setStreak(0);
+        setSplash({ kind: 'lose', correctLetter });
       }
+      const t = setTimeout(() => setSplash(null), 1200);
+      return () => clearTimeout(t);
     }
-  }, [lastResult, questionIndex]);
+  }, [lastResult, questionIndex, question?.options]);
 
   // Teacher-only: between-question leaderboard reveal when question advances
   const prevQuestionIdRef = useRef(questionIndex);
@@ -84,17 +111,10 @@ export default function QuizRace({
     prevQuestionIdRef.current = questionIndex;
   }, [questionIndex, view, players.length]);
 
-  function toggleMute() {
-    const v = !muted;
-    setMuted(v);
-    setMutedState(v);
-  }
-
   if (!question) {
     return (
-      <div className="rounded-card p-10 text-center"
-        style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
-        <p className="font-serif text-[20px]" style={{ color: 'var(--text-mid)' }}>
+      <div className="arcade-screen" style={{ textAlign: 'center' }}>
+        <p className="arcade-screen__q" style={{ opacity: 0.8 }}>
           Waiting for the next question…
         </p>
       </div>
@@ -102,51 +122,67 @@ export default function QuizRace({
   }
 
   const timerPct = timer > 0 ? Math.max(0, Math.min(1, remaining / timer)) : 0;
-  const urgentTimer = remaining <= 5 && remaining > 0;
 
   return (
-    <div className="max-w-3xl mx-auto relative">
-      {/* Top meta bar */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <motion.span
+    <div style={{ position: 'relative' }}>
+      {/* Interior HUD band (marquee/bulbs/mute live in CabinetStage above this). */}
+      <div className="arcade-hud" style={{ marginTop: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <motion.div
             key={`q-${questionIndex}`}
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="text-[11px] font-bold uppercase tracking-[2px] px-3 py-1 rounded-full"
-            style={{ color: 'white', background: 'var(--coral)' }}>
-            Question {questionIndex + 1} of {totalQuestions}
-          </motion.span>
+          >
+            <ArcadeChip>Q {questionIndex + 1} / {totalQuestions}</ArcadeChip>
+          </motion.div>
           <AnimatePresence>
             {view === 'student' && streak >= 2 && (
               <motion.span
                 key={`streak-${streak}`}
-                initial={{ opacity: 0, scale: 0.6, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.6 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[1px] px-3 py-1 rounded-full"
-                style={{ color: 'white', background: 'linear-gradient(135deg, #F97316, #DC2626)', boxShadow: '0 0 12px rgba(249,115,22,0.55)' }}>
-                <Flame className="w-3 h-3" /> {streak} in a row
+                className="arcade-hud-chip"
+                style={{
+                  background: streak >= 5
+                    ? 'linear-gradient(135deg, #FF006E, #FF3864)'
+                    : 'linear-gradient(135deg, #FFBE0B, #FF8A00)',
+                  color: '#0A0A18',
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                }}>
+                <Flame style={{ width: 11, height: 11 }} /> {streak}× STREAK
               </motion.span>
             )}
           </AnimatePresence>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-[13px] font-bold" style={{ color: 'var(--text-mid)' }}>
-            <Users className="w-4 h-4" /> {players.length}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            color: 'var(--arcade-ink-dim)', fontSize: 12, fontWeight: 600,
+          }}>
+            <Users style={{ width: 14, height: 14 }} /> {players.length}
           </span>
-          <button onClick={toggleMute}
-            className="p-1.5 rounded-full"
-            style={{ background: 'var(--cream)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--text-mid)' }}>
-            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-          {timer > 0 && <CircularTimer pct={timerPct} urgent={urgentTimer} seconds={remaining} />}
+          {timer > 0 && <ArcadeLedTimer pct={timerPct} seconds={remaining} segments={20} />}
         </div>
       </div>
 
-      {/* Question card */}
+      {/* Racetrack — big on teacher view, compact strip on student view.
+          Path 1: progress is derived client-side from each player's score
+          (Racetrack.jsx handles the math). Path 2 would swap to server
+          events. */}
+      {trackPlayers.length > 0 && (
+        <Racetrack
+          players={trackPlayers}
+          totalQuestions={totalQuestions}
+          maxPointsPerQ={1000}
+          highlightPlayerId={view === 'student' ? playerId : null}
+          compact={view === 'student'}
+          maxLanes={view === 'teacher' ? 8 : 5}
+        />
+      )}
+
+      {/* Question screen */}
       <AnimatePresence mode="wait">
         <motion.div
           key={`qcard-${questionIndex}`}
@@ -154,34 +190,35 @@ export default function QuizRace({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -20, scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-          className="rounded-card p-8 mb-5 text-center"
-          style={{
-            background: 'var(--warm-card)',
-            border: '1px solid var(--border)',
-            boxShadow: '0 10px 32px rgba(60,40,20,0.1)',
-          }}>
-          <h2 className="font-serif text-[28px] leading-tight" style={{ color: 'var(--text-dark)' }}>
-            {question.question_text}
-          </h2>
+          className="arcade-screen"
+        >
+          <h2 className="arcade-screen__q">{question.question_text}</h2>
         </motion.div>
       </AnimatePresence>
 
       {/* Student: answer tiles */}
       {view === 'student' && (
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: 14,
+        }}>
           {(question.options || []).map((opt, i) => (
-            <AnswerTile key={`${questionIndex}-${i}`} index={i} opt={opt}
+            <AnswerTile
+              key={`${questionIndex}-${i}`}
+              index={i}
+              opt={opt}
               color={TILE_COLORS[i]}
               selected={selected === opt}
               lastResult={lastResult}
               disabled={!!selected || remaining <= 0}
-              onClick={() => { setSelected(opt); onAnswer?.(opt); }} />
+              onClick={() => { setSelected(opt); onAnswer?.(opt); }}
+            />
           ))}
         </div>
       )}
 
-      {/* Teacher: show answer + player grid */}
-      {/* Between-question leaderboard reveal — teacher only, after teacher advances */}
+      {/* Teacher: between-question leaderboard */}
       <AnimatePresence>
         {view === 'teacher' && showLeaderboard && (
           <motion.div
@@ -189,33 +226,41 @@ export default function QuizRace({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-            className="fixed inset-0 z-40 flex items-center justify-center p-6"
-            style={{ background: 'rgba(60,40,20,0.55)', backdropFilter: 'blur(6px)' }}>
-            <div className="rounded-card w-full max-w-md p-6"
-              style={{ background: 'var(--warm-card)', border: '2px solid var(--coral)', boxShadow: '0 12px 40px rgba(60,40,20,0.3)' }}>
-              <h3 className="font-serif text-[22px] text-center mb-4" style={{ color: 'var(--text-dark)' }}>
-                Leaderboard
-              </h3>
-              <div className="space-y-2">
+            style={{
+              position: 'fixed', inset: 0, zIndex: 40,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 24,
+              background: 'rgba(5,5,16,0.78)',
+              backdropFilter: 'blur(8px)',
+            }}>
+            <div className="arcade-screen" style={{ width: '100%', maxWidth: 460 }}>
+              <div style={{
+                fontFamily: "'Press Start 2P', system-ui, monospace",
+                fontSize: 14, letterSpacing: 2,
+                color: 'var(--arcade-mustard)',
+                textAlign: 'center', marginBottom: 18,
+                textShadow: '0 0 10px rgba(255,190,11,0.5)',
+              }}>
+                HIGH SCORES
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[...players].sort((a,b) => (b.score||0) - (a.score||0)).slice(0, 5).map((p, i) => (
-                  <motion.div key={p.player_id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.12 }}
-                    className="flex items-center justify-between p-2.5 rounded-xl"
-                    style={{
-                      background: i === 0 ? 'rgba(233,180,76,0.15)' : 'var(--cream)',
-                      border: `1px solid ${i === 0 ? 'var(--mustard, #E9B44C)' : 'var(--border)'}`,
+                  <div key={p.player_id || i} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 12px', borderRadius: 8,
+                    background: i === 0 ? 'rgba(255,190,11,0.16)' : 'rgba(255,255,255,0.04)',
+                    border: i === 0 ? '1px solid rgba(255,190,11,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                  }}>
+                    <span style={{
+                      fontFamily: "'Press Start 2P', monospace", fontSize: 10,
+                      color: i === 0 ? '#FFBE0B' : 'var(--arcade-ink-dim)',
                     }}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-[14px] w-6 text-center" style={{ color: i === 0 ? '#B48838' : 'var(--text-mid)' }}>
-                        {i === 0 ? '🏆' : `#${i + 1}`}
-                      </span>
-                      <span className="text-[20px]">{p.avatar || '🐻'}</span>
-                      <span className="font-serif text-[14px]" style={{ color: 'var(--text-dark)' }}>{p.name}</span>
-                    </div>
-                    <span className="font-bold text-[14px]" style={{ color: 'var(--coral)' }}>{p.score || 0}</span>
-                  </motion.div>
+                      #{i + 1} {(p.name || 'PLAYER').slice(0, 12).toUpperCase()}
+                    </span>
+                    <span className="arcade-led-num" style={{ fontSize: 12 }}>
+                      {p.score || 0}
+                    </span>
+                  </div>
                 ))}
               </div>
             </div>
@@ -223,71 +268,25 @@ export default function QuizRace({
         )}
       </AnimatePresence>
 
-      {view === 'teacher' && (
-        <div>
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-            className="rounded-card p-4 mb-4 text-center"
-            style={{ background: 'rgba(107,160,138,0.08)', border: '1px solid var(--sage)' }}>
-            <p className="text-[11px] uppercase tracking-wider font-bold" style={{ color: 'var(--sage)' }}>
-              Correct answer
-            </p>
-            <p className="text-[18px] font-bold font-serif mt-1" style={{ color: 'var(--text-dark)' }}>
-              {question.answer}
-            </p>
-          </motion.div>
-          <motion.div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}
-            initial="hidden" animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}>
-            {players.map((p) => (
-              <motion.div key={p.player_id}
-                variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }}
-                className="rounded-xl p-2 text-center"
-                style={{ background: 'var(--cream)', border: '1px solid var(--border)' }}>
-                <div className="text-[22px]">{p.avatar || '🐻'}</div>
-                <div className="text-[11px] font-bold truncate" style={{ color: 'var(--text-dark)' }}>{p.name}</div>
-                <motion.div key={p.score}
-                  initial={{ scale: 1.4, color: 'var(--coral)' }}
-                  animate={{ scale: 1, color: 'var(--coral)' }}
-                  transition={{ duration: 0.25 }}
-                  className="text-[12px] font-bold">
-                  {p.score || 0}
-                </motion.div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      )}
-
-      {/* Student result banner */}
+      {/* Student result splash (full-screen, brief) */}
       <AnimatePresence>
-        {view === 'student' && lastResult && (
+        {view === 'student' && splash && (
           <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 24 }}
-            className="mt-5 rounded-card p-4 text-center"
-            style={{
-              background: lastResult.correct ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.1)',
-              border: `2px solid ${lastResult.correct ? '#16A34A' : '#EF4444'}`,
-            }}>
-            {lastResult.correct ? (
-              <span className="font-bold font-serif text-[22px] flex items-center justify-center gap-2" style={{ color: '#16A34A' }}>
-                <Trophy className="w-6 h-6" />
-                <motion.span
-                  initial={{ scale: 0 }} animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}>
-                  +{lastResult.points} points
-                </motion.span>
-              </span>
-            ) : (
-              <span className="font-bold text-[16px]" style={{ color: '#B91C1C' }}>
-                Not quite. Correct answer: <strong>{lastResult.correct_answer}</strong>
-              </span>
-            )}
+            key={`splash-${questionIndex}-${splash.kind}`}
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 20 }}
+            className="arcade-splash"
+          >
+            <div className={`arcade-splash__text arcade-splash__text--${splash.kind}`}>
+              {splash.kind === 'win' ? `+${splash.points || 0}` : 'X'}
+              {splash.kind === 'lose' && splash.correctLetter && (
+                <div style={{ fontSize: 18, marginTop: 16, color: '#FFBE0B' }}>
+                  ANSWER: {splash.correctLetter}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -295,83 +294,42 @@ export default function QuizRace({
   );
 }
 
+/* ---------- Answer tile ---------- */
+
 function AnswerTile({ index, opt, color, selected, lastResult, disabled, onClick }) {
   const isCorrect = lastResult && lastResult.correct_answer === opt;
-  const isWrongSelected = lastResult && selected && !lastResult.correct;
+  const isWrongSelected = lastResult && selected && !lastResult.correct && selected === opt;
   const revealed = !!lastResult;
 
-  const tileMotion = revealed && isWrongSelected ? {
-    animate: { x: [0, -8, 8, -6, 6, -3, 0] },
-    transition: { duration: 0.4 },
-  } : revealed && isCorrect ? {
-    animate: { scale: [1, 1.08, 1] },
-    transition: { duration: 0.5 },
-  } : {};
+  const cls = [
+    'arcade-btn',
+    revealed && isCorrect        ? 'arcade-btn--correct' : '',
+    revealed && isWrongSelected  ? 'arcade-btn--wrong'   : '',
+    revealed && !isCorrect && !isWrongSelected ? 'arcade-btn--dim' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <motion.button
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0, ...tileMotion.animate }}
-      transition={{ delay: 0.15 + index * 0.08, duration: 0.4, ...tileMotion.transition }}
-      whileTap={{ scale: disabled ? 1 : 0.96 }}
-      whileHover={{ scale: disabled ? 1 : 1.02 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.12 + index * 0.07, duration: 0.35 }}
+      whileTap={{ scale: disabled ? 1 : 0.97 }}
       disabled={disabled}
       onClick={onClick}
-      className="rounded-card p-5 text-left font-bold text-[16px] relative overflow-hidden"
-      style={{
-        background: revealed
-          ? (isCorrect ? 'linear-gradient(135deg, #16A34A, #22C55E)' : isWrongSelected ? 'linear-gradient(135deg, #EF4444, #F87171)' : 'var(--cream)')
-          : selected ? `${color}E6` : color,
-        color: revealed && !isCorrect && !isWrongSelected ? 'var(--text-mid)' : 'white',
-        border: selected && !revealed ? '3px solid white' : 'none',
-        boxShadow: revealed
-          ? (isCorrect || isWrongSelected ? '0 8px 28px rgba(60,40,20,0.25)' : '0 2px 6px rgba(60,40,20,0.08)')
-          : '0 4px 14px rgba(60,40,20,0.15)',
-        opacity: revealed && !isCorrect && !isWrongSelected ? 0.5 : 1,
-        cursor: disabled ? 'default' : 'pointer',
-      }}>
-      <div className="flex items-center gap-3">
-        <span className="inline-flex items-center justify-center w-9 h-9 rounded-full text-[15px] flex-shrink-0"
-          style={{
-            background: revealed ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.25)',
-            color: revealed && !isCorrect && !isWrongSelected ? 'var(--text-mid)' : 'white',
-            fontWeight: 900,
-          }}>
-          {String.fromCharCode(65 + index)}
-        </span>
-        <span className="flex-1 leading-tight">{opt}</span>
-        {revealed && isCorrect && <CheckCircle className="w-6 h-6 flex-shrink-0" />}
-        {revealed && isWrongSelected && <XCircle className="w-6 h-6 flex-shrink-0" />}
-      </div>
+      aria-pressed={selected}
+      className={cls}
+      style={{ '--btn-color': color }}
+    >
+      <span className="arcade-btn__cap">{String.fromCharCode(65 + index)}</span>
+      <span className="arcade-btn__label">{opt}</span>
+      {revealed && isCorrect && <CheckCircle style={{ width: 22, height: 22, flexShrink: 0 }} />}
+      {revealed && isWrongSelected && <XCircle style={{ width: 22, height: 22, flexShrink: 0 }} />}
     </motion.button>
   );
 }
 
-function CircularTimer({ pct, urgent, seconds }) {
-  const radius = 18;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - pct);
-  const color = urgent ? '#EF4444' : pct > 0.33 ? 'var(--sage)' : 'var(--coral)';
-
-  return (
-    <motion.div
-      animate={urgent ? { scale: [1, 1.12, 1] } : { scale: 1 }}
-      transition={{ duration: 0.5, repeat: urgent ? Infinity : 0 }}
-      className="relative"
-      style={{ width: 44, height: 44 }}>
-      <svg width="44" height="44" viewBox="0 0 44 44" className="-rotate-90">
-        <circle cx="22" cy="22" r={radius} stroke="var(--cream)" strokeWidth="4" fill="none" />
-        <motion.circle cx="22" cy="22" r={radius}
-          stroke={color} strokeWidth="4" fill="none"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1, ease: 'linear' }} />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold"
-        style={{ color }}>
-        {seconds}
-      </span>
-    </motion.div>
-  );
+function findLetter(options, answer) {
+  if (!options || !answer) return '';
+  const idx = options.findIndex(o => o === answer);
+  return idx >= 0 ? String.fromCharCode(65 + idx) : '';
 }

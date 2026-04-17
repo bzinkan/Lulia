@@ -1,0 +1,545 @@
+/* ============================================================
+   ARCADE HUD — in-cabinet visual chrome for /play/{pin} + /join
+   ============================================================
+   Scoped via `.arcade-stage` wrapper so the rest of the Lulia
+   dashboard stays on the peach/warm-card Retro Earth theme.
+   Inside `.arcade-stage`, CSS custom properties are overridden
+   so existing shell JSX (which reads var(--warm-card), etc.)
+   automatically inherits the dark-neon treatment.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+/* ---------- Scoped token overrides ---------- */
+.arcade-stage {
+  /* Neon palette (also exposed as --arcade-* for explicit use) */
+  --arcade-bg: #0B0B1E;
+  --arcade-bg-2: #1A1433;
+  --arcade-panel: #15162B;
+  --arcade-panel-2: #0A0A18;
+  --arcade-ink: #F7F7FF;
+  --arcade-ink-dim: #B6B7D8;
+  --arcade-ink-mute: #7879A3;
+
+  --arcade-coral: #FF3864;
+  --arcade-sage:  #2EC4B6;
+  --arcade-teal:  #3A86FF;
+  --arcade-mustard: #FFBE0B;
+  --arcade-pink:  #FF006E;
+  --arcade-lime:  #B6FF39;
+  --arcade-purple:#8338EC;
+
+  --arcade-bulb-on:  #F4D465;
+  --arcade-bulb-off: #3a2d24;
+
+  /* Override Retro Earth tokens so legacy shell JSX picks up the arcade skin */
+  --warm-card: var(--arcade-panel);
+  --warm-bg:   var(--arcade-bg);
+  --cream:     var(--arcade-panel-2);
+  --border:    rgba(255,255,255,0.08);
+  --text-dark: var(--arcade-ink);
+  --text-mid:  var(--arcade-ink-dim);
+  --text-light:var(--arcade-ink-mute);
+  --coral:     var(--arcade-coral);
+  --sage:      var(--arcade-sage);
+  --teal:      var(--arcade-teal);
+  --mustard:   var(--arcade-mustard);
+
+  /* Stage surface */
+  position: relative;
+  min-height: 100vh;
+  padding: 18px 18px 40px;
+  background:
+    radial-gradient(1200px 700px at 50% -10%, rgba(131,56,236,0.18), transparent 60%),
+    radial-gradient(900px 500px at 100% 100%, rgba(58,134,255,0.14), transparent 60%),
+    linear-gradient(180deg, #0B0B1E 0%, #13132E 100%);
+  color: var(--arcade-ink);
+  font-family: 'Space Grotesk', 'Nunito', system-ui, sans-serif;
+  overflow-x: hidden;
+  isolation: isolate;
+}
+
+/* Disable the dashboard's body::before warm radial wash while inside the arcade */
+body:has(.arcade-stage)::before { display: none; }
+
+/* Kill any inherited serif headlines inside the stage */
+.arcade-stage h1,
+.arcade-stage h2,
+.arcade-stage h3,
+.arcade-stage .font-serif { font-family: 'Space Grotesk', system-ui, sans-serif !important; }
+
+/* ---------- CRT scanlines overlay ---------- */
+.arcade-stage::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,0.18) 0px,
+    rgba(0,0,0,0.18) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.65;
+  z-index: 1;
+}
+.arcade-stage > * { position: relative; z-index: 2; }
+
+/* ---------- Marquee (top bulb-lit header) ---------- */
+.arcade-marquee {
+  display: flex; flex-direction: column; align-items: stretch;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #1D1636 0%, #120C26 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.arcade-bulb-row {
+  display: flex; justify-content: space-around; align-items: center;
+  padding: 6px 10px;
+  background: linear-gradient(180deg, #0E0820, #1A1236);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.arcade-bulb {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--arcade-bulb-on);
+  box-shadow: 0 0 10px var(--arcade-bulb-on), 0 0 18px rgba(244,212,101,0.5);
+  animation: arcade-bulb-flicker 1.2s infinite alternate;
+}
+.arcade-bulb:nth-child(2n) { animation-delay: 0.4s; }
+.arcade-bulb:nth-child(3n) { animation-delay: 0.75s; }
+
+@keyframes arcade-bulb-flicker {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+.arcade-marquee-body {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  gap: 14px;
+}
+.arcade-title {
+  font-family: 'Press Start 2P', system-ui, monospace;
+  font-size: 22px; letter-spacing: 2px;
+  color: var(--arcade-accent, var(--arcade-mustard));
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--arcade-accent, var(--arcade-mustard)) 70%, transparent),
+    0 0 16px color-mix(in srgb, var(--arcade-accent, var(--arcade-mustard)) 50%, transparent);
+}
+.arcade-tagline {
+  font-family: 'Press Start 2P', system-ui, monospace;
+  font-size: 9px; letter-spacing: 2.5px;
+  color: var(--arcade-ink-dim);
+  margin-top: 4px;
+  animation: arcade-blink 1.4s infinite;
+}
+@keyframes arcade-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* ---------- HUD band (meta bar: question counter, streak, timer) ---------- */
+.arcade-hud {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(10,10,24,0.85), rgba(10,10,24,0.6));
+  border: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.arcade-hud-chip {
+  font-family: 'Press Start 2P', system-ui, monospace;
+  font-size: 10px; letter-spacing: 1.5px;
+  padding: 7px 11px; border-radius: 8px;
+  color: #0A0A18;
+  background: var(--arcade-accent, var(--arcade-mustard));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--arcade-accent, var(--arcade-mustard)) 40%, transparent);
+  text-transform: uppercase;
+}
+.arcade-hud-chip--ghost {
+  background: transparent; color: var(--arcade-ink-dim);
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: none;
+}
+
+/* ---------- Arcade SCREEN (question card / content panel) ---------- */
+.arcade-screen {
+  position: relative;
+  background:
+    radial-gradient(600px 300px at 50% 0%, rgba(58,134,255,0.12), transparent 60%),
+    linear-gradient(180deg, #0F0F24 0%, #0A0A1A 100%);
+  border-radius: 14px;
+  border: 2px solid var(--arcade-accent, var(--arcade-mustard));
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.6) inset,
+    0 0 24px color-mix(in srgb, var(--arcade-accent, var(--arcade-mustard)) 25%, transparent),
+    0 12px 40px rgba(0,0,0,0.55);
+  padding: 28px;
+  margin-bottom: 16px;
+}
+.arcade-screen__q {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 1.2;
+  color: #E8FFE1;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(110,231,183,0.28);
+}
+
+/* ---------- Arcade BUTTON (answer tile) ---------- */
+.arcade-btn {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--btn-color, var(--arcade-mustard)) 85%, white 15%) 0%,
+    var(--btn-color, var(--arcade-mustard)) 45%,
+    color-mix(in srgb, var(--btn-color, var(--arcade-mustard)) 70%, black 30%) 100%);
+  color: #0A0A18;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.4) inset,
+    0 0 14px color-mix(in srgb, var(--btn-color, var(--arcade-mustard)) 55%, transparent),
+    0 8px 0 color-mix(in srgb, var(--btn-color, var(--arcade-mustard)) 50%, black 50%),
+    0 10px 22px rgba(0,0,0,0.45);
+  transition: transform 0.08s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  overflow: hidden;
+}
+.arcade-btn::before {
+  /* glossy highlight */
+  content: '';
+  position: absolute; left: 8px; right: 8px; top: 6px; height: 38%;
+  border-radius: 10px 10px 50% 50% / 10px 10px 60% 60%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0));
+  pointer-events: none;
+}
+.arcade-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.4) inset,
+    0 0 22px color-mix(in srgb, var(--btn-color, var(--arcade-mustard)) 80%, transparent),
+    0 10px 0 color-mix(in srgb, var(--btn-color, var(--arcade-mustard)) 50%, black 50%),
+    0 12px 26px rgba(0,0,0,0.55);
+  transform: translateY(-1px);
+}
+.arcade-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.5) inset,
+    0 0 14px color-mix(in srgb, var(--btn-color, var(--arcade-mustard)) 55%, transparent),
+    0 4px 0 color-mix(in srgb, var(--btn-color, var(--arcade-mustard)) 50%, black 50%),
+    0 5px 14px rgba(0,0,0,0.45);
+}
+.arcade-btn[aria-pressed="true"]::after {
+  content: '';
+  position: absolute; inset: -3px;
+  border-radius: 17px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 18px rgba(255,255,255,0.8);
+  pointer-events: none;
+  animation: arcade-pulse 0.9s infinite alternate;
+}
+@keyframes arcade-pulse {
+  0%   { opacity: 0.4; }
+  100% { opacity: 1.0; }
+}
+.arcade-btn:disabled { cursor: default; filter: saturate(0.6) brightness(0.8); }
+
+.arcade-btn--correct {
+  --btn-color: #16D474;
+  animation: arcade-celebrate 0.6s ease;
+}
+.arcade-btn--wrong {
+  --btn-color: #FF3864;
+  animation: arcade-shake 0.45s ease;
+}
+.arcade-btn--dim { opacity: 0.45; filter: saturate(0.3); }
+
+@keyframes arcade-celebrate {
+  0%,100% { transform: scale(1); }
+  40%     { transform: scale(1.06); }
+}
+@keyframes arcade-shake {
+  0%,100% { transform: translateX(0); }
+  20%     { transform: translateX(-8px); }
+  45%     { transform: translateX(7px); }
+  70%     { transform: translateX(-4px); }
+}
+
+.arcade-btn__cap {
+  flex-shrink: 0;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f7f7ff, #c6c7d8);
+  color: #0A0A18;
+  font-family: 'Press Start 2P', system-ui, monospace;
+  font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 0 0 2px rgba(0,0,0,0.35) inset;
+}
+.arcade-btn__label { flex: 1; line-height: 1.2; }
+
+/* ---------- LED segment timer (horizontal bar) ---------- */
+.arcade-led-bar {
+  display: flex; gap: 3px; align-items: center;
+  height: 14px;
+  padding: 3px;
+  border-radius: 6px;
+  background: #050510;
+  border: 1px solid rgba(255,255,255,0.08);
+  min-width: 180px;
+}
+.arcade-led-bar__seg {
+  flex: 1; height: 100%;
+  border-radius: 2px;
+  background: var(--arcade-sage);
+  box-shadow: 0 0 6px var(--arcade-sage);
+  transition: background 0.15s, box-shadow 0.15s, opacity 0.2s;
+}
+.arcade-led-bar__seg--off { background: #111122; box-shadow: none; opacity: 0.4; }
+.arcade-led-bar__seg--warn { background: var(--arcade-mustard); box-shadow: 0 0 6px var(--arcade-mustard); }
+.arcade-led-bar__seg--urgent {
+  background: var(--arcade-coral);
+  box-shadow: 0 0 10px var(--arcade-coral);
+  animation: arcade-blink 0.45s infinite;
+}
+
+/* ---------- Mini result splash ---------- */
+.arcade-splash {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  z-index: 50;
+}
+.arcade-splash__text {
+  font-family: 'Press Start 2P', system-ui, monospace;
+  font-size: 56px; letter-spacing: 3px;
+  text-align: center;
+}
+.arcade-splash__text--win  { color: #16D474; text-shadow: 0 0 20px rgba(22,212,116,0.8), 0 0 40px rgba(22,212,116,0.4); }
+.arcade-splash__text--lose { color: #FF3864; text-shadow: 0 0 20px rgba(255,56,100,0.8), 0 0 40px rgba(255,56,100,0.4); }
+
+/* ---------- Exit / mute pill ---------- */
+.arcade-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 11px;
+  font-family: 'Press Start 2P', system-ui, monospace;
+  font-size: 9px; letter-spacing: 1.5px;
+  color: var(--arcade-ink);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.15s, border-color 0.15s;
+}
+.arcade-pill:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.24); }
+
+/* ---------- Small utility: retro LED digit ---------- */
+.arcade-led-num {
+  font-family: 'Press Start 2P', system-ui, monospace;
+  color: var(--arcade-mustard);
+  text-shadow: 0 0 6px rgba(255,190,11,0.6);
+}
+
+/* ---------- Racetrack (Quiz Race interior) ---------- */
+.racetrack {
+  position: relative;
+  background: linear-gradient(180deg, #141022 0%, #0A0816 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 12px 14px 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+.racetrack--compact { padding: 8px 10px 10px; margin-bottom: 10px; }
+
+.racetrack__header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.racetrack__label {
+  font-family: 'Press Start 2P', system-ui, monospace;
+  font-size: 10px; letter-spacing: 2px;
+  color: var(--arcade-accent, var(--arcade-mustard));
+  text-shadow: 0 0 6px color-mix(in srgb, var(--arcade-accent, var(--arcade-mustard)) 50%, transparent);
+}
+.racetrack__flagcell {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px; letter-spacing: 1.5px;
+  color: var(--arcade-ink-dim);
+}
+
+.racetrack__surface {
+  position: relative;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(255,255,255,0.025) 0 60px,
+      transparent 60px 120px),
+    linear-gradient(180deg, #1b1530 0%, #0d0b1a 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.racetrack__start {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: #F7F7FF;
+  box-shadow: 0 0 8px rgba(247,247,255,0.5);
+}
+.racetrack__finish {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 14px;
+  background:
+    repeating-conic-gradient(#F7F7FF 0 90deg, #0A0A18 90deg 180deg);
+  background-size: 7px 7px;
+  border-left: 2px solid rgba(255,190,11,0.5);
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
+}
+
+.racetrack__lane-sep {
+  position: absolute; left: 0; right: 14px; height: 0;
+  border-top: 1px dashed rgba(255,190,11,0.22);
+  pointer-events: none;
+}
+
+.racetrack__lane {
+  position: absolute; left: 0; right: 0;
+  display: flex; align-items: center;
+}
+
+.racetrack__name {
+  flex: 0 0 auto;
+  width: 82px;
+  padding-left: 10px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px; letter-spacing: 1px;
+  color: var(--arcade-ink-dim);
+  text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.racetrack__name[data-you] {
+  color: #FFBE0B;
+  text-shadow: 0 0 6px rgba(255,190,11,0.6);
+}
+
+.racetrack__car {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px; height: 20px;
+  margin-left: 92px;   /* offset past the name column so progress 0 = at start line */
+  border-radius: 6px 10px 6px 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  transition: box-shadow 0.2s;
+}
+.racetrack__car::before {
+  /* headlight */
+  content: '';
+  position: absolute; right: -2px; top: 50%; transform: translateY(-50%);
+  width: 4px; height: 6px; border-radius: 2px;
+  background: #FFF7C2;
+  box-shadow: 0 0 6px rgba(255,247,194,0.9);
+}
+.racetrack__car::after {
+  /* speed trail */
+  content: '';
+  position: absolute; left: -18px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35));
+  opacity: 0.6;
+}
+.racetrack__car--crossed {
+  animation: arcade-celebrate 0.9s ease infinite alternate;
+}
+
+.racetrack__driver {
+  position: relative; z-index: 1;
+  font-size: 12px;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.4));
+}
+.racetrack__flag {
+  position: absolute; right: -18px; top: -14px;
+  font-size: 14px;
+  filter: drop-shadow(0 0 6px rgba(255,190,11,0.8));
+}
+.racetrack__sparkle {
+  position: absolute; top: -2px;
+  color: #FFF7C2;
+  font-size: 14px;
+  text-shadow: 0 0 8px rgba(255,247,194,0.9);
+}
+
+.racetrack__overflow {
+  margin-top: 8px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px; letter-spacing: 1px;
+  color: var(--arcade-ink-mute);
+  text-align: center;
+}
+
+.racetrack__first {
+  position: absolute; top: 6px; right: 12px;
+  padding: 4px 10px; border-radius: 6px;
+  background: rgba(255,190,11,0.18);
+  border: 1px solid rgba(255,190,11,0.6);
+  color: #FFBE0B;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px; letter-spacing: 1.3px;
+  text-shadow: 0 0 6px rgba(255,190,11,0.5);
+}
+
+/* ---------- Speed-line backdrop motion (Quiz Race etc) ---------- */
+.arcade-speedlines {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(255,255,255,0.045) 0px,
+    rgba(255,255,255,0.045) 2px,
+    transparent 2px,
+    transparent 140px
+  );
+  animation: arcade-speed 6s linear infinite;
+}
+.arcade-speedlines--fast { animation-duration: 2.5s; }
+.arcade-speedlines--urgent {
+  animation-duration: 1.2s;
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(255,56,100,0.10) 0px,
+    rgba(255,56,100,0.10) 2px,
+    transparent 2px,
+    transparent 120px
+  );
+}
+@keyframes arcade-speed {
+  from { background-position: 0 0; }
+  to   { background-position: 400px 0; }
+}
+
+/* ---------- Memory Match — candle flicker for rune glyphs ---------- */
+.arcade-stage .mm-rune {
+  font-family: 'DM Serif Display', serif;
+  color: #F5C542;
+  text-shadow: 0 0 10px rgba(245,197,66,0.55), 0 0 20px rgba(245,197,66,0.3);
+  animation: mm-candle-flicker 2.6s infinite alternate;
+}
+@keyframes mm-candle-flicker {
+  0%, 100% { opacity: 1; text-shadow: 0 0 10px rgba(245,197,66,0.55), 0 0 20px rgba(245,197,66,0.3); }
+  45% { opacity: 0.78; text-shadow: 0 0 7px rgba(245,197,66,0.45), 0 0 12px rgba(245,197,66,0.2); }
+  70% { opacity: 0.92; }
+}

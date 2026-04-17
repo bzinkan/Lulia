@@ -4,6 +4,11 @@
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Nunito:wght@400;600;700;800&display=swap');
 
+/* Arcade v2: scoped in-cabinet chrome (dark neon, Press Start 2P).
+   Only applies inside `.arcade-stage`, leaves the rest of the dashboard
+   on the Retro Earth peach/warm-card palette. */
+@import '../styles/arcade-hud.css';
+
 /* ============================================================
    RETRO EARTH DESIGN SYSTEM — CSS Custom Properties
    ============================================================ */
