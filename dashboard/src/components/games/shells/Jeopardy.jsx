@@ -7,20 +7,21 @@ import { correctAnswer } from '@/lib/confetti';
 import { ArcadeChip } from '@/components/games/CabinetStage';
 
 /**
- * Jeopardy — arcade-cabinet edition (v2.1 April 2026).
+ * Jeopardy — arcade-cabinet edition (v2.2 April 2026 — real wagering).
  *
- * Client-side Jeopardy scoring overlay:
- *   - Each cell is worth its face value ($200–$1000).
- *   - Correct answer  → +cell value (or +wager for DD).
- *   - Wrong answer    → −cell value (or −wager for DD).
- *   - Daily Double: free wager from $5 up to max(score, highest remaining value).
- *     If score ≤ 0, minimum wager is $5 and max is highest remaining value.
- *   - Scores can go negative (just like real Jeopardy).
- *   - Scoreboard shows the local Jeopardy dollar totals, not backend points.
+ * Backend-synced Jeopardy scoring:
+ *   - Every answer sends a `wager` with the answer. For regular cells wager =
+ *     cell value; for Daily Double it's the student's locked wager.
+ *   - Server applies correct → +wager / wrong → -wager, updates player.score.
+ *   - Scores can go negative; scoreboard reads from player.score (backend).
+ *
+ * Daily Double: only the current score leader answers. Wager range is
+ * [$5, max(score, highest remaining value)]. Everyone else sees a "waiting"
+ * panel while the leader plays.
  *
  * Visual direction: royal navy #0A1F4E board, gold #E6B800 serif cells,
- * spotlight vignette on current cell, velvet curtain edge glow, CRT
- * scanline overlay comes from CabinetStage parent.
+ * spotlight vignette on current cell, category column glow on pick,
+ * velvet curtain edge glow.
  */
 
 const VALUES = [200, 400, 600, 800, 1000];
@@ -66,20 +67,19 @@ export default function Jeopardy({
   const [wagerMode, setWagerMode] = useState(false);
   const [wagerAmount, setWagerAmount] = useState(0);
   const [wagerInput, setWagerInput] = useState(''); // free-form text input for wager
-  const [justClosed, setJustClosed] = useState(null);
   const [scorePopup, setScorePopup] = useState(null);
-
-  // ── Client-side Jeopardy score tracking ──
-  // Maps player_id → dollar amount. This overlays on top of the backend score.
-  const [jScores, setJScores] = useState({});
-  // Track the wager that was locked for the current DD (so we know the amount on result)
+  // Wager locked-in for the CURRENT question. Regular cells auto-lock at cell
+  // value; DD waits for the student to submit the wager modal.
   const [lockedWager, setLockedWager] = useState(0);
-  // Track whether current question is a DD that had a wager
-  const [currentIsDD, setCurrentIsDD] = useState(false);
 
   const currentCell = board.flat().find(c => c && c.index === questionIndex);
+  const currentCol = currentCell ? currentCell.index % 5 : -1;
   const isFinalJeopardy = questionIndex === 24 && totalQuestions >= 25;
-  const isCurrentDD = currentCell?.isDailyDouble && !answeredCells.includes(questionIndex);
+  const isCurrentDD = !!(currentCell?.isDailyDouble && !answeredCells.includes(questionIndex));
+
+  // Backend is the source of truth. player.score reflects Jeopardy dollars for
+  // this game shell (wager-driven scoring on the server side).
+  const myScore = playerId ? (players.find(p => p.player_id === playerId)?.score || 0) : 0;
 
   // Highest remaining cell value on the board (for wager ceiling)
   const highestRemainingValue = useMemo(() => {
@@ -87,31 +87,61 @@ export default function Jeopardy({
     return remaining.length > 0 ? Math.max(...remaining.map(c => c.value)) : 1000;
   }, [board, answeredCells]);
 
-  // Get the student's own Jeopardy score
-  const myJScore = playerId ? (jScores[playerId] || 0) : 0;
-
   // Wager ceiling: max of (player's score, highest remaining value). Min $5.
-  const wagerCeiling = Math.max(myJScore, highestRemainingValue, 5);
+  const wagerCeiling = Math.max(myScore, highestRemainingValue, 5);
+
+  // ── Daily Double leader-only gate ──
+  // The leader is the player with the highest current score. Ties broken by
+  // first-seen. Only the leader sees the wager modal + answer tiles on DD.
+  const leaderId = useMemo(() => {
+    if (players.length === 0) return null;
+    return [...players].sort((a, b) => (b.score || 0) - (a.score || 0))[0]?.player_id || null;
+  }, [players]);
+  const amLeader = playerId && leaderId === playerId;
+  const leaderName = useMemo(() => players.find(p => p.player_id === leaderId)?.name || 'the leader', [players, leaderId]);
 
   // Quick-wager presets for the DD modal
   const wagerPresets = useMemo(() => {
     const presets = [];
     const cellVal = currentCell?.value || 200;
-    // Always show the cell value as a preset
     presets.push({ label: `Cell ($${cellVal})`, value: cellVal });
-    // Half of current score if > cell value
-    const halfScore = Math.floor(myJScore / 2);
+    const halfScore = Math.floor(myScore / 2);
     if (halfScore > cellVal && halfScore > 0) {
       presets.push({ label: `Half ($${halfScore})`, value: halfScore });
     }
-    // Max wager (true daily double)
     if (wagerCeiling > cellVal) {
       presets.push({ label: `MAX ($${wagerCeiling})`, value: wagerCeiling });
     }
     return presets;
-  }, [currentCell?.value, myJScore, wagerCeiling]);
+  }, [currentCell?.value, myScore, wagerCeiling]);
 
-  useEffect(() => { setSelected(null); setWagerMode(false); setCurrentIsDD(false); setLockedWager(0); }, [question?.question_text]);
+  // Reset per-question state. Regular cells auto-lock wager at cell value so
+  // the student can answer immediately. DD cells hold until the student
+  // submits the wager modal.
+  useEffect(() => {
+    setSelected(null);
+    if (isCurrentDD) {
+      setWagerMode(true);
+      const cellVal = currentCell?.value || 200;
+      const def = Math.min(cellVal, wagerCeiling);
+      setWagerAmount(def);
+      setWagerInput(String(def));
+      setLockedWager(0);
+    } else {
+      setWagerMode(false);
+      setLockedWager(currentCell?.value || 200);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question?.question_text, questionIndex]);
+
+  // DD reveal SFX — fire once per new DD question
+  const ddPlayedForRef = useRef(null);
+  useEffect(() => {
+    if (isCurrentDD && question && ddPlayedForRef.current !== questionIndex) {
+      ddPlayedForRef.current = questionIndex;
+      play('ddReveal');
+    }
+  }, [isCurrentDD, question, questionIndex]);
 
   // Detect cell closure → ding + dollar popup
   const prevAnswered = useRef(answeredCells);
@@ -121,61 +151,18 @@ export default function Jeopardy({
       play('correct');
       const idx = newClosed[newClosed.length - 1];
       const cell = board.flat().find(c => c && c.index === idx);
-      setJustClosed(idx);
       if (cell) setScorePopup({ index: idx, text: `$${cell.value}` });
-      setTimeout(() => { setJustClosed(null); setScorePopup(null); }, 1200);
+      setTimeout(() => { setScorePopup(null); }, 1200);
     }
     prevAnswered.current = answeredCells;
   }, [answeredCells, board]);
 
-  // ── Apply Jeopardy scoring on result ──
+  // Confetti on personal correct result (backend already updated the score).
   useEffect(() => {
-    if (!lastResult) return;
-    if (lastResult.correct) correctAnswer({ x: 0.5, y: 0.55 });
+    if (lastResult?.correct) correctAnswer({ x: 0.5, y: 0.55 });
+  }, [lastResult]);
 
-    // Determine the dollar delta for this question
-    const cellValue = currentCell?.value || VALUES[Math.floor(questionIndex / 5)] || 200;
-    const isDD = currentIsDD || currentCell?.isDailyDouble;
-    const stake = isDD ? lockedWager : cellValue;
-
-    if (playerId && stake > 0) {
-      setJScores(prev => {
-        const current = prev[playerId] || 0;
-        const delta = lastResult.correct ? stake : -stake;
-        return { ...prev, [playerId]: current + delta };
-      });
-    }
-  }, [lastResult]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Also update other players' Jeopardy scores when we get info from the players array.
-  // Initialize any new player we haven't seen yet to $0.
-  useEffect(() => {
-    setJScores(prev => {
-      const next = { ...prev };
-      let changed = false;
-      players.forEach(p => {
-        if (p.player_id && !(p.player_id in next)) {
-          next[p.player_id] = 0;
-          changed = true;
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [players]);
-
-  // Daily Double: if student view and current cell is DD, show wager first
-  useEffect(() => {
-    if (view === 'student' && isCurrentDD && question && !wagerMode && !selected) {
-      setWagerMode(true);
-      setCurrentIsDD(true);
-      // Default wager = cell value
-      const cellVal = currentCell?.value || 200;
-      setWagerAmount(Math.min(cellVal, wagerCeiling));
-      setWagerInput(String(Math.min(cellVal, wagerCeiling)));
-    }
-  }, [view, isCurrentDD, question, wagerMode, selected, currentCell?.value, wagerCeiling]);
-
-  // Lock the wager and dismiss the modal
+  // Lock the wager and dismiss the modal (DD only — regular cells auto-lock).
   const lockWager = useCallback(() => {
     const clamped = Math.max(5, Math.min(wagerAmount, wagerCeiling));
     setLockedWager(clamped);
@@ -196,13 +183,12 @@ export default function Jeopardy({
 
   const cellsRemaining = 25 - answeredCells.length;
 
-  // Merge Jeopardy scores into players for scoreboard display
+  // Scoreboard is driven directly by backend-synced player.score (dollars).
   const rankedPlayers = useMemo(() => {
-    return [...players].map(p => ({
-      ...p,
-      jScore: jScores[p.player_id] ?? 0,
-    })).sort((a, b) => b.jScore - a.jScore);
-  }, [players, jScores]);
+    return [...players]
+      .map(p => ({ ...p, jScore: p.score || 0 }))
+      .sort((a, b) => b.jScore - a.jScore);
+  }, [players]);
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -211,22 +197,35 @@ export default function Jeopardy({
         display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6,
         marginBottom: 6,
       }}>
-        {categories.map((cat, i) => (
-          <div key={i} style={{
-            background: 'linear-gradient(180deg, #1A3A7A 0%, #0A1F4E 100%)',
-            border: '1px solid rgba(230,184,0,0.35)',
-            borderRadius: 8,
-            padding: '10px 4px',
-            textAlign: 'center',
-            fontFamily: "'Press Start 2P', monospace",
-            fontSize: 8, letterSpacing: 1.5,
-            color: '#E6B800',
-            textShadow: '0 0 6px rgba(230,184,0,0.5)',
-            textTransform: 'uppercase',
-          }}>
-            {cat}
-          </div>
-        ))}
+        {categories.map((cat, i) => {
+          const isActive = i === currentCol && !!question;
+          return (
+            <div key={i} style={{
+              background: isActive
+                ? 'linear-gradient(180deg, #E6B800 0%, #A88200 100%)'
+                : 'linear-gradient(180deg, #1A3A7A 0%, #0A1F4E 100%)',
+              border: isActive
+                ? '1px solid #FFEF9E'
+                : '1px solid rgba(230,184,0,0.35)',
+              borderRadius: 8,
+              padding: '10px 4px',
+              textAlign: 'center',
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: 8, letterSpacing: 1.5,
+              color: isActive ? '#0A1F4E' : '#E6B800',
+              textShadow: isActive
+                ? '0 0 4px rgba(255,239,158,0.8)'
+                : '0 0 6px rgba(230,184,0,0.5)',
+              textTransform: 'uppercase',
+              boxShadow: isActive
+                ? '0 0 18px rgba(230,184,0,0.7), inset 0 0 8px rgba(255,239,158,0.4)'
+                : 'none',
+              transition: 'all 0.25s ease',
+            }}>
+              {cat}
+            </div>
+          );
+        })}
       </div>
 
       {/* ── 5×5 board ── */}
@@ -238,6 +237,7 @@ export default function Jeopardy({
           if (!cell) return <div key={i} style={{ aspectRatio: '4/3', background: '#0A1030', borderRadius: 8 }} />;
           const isAnswered = answeredCells.includes(cell.index);
           const isCurrent = questionIndex === cell.index && question;
+          const inActiveCol = question && (cell.index % 5) === currentCol && !isCurrent;
           const clickable = view === 'teacher' && !isAnswered && !isCurrent;
           const popup = scorePopup?.index === cell.index ? scorePopup.text : null;
 
@@ -254,12 +254,16 @@ export default function Jeopardy({
                 borderRadius: 8,
                 border: isCurrent
                   ? '2px solid #E6B800'
-                  : '1px solid rgba(230,184,0,0.18)',
+                  : inActiveCol
+                    ? '1px solid rgba(230,184,0,0.55)'
+                    : '1px solid rgba(230,184,0,0.18)',
                 background: isCurrent
                   ? 'radial-gradient(circle at center, rgba(230,184,0,0.25), #0A1F4E 70%)'
                   : isAnswered
                     ? '#080E22'
-                    : 'linear-gradient(180deg, #122B6B 0%, #0A1F4E 100%)',
+                    : inActiveCol
+                      ? 'linear-gradient(180deg, #1A3A7A 0%, #0F2761 100%)'
+                      : 'linear-gradient(180deg, #122B6B 0%, #0A1F4E 100%)',
                 color: isAnswered ? 'rgba(230,184,0,0.25)' : '#E6B800',
                 fontFamily: "'Press Start 2P', monospace",
                 fontSize: isAnswered ? 10 : 16,
@@ -269,9 +273,12 @@ export default function Jeopardy({
                 opacity: isAnswered ? 0.35 : 1,
                 boxShadow: isCurrent
                   ? '0 0 20px rgba(230,184,0,0.35), inset 0 0 30px rgba(230,184,0,0.08)'
-                  : 'inset 0 2px 6px rgba(0,0,0,0.4)',
+                  : inActiveCol
+                    ? '0 0 10px rgba(230,184,0,0.18), inset 0 2px 6px rgba(0,0,0,0.4)'
+                    : 'inset 0 2px 6px rgba(0,0,0,0.4)',
                 overflow: 'hidden',
                 textShadow: isAnswered ? 'none' : '0 0 8px rgba(230,184,0,0.6)',
+                transition: 'background 0.25s ease, box-shadow 0.25s ease',
               }}
             >
               {isAnswered ? '✓' : `$${cell.value}`}
@@ -329,16 +336,16 @@ export default function Jeopardy({
               fontFamily: "'Press Start 2P', monospace",
               fontSize: 10, letterSpacing: 1,
               padding: '5px 10px', borderRadius: 6,
-              background: myJScore >= 0
+              background: myScore >= 0
                 ? 'rgba(230,184,0,0.16)'
                 : 'rgba(255,56,100,0.12)',
-              border: myJScore >= 0
+              border: myScore >= 0
                 ? '1px solid rgba(230,184,0,0.5)'
                 : '1px solid rgba(255,56,100,0.4)',
-              color: myJScore >= 0 ? '#E6B800' : '#FF3864',
-              textShadow: `0 0 6px ${myJScore >= 0 ? 'rgba(230,184,0,0.5)' : 'rgba(255,56,100,0.5)'}`,
+              color: myScore >= 0 ? '#E6B800' : '#FF3864',
+              textShadow: `0 0 6px ${myScore >= 0 ? 'rgba(230,184,0,0.5)' : 'rgba(255,56,100,0.5)'}`,
             }}>
-              YOUR SCORE: ${myJScore.toLocaleString()}
+              {myScore < 0 ? `-$${Math.abs(myScore).toLocaleString()}` : `$${myScore.toLocaleString()}`}
             </span>
           )}
         </div>
@@ -405,9 +412,46 @@ export default function Jeopardy({
               {question.question_text}
             </h2>
 
-            {/* ── Daily Double wager modal (student) — FREE WAGER ── */}
+            {/* ── Daily Double: non-leader "waiting" screen ── */}
+            {view === 'student' && isCurrentDD && !amLeader && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  marginTop: 20,
+                  padding: 22, borderRadius: 12,
+                  background: 'rgba(255,56,100,0.1)',
+                  border: '1px solid rgba(255,56,100,0.4)',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{
+                  fontFamily: "'Press Start 2P', monospace",
+                  fontSize: 14, color: '#FF3864', marginBottom: 10,
+                  textShadow: '0 0 8px rgba(255,56,100,0.6)',
+                  letterSpacing: 2,
+                }}>
+                  ⚡ DAILY DOUBLE ⚡
+                </div>
+                <div style={{
+                  fontFamily: "'Press Start 2P', monospace",
+                  fontSize: 10, color: '#E6B800',
+                  letterSpacing: 1.5, marginBottom: 6,
+                }}>
+                  {leaderName.toUpperCase()} ANSWERS
+                </div>
+                <div style={{
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: 13, color: 'rgba(247,247,255,0.65)',
+                }}>
+                  The score leader plays this one — sit tight and watch.
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Daily Double wager modal (leader only) ── */}
             <AnimatePresence>
-              {view === 'student' && wagerMode && (
+              {view === 'student' && wagerMode && amLeader && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -432,7 +476,7 @@ export default function Jeopardy({
                     fontSize: 13, color: 'rgba(247,247,255,0.65)', marginBottom: 14,
                   }}>
                     Wager $5 up to ${wagerCeiling.toLocaleString()}
-                    {myJScore > 0 && <span> · Your score: ${myJScore.toLocaleString()}</span>}
+                    {myScore !== 0 && <span> · Your score: ${myScore.toLocaleString()}</span>}
                   </div>
 
                   {/* Free-input wager field */}
@@ -523,8 +567,9 @@ export default function Jeopardy({
               )}
             </AnimatePresence>
 
-            {/* Answer tiles (student, after wager if DD) */}
-            {view === 'student' && !wagerMode && (
+            {/* Answer tiles — hidden during DD wager modal; hidden entirely for
+                non-leaders on a DD cell. */}
+            {view === 'student' && !wagerMode && (!isCurrentDD || amLeader) && (
               <div style={{
                 display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                 gap: 12, marginTop: 18,
@@ -546,7 +591,12 @@ export default function Jeopardy({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 + i * 0.06, duration: 0.3 }}
                       disabled={!!selected}
-                      onClick={() => { setSelected(opt); onAnswer?.(opt); }}
+                      onClick={() => {
+                        setSelected(opt);
+                        // Send the wager alongside the answer so the server
+                        // applies Jeopardy scoring (correct +wager, wrong -wager).
+                        onAnswer?.(opt, lockedWager);
+                      }}
                       className={cls}
                       style={{ '--btn-color': TILE_COLORS[i] }}
                     >
@@ -557,6 +607,17 @@ export default function Jeopardy({
                     </motion.button>
                   );
                 })}
+                {/* Show stake so student knows what's on the line */}
+                <div style={{
+                  gridColumn: '1 / -1',
+                  textAlign: 'center',
+                  fontFamily: "'Press Start 2P', monospace",
+                  fontSize: 9, letterSpacing: 1.5,
+                  color: 'rgba(230,184,0,0.65)',
+                  marginTop: 4,
+                }}>
+                  {isCurrentDD ? '⚡ ' : ''}STAKE: ${lockedWager.toLocaleString()}
+                </div>
               </div>
             )}
 
@@ -581,12 +642,13 @@ export default function Jeopardy({
 
       {/* ── Student result splash (shows dollar gain/loss) ── */}
       <AnimatePresence>
-        {view === 'student' && lastResult && (
+        {view === 'student' && lastResult && (!isCurrentDD || amLeader) && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             style={{
+              marginTop: 14,
               padding: '12px 16px', borderRadius: 10,
               textAlign: 'center',
               background: lastResult.correct ? 'rgba(22,212,116,0.12)' : 'rgba(255,56,100,0.10)',
@@ -594,9 +656,9 @@ export default function Jeopardy({
             }}
           >
             {(() => {
-              const cellValue = currentCell?.value || VALUES[Math.floor(questionIndex / 5)] || 200;
-              const isDD = currentIsDD || currentCell?.isDailyDouble;
-              const stake = isDD ? lockedWager : cellValue;
+              // Prefer the server-authoritative points; fall back to lockedWager.
+              const delta = typeof lastResult.points === 'number' ? lastResult.points : (lastResult.correct ? lockedWager : -lockedWager);
+              const sign = delta >= 0 ? '+' : '-';
               return (
                 <span style={{
                   fontFamily: "'Press Start 2P', monospace",
@@ -605,8 +667,8 @@ export default function Jeopardy({
                   textShadow: `0 0 6px ${lastResult.correct ? 'rgba(22,212,116,0.5)' : 'rgba(255,56,100,0.5)'}`,
                 }}>
                   {lastResult.correct
-                    ? `CORRECT! +$${stake.toLocaleString()}`
-                    : `WRONG −$${stake.toLocaleString()} · ANSWER: ${lastResult.correct_answer}`}
+                    ? `CORRECT! ${sign}$${Math.abs(delta).toLocaleString()}`
+                    : `WRONG ${sign}$${Math.abs(delta).toLocaleString()} · ANSWER: ${lastResult.correct_answer}`}
                 </span>
               );
             })()}

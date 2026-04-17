@@ -121,6 +121,13 @@ export const sounds = {
     sweep({ fromFreq: 700, toFreq: 1200, start: 0.14, duration: 0.10, type: 'square', gain: 0.22 });
     tone({ freq: 1400, start: 0.28, duration: 0.18, type: 'triangle', gain: 0.28 });
   },
+  ddReveal() {
+    // Daily Double reveal: dramatic rising sweep + a gold-hit chord.
+    sweep({ fromFreq: 150, toFreq: 900, start: 0.00, duration: 0.45, type: 'sawtooth', gain: 0.22 });
+    tone({ freq: 988, start: 0.45, duration: 0.18, type: 'triangle', gain: 0.3 });   // B5
+    tone({ freq: 1319, start: 0.45, duration: 0.30, type: 'triangle', gain: 0.3 });  // E6
+    tone({ freq: 1568, start: 0.55, duration: 0.50, type: 'triangle', gain: 0.32 }); // G6
+  },
 };
 
 // Muted state — lets UI toggle sound globally

@@ -178,12 +178,14 @@ function JoinInner() {
     };
   }
 
-  function submitAnswer(answer) {
+  function submitAnswer(answer, wager) {
     wsRef.current?.send(JSON.stringify({
       type: 'answer',
       player_id: playerId,
       answer,
       time_taken: 0,
+      // Only present for Jeopardy-style games; backend treats undefined as decay-scoring.
+      ...(typeof wager === 'number' ? { wager } : {}),
     }));
   }
 

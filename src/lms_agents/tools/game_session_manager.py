@@ -508,8 +508,13 @@ def start_game(pin: str) -> dict:
     return {"status": "playing", "current_question": 0, "total_questions": len(state.get("questions", []))}
 
 
-def answer_question(pin: str, player_id: str, answer: str, time_taken: float = 0) -> dict:
-    """Player submits an answer."""
+def answer_question(pin: str, player_id: str, answer: str, time_taken: float = 0, wager: int | None = None) -> dict:
+    """Player submits an answer.
+
+    If `wager` is provided (int, can be 0), Jeopardy-style scoring applies:
+      correct → +wager, wrong → -wager (score can go negative).
+    Otherwise the standard decay-based scoring runs (Quiz Race, etc.).
+    """
     state = get_game_state(pin)
     if not state:
         return {"error": "Game not found"}
@@ -522,19 +527,29 @@ def answer_question(pin: str, player_id: str, answer: str, time_taken: float = 0
     question = questions[q_idx]
     correct = answer.strip().lower() == question["answer"].strip().lower()
 
-    # Points: max 1000, decays with time
-    points = 0
-    if correct:
-        timer = state.get("settings", {}).get("timer_seconds", 20)
-        points = max(100, int(1000 * (1 - time_taken / timer))) if state.get("settings", {}).get("points_decay") else 1000
+    # Points calculation: wager-based (Jeopardy) or decay-based (everything else).
+    if wager is not None:
+        try:
+            stake = max(0, int(wager))
+        except (TypeError, ValueError):
+            stake = 0
+        points = stake if correct else -stake
+    else:
+        points = 0
+        if correct:
+            timer = state.get("settings", {}).get("timer_seconds", 20)
+            points = max(100, int(1000 * (1 - time_taken / timer))) if state.get("settings", {}).get("points_decay") else 1000
 
-    # Update player score in Redis
+    # Update player score in Redis. Score can go negative under Jeopardy scoring.
     new_score = 0
     for p in state.get("players", []):
         if p["player_id"] == player_id:
             p["score"] = p.get("score", 0) + points
             new_score = p["score"]
-            p["answers"].append({"question": q_idx, "answer": answer, "correct": correct, "points": points, "time": time_taken})
+            p["answers"].append({
+                "question": q_idx, "answer": answer, "correct": correct,
+                "points": points, "time": time_taken, "wager": wager,
+            })
             break
     set_game_state(pin, state)
 
@@ -542,6 +557,7 @@ def answer_question(pin: str, player_id: str, answer: str, time_taken: float = 0
         "correct": correct, "points": points,
         "correct_answer": question["answer"],
         "new_score": new_score,
+        "wager": wager,
     }
 
 

@@ -243,7 +243,12 @@ async def handle_game_websocket(websocket: WebSocket, pin: str):
                 })
 
             elif msg_type == "answer" and player_id:
-                result = answer_question(pin, player_id, msg.get("answer", ""), msg.get("time_taken", 0))
+                result = answer_question(
+                    pin, player_id,
+                    msg.get("answer", ""),
+                    msg.get("time_taken", 0),
+                    wager=msg.get("wager"),
+                )
                 await manager.send_direct(websocket, {"type": "answer_result", **result})
                 await manager.broadcast(pin, {
                     "type": "player_answered",
