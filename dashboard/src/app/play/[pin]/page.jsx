@@ -8,32 +8,29 @@ import { getGameWebSocketUrl } from '@/lib/gameWebSocket';
 import { play as playSound } from '@/lib/gameSounds';
 import { winnerCelebration } from '@/lib/confetti';
 import dynamic from 'next/dynamic';
+import CabinetStage from '@/components/games/CabinetStage';
+import { getShell } from '@/lib/gameShellConfigs';
+// Arcade v2 lineup: Quiz Race, Jeopardy, Bingo, Millionaire, Memory Match + 4 Phase-2 games.
 const QuizRace     = dynamic(() => import('@/components/games/shells/QuizRace'),     { ssr: false });
 const Jeopardy     = dynamic(() => import('@/components/games/shells/Jeopardy'),     { ssr: false });
 const BingoBlitz   = dynamic(() => import('@/components/games/shells/BingoBlitz'),   { ssr: false });
 const Millionaire  = dynamic(() => import('@/components/games/shells/Millionaire'),  { ssr: false });
-const BattleRoyale = dynamic(() => import('@/components/games/shells/BattleRoyale'), { ssr: false });
-const TugOfWar     = dynamic(() => import('@/components/games/shells/TugOfWar'),     { ssr: false });
 const MemoryMatch  = dynamic(() => import('@/components/games/shells/MemoryMatch'),  { ssr: false });
-const SpeedRush    = dynamic(() => import('@/components/games/shells/SpeedRush'),    { ssr: false });
-const EscapeRoom   = dynamic(() => import('@/components/games/shells/EscapeRoom'),   { ssr: false });
-const CardDuel     = dynamic(() => import('@/components/games/shells/CardDuel'),     { ssr: false });
-const WheelSpin    = dynamic(() => import('@/components/games/shells/WheelSpin'),    { ssr: false });
-const Tournament   = dynamic(() => import('@/components/games/shells/Tournament'),   { ssr: false });
+const MathBee      = dynamic(() => import('@/components/games/shells/MathBee'),      { ssr: false });
+const HistoryQuest = dynamic(() => import('@/components/games/shells/HistoryQuest'), { ssr: false });
+const GeoExplorer  = dynamic(() => import('@/components/games/shells/GeoExplorer'),  { ssr: false });
+const WordScramble = dynamic(() => import('@/components/games/shells/WordScramble'), { ssr: false });
 
 const SHELL_COMPONENTS = {
   quiz_race: QuizRace,
   jeopardy: Jeopardy,
   bingo_blitz: BingoBlitz,
   millionaire: Millionaire,
-  battle_royale: BattleRoyale,
-  team_tug_of_war: TugOfWar,
   memory_match: MemoryMatch,
-  speed_rush: SpeedRush,
-  escape_room: EscapeRoom,
-  card_duel: CardDuel,
-  wheel_spin: WheelSpin,
-  tournament: Tournament,
+  math_bee: MathBee,
+  history_quest: HistoryQuest,
+  geo_explorer: GeoExplorer,
+  word_scramble: WordScramble,
 };
 
 export default function TeacherPlayPage() {
@@ -44,6 +41,7 @@ export default function TeacherPlayPage() {
   const [ended, setEnded] = useState(null);
   const [calledAnswers, setCalledAnswers] = useState([]);
   const [answeredCells, setAnsweredCells] = useState([]);
+  const [bingoWinner, setBingoWinner] = useState(null);
   const wsRef = useRef(null);
 
   const joinUrl = typeof window !== 'undefined' ? `${window.location.origin}/join?pin=${pin}` : '';
@@ -102,6 +100,14 @@ export default function TeacherPlayPage() {
         next.players = (next.players || []).map(p =>
           p.player_id === msg.player_id ? { ...p, score: msg.new_score ?? p.score } : p
         );
+      } else if (msg.type === 'bingo_claimed') {
+        setBingoWinner({
+          player_id: msg.player_id,
+          player_name: msg.player_name,
+          player_avatar: msg.player_avatar,
+        });
+        playSound('ringIn');
+        setTimeout(() => { playSound('bingo'); winnerCelebration(); }, 350);
       } else if (msg.type === 'leaderboard') {
         next.leaderboard = msg.leaderboard;
       } else if (msg.type === 'game_finished') {
@@ -277,22 +283,33 @@ export default function TeacherPlayPage() {
         </div>
       )}
 
-      {/* Playing view */}
-      {state.status === 'playing' && Shell && (
-        <Shell
-          view="teacher"
-          question={state.current_question}
-          allQuestions={state.questions || []}
-          players={players}
-          config={state.settings || {}}
-          questionIndex={state.question_index || 0}
-          totalQuestions={state.total_questions || 0}
-          answeredCells={answeredCells}
-          calledAnswers={calledAnswers}
-          onPickCell={pickJeopardyCell}
-          onCallNext={nextQuestion}
-        />
-      )}
+      {/* Playing view — wrapped in arcade CabinetStage chrome */}
+      {state.status === 'playing' && Shell && (() => {
+        const shellMeta = getShell(state.game_shell_id) || {};
+        return (
+          <CabinetStage
+            gameName={shellMeta.marquee_name || state.title || 'LULIA ARCADE'}
+            tagline={shellMeta.arcade_tagline || ''}
+            accent={shellMeta.accentColor || '#FFBE0B'}
+            showMute={false} /* teacher host already has system controls */
+          >
+            <Shell
+              view="teacher"
+              question={state.current_question}
+              allQuestions={state.questions || []}
+              players={players}
+              config={state.settings || {}}
+              questionIndex={state.question_index || 0}
+              totalQuestions={state.total_questions || 0}
+              answeredCells={answeredCells}
+              calledAnswers={calledAnswers}
+              bingoWinner={bingoWinner}
+              onPickCell={pickJeopardyCell}
+              onCallNext={nextQuestion}
+            />
+          </CabinetStage>
+        );
+      })()}
 
       {/* Ended view — staggered leaderboard reveal */}
       <AnimatePresence>

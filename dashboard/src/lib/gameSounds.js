@@ -104,6 +104,23 @@ export const sounds = {
     tone({ freq: 1046, start: 0.30, duration: 0.45, type: 'triangle', gain: 0.4 });
     tone({ freq: 1318, start: 0.30, duration: 0.45, type: 'triangle', gain: 0.25 }); // E6 harmony
   },
+  bingo() {
+    // 5-note ascending "B-I-N-G-O" chant — square wave for retro diner-hall bite.
+    // G4-B4-D5-G5-D6 then a held chord for the final "O".
+    tone({ freq: 392, start: 0.00, duration: 0.12, type: 'square', gain: 0.22 });
+    tone({ freq: 494, start: 0.13, duration: 0.12, type: 'square', gain: 0.22 });
+    tone({ freq: 587, start: 0.26, duration: 0.12, type: 'square', gain: 0.22 });
+    tone({ freq: 784, start: 0.39, duration: 0.12, type: 'square', gain: 0.22 });
+    tone({ freq: 1175, start: 0.52, duration: 0.50, type: 'triangle', gain: 0.30 });
+    tone({ freq: 784, start: 0.52, duration: 0.50, type: 'triangle', gain: 0.20 });
+    tone({ freq: 587, start: 0.52, duration: 0.50, type: 'triangle', gain: 0.18 });
+  },
+  ringIn() {
+    // Buzzer ring-in for teacher when a student claims bingo — two rapid trills.
+    sweep({ fromFreq: 700, toFreq: 1200, start: 0.00, duration: 0.10, type: 'square', gain: 0.22 });
+    sweep({ fromFreq: 700, toFreq: 1200, start: 0.14, duration: 0.10, type: 'square', gain: 0.22 });
+    tone({ freq: 1400, start: 0.28, duration: 0.18, type: 'triangle', gain: 0.28 });
+  },
 };
 
 // Muted state — lets UI toggle sound globally

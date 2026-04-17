@@ -6,33 +6,30 @@ import { apiFetch } from '@/lib/api';
 import { getGameWebSocketUrl } from '@/lib/gameWebSocket';
 import LulingSelector from '@/components/LulingSelector';
 import dynamic from 'next/dynamic';
-// Shells use Web Audio + canvas-confetti — client-only, no SSR
+import CabinetStage from '@/components/games/CabinetStage';
+import { getShell } from '@/lib/gameShellConfigs';
+// Shells use Web Audio + canvas-confetti — client-only, no SSR.
+// Arcade v2 lineup: Quiz Race, Jeopardy, Bingo, Millionaire, Memory Match + 4 Phase-2 games.
 const QuizRace     = dynamic(() => import('@/components/games/shells/QuizRace'),     { ssr: false });
 const Jeopardy     = dynamic(() => import('@/components/games/shells/Jeopardy'),     { ssr: false });
 const BingoBlitz   = dynamic(() => import('@/components/games/shells/BingoBlitz'),   { ssr: false });
 const Millionaire  = dynamic(() => import('@/components/games/shells/Millionaire'),  { ssr: false });
-const BattleRoyale = dynamic(() => import('@/components/games/shells/BattleRoyale'), { ssr: false });
-const TugOfWar     = dynamic(() => import('@/components/games/shells/TugOfWar'),     { ssr: false });
 const MemoryMatch  = dynamic(() => import('@/components/games/shells/MemoryMatch'),  { ssr: false });
-const SpeedRush    = dynamic(() => import('@/components/games/shells/SpeedRush'),    { ssr: false });
-const EscapeRoom   = dynamic(() => import('@/components/games/shells/EscapeRoom'),   { ssr: false });
-const CardDuel     = dynamic(() => import('@/components/games/shells/CardDuel'),     { ssr: false });
-const WheelSpin    = dynamic(() => import('@/components/games/shells/WheelSpin'),    { ssr: false });
-const Tournament   = dynamic(() => import('@/components/games/shells/Tournament'),   { ssr: false });
+const MathBee      = dynamic(() => import('@/components/games/shells/MathBee'),      { ssr: false });
+const HistoryQuest = dynamic(() => import('@/components/games/shells/HistoryQuest'), { ssr: false });
+const GeoExplorer  = dynamic(() => import('@/components/games/shells/GeoExplorer'),  { ssr: false });
+const WordScramble = dynamic(() => import('@/components/games/shells/WordScramble'), { ssr: false });
 
 const SHELL_COMPONENTS = {
   quiz_race: QuizRace,
   jeopardy: Jeopardy,
   bingo_blitz: BingoBlitz,
   millionaire: Millionaire,
-  battle_royale: BattleRoyale,
-  team_tug_of_war: TugOfWar,
   memory_match: MemoryMatch,
-  speed_rush: SpeedRush,
-  escape_room: EscapeRoom,
-  card_duel: CardDuel,
-  wheel_spin: WheelSpin,
-  tournament: Tournament,
+  math_bee: MathBee,
+  history_quest: HistoryQuest,
+  geo_explorer: GeoExplorer,
+  word_scramble: WordScramble,
 };
 
 function JoinInner() {
@@ -54,6 +51,11 @@ function JoinInner() {
   const [calledAnswers, setCalledAnswers] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
   const [finalLeaderboard, setFinalLeaderboard] = useState(null);
+  // Live roster used by shells that visualize multi-player state (e.g. Quiz
+  // Race racetrack). Server broadcasts player_joined + player_answered to
+  // every connection; we just accumulate them here and pass to the shell.
+  const [livePlayers, setLivePlayers] = useState([]);
+  const [bingoWinner, setBingoWinner] = useState(null); // { player_id, player_name, player_avatar }
   const wsRef = useRef(null);
 
   useEffect(() => {
@@ -129,6 +131,41 @@ function JoinInner() {
         setStep('playing');
       } else if (msg.type === 'answer_result') {
         setLastResult({ correct: msg.correct, points: msg.points, correct_answer: msg.correct_answer });
+        // Reflect my own score delta locally so the racetrack updates even
+        // before the broadcast `player_answered` arrives.
+        if (typeof msg.new_score === 'number') {
+          setLivePlayers(prev => prev.map(p =>
+            p.player_id === playerId ? { ...p, score: msg.new_score } : p
+          ));
+        }
+      } else if (msg.type === 'player_joined') {
+        // Server broadcasts the full players array with each join
+        if (Array.isArray(msg.players)) {
+          setLivePlayers(msg.players.map(p => ({ ...p, score: p.score ?? 0 })));
+        } else if (msg.player) {
+          setLivePlayers(prev => {
+            if (prev.some(x => x.player_id === msg.player.player_id)) return prev;
+            return [...prev, { ...msg.player, score: 0 }];
+          });
+        }
+      } else if (msg.type === 'player_answered') {
+        // Score tick for some player (could be me, could be classmate)
+        setLivePlayers(prev => {
+          const idx = prev.findIndex(p => p.player_id === msg.player_id);
+          if (idx < 0) {
+            // Unknown player — roster was stale; stub them in
+            return [...prev, { player_id: msg.player_id, name: 'Player', score: msg.new_score ?? 0 }];
+          }
+          return prev.map(p => p.player_id === msg.player_id
+            ? { ...p, score: msg.new_score ?? p.score }
+            : p);
+        });
+      } else if (msg.type === 'bingo_claimed') {
+        setBingoWinner({
+          player_id: msg.player_id,
+          player_name: msg.player_name,
+          player_avatar: msg.player_avatar,
+        });
       } else if (msg.type === 'game_finished') {
         setFinalLeaderboard(msg.leaderboard || []);
         setStep('finished');
@@ -268,25 +305,35 @@ function JoinInner() {
         </div>
       )}
 
-      {/* Playing step — full viewport, render the shell */}
-      {step === 'playing' && Shell && (
-        <div style={{ width: '100%', maxWidth: 900, padding: 20 }}>
-          <Shell
-            view="student"
-            question={currentQuestion}
-            allQuestions={allQuestions}
-            players={[]}
-            config={gameInfo?.settings || {}}
-            questionIndex={questionIndex}
-            totalQuestions={totalQuestions}
-            playerId={playerId || 'anon'}
-            calledAnswers={calledAnswers}
-            lastResult={lastResult}
-            onAnswer={submitAnswer}
-            onBingo={reportBingo}
-          />
-        </div>
-      )}
+      {/* Playing step — full viewport, render the shell inside arcade CabinetStage */}
+      {step === 'playing' && Shell && (() => {
+        const shellMeta = getShell(gameInfo?.game_shell_id) || {};
+        return (
+          <div style={{ width: '100%' }}>
+            <CabinetStage
+              gameName={shellMeta.marquee_name || gameInfo?.title || 'LULIA ARCADE'}
+              tagline={shellMeta.arcade_tagline || ''}
+              accent={shellMeta.accentColor || '#FFBE0B'}
+            >
+              <Shell
+                view="student"
+                question={currentQuestion}
+                allQuestions={allQuestions}
+                players={livePlayers}
+                config={gameInfo?.settings || {}}
+                questionIndex={questionIndex}
+                totalQuestions={totalQuestions}
+                playerId={playerId || 'anon'}
+                calledAnswers={calledAnswers}
+                lastResult={lastResult}
+                bingoWinner={bingoWinner}
+                onAnswer={submitAnswer}
+                onBingo={reportBingo}
+              />
+            </CabinetStage>
+          </div>
+        );
+      })()}
 
       {/* Finished step */}
       {step === 'finished' && (
