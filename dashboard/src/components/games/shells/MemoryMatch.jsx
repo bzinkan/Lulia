@@ -346,6 +346,12 @@ export default function MemoryMatch({
       {view === 'teacher' && (
         <TeacherProgress players={players} totalPairs={totalPairs} />
       )}
+
+      {/* Student: after winning, show a "waiting on classmates" strip so
+          early-finishers stay engaged instead of drifting off. */}
+      {view === 'student' && allMatched && (
+        <WaitingOnClassmates players={players} totalPairs={totalPairs} selfId={playerId} />
+      )}
     </div>
   );
 }
@@ -508,21 +514,76 @@ function StageHudBand({ left, right }) {
 function TeacherProgress({ players, totalPairs }) {
   // Players array comes from the live game socket. Each player's `score` is
   // bumped by the MCQ channel — for MemoryMatch, each correct emit is one match,
-  // so score/1 ≈ matches. Some backends store raw points instead; we fall back
-  // to answers_correct if provided.
+  // so answers_correct ≈ matches. Fall back to deriving from score (~100pts/match,
+  // inexact because of the streak multiplier but good enough to drive the bar).
+  const playersKey = (players || []).map(p => (p.player_id || p.id) + ':' + (p.score || 0)).join('|');
+
+  // Client-side completion ledger: when a player first hits total pairs, stamp
+  // the moment. Gives us "finished order" + relative timestamps for medals.
+  const [completionTimes, setCompletionTimes] = useState({}); // { playerId: epochMs }
+  const [fanfareFired, setFanfareFired] = useState(false);
+  const firstFinishRef = useRef(null);
+
   const rows = useMemo(() => {
     return (players || []).map(p => {
-      const matches = p.memory_matches ?? p.answers_correct ?? 0;
-      const clamped = Math.min(matches, totalPairs);
+      const rawMatches = p.memory_matches ?? p.answers_correct ?? Math.round((p.score || 0) / 100);
+      const clamped = Math.max(0, Math.min(rawMatches, totalPairs));
       return {
         id: p.player_id || p.id,
         name: p.name || p.display_name || 'Player',
+        avatar: p.avatar || '🎭',
         matches: clamped,
         score: p.score || 0,
         done: clamped >= totalPairs,
       };
-    }).sort((a, b) => b.matches - a.matches || b.score - a.score);
-  }, [players, totalPairs]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playersKey, totalPairs]);
+
+  // Record completion timestamps as players cross the finish line.
+  useEffect(() => {
+    setCompletionTimes(prev => {
+      const next = { ...prev };
+      let changed = false;
+      rows.forEach(r => {
+        if (r.done && !next[r.id]) {
+          next[r.id] = Date.now();
+          if (!firstFinishRef.current) firstFinishRef.current = next[r.id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows.map(r => r.id + ':' + r.done).join('|')]);
+
+  // Fanfare + confetti when the LAST active player finishes.
+  useEffect(() => {
+    if (fanfareFired) return;
+    if (rows.length === 0) return;
+    const allDone = rows.every(r => r.done);
+    if (allDone) {
+      setFanfareFired(true);
+      play('fanfare');
+      winnerCelebration();
+    }
+  }, [rows, fanfareFired]);
+
+  // Build ranked list: finished players in completion order (medals),
+  // then unfinished sorted by progress.
+  const ranked = useMemo(() => {
+    const finished = rows
+      .filter(r => r.done)
+      .map(r => ({ ...r, finishedAt: completionTimes[r.id] || 0 }))
+      .sort((a, b) => a.finishedAt - b.finishedAt);
+    const unfinished = rows
+      .filter(r => !r.done)
+      .sort((a, b) => b.matches - a.matches || b.score - a.score);
+    return [...finished, ...unfinished];
+  }, [rows, completionTimes]);
+
+  const firstFinishAt = firstFinishRef.current;
+  const finishedCount = ranked.filter(r => r.done).length;
 
   return (
     <div
@@ -536,62 +597,101 @@ function TeacherProgress({ players, totalPairs }) {
     >
       <div
         style={{
-          fontFamily: "'Press Start 2P', monospace",
-          fontSize: 10, letterSpacing: 2,
-          color: 'var(--arcade-accent, #8338EC)',
-          marginBottom: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 10, gap: 12, flexWrap: 'wrap',
         }}
       >
-        LIVE · {rows.length} PLAYER{rows.length === 1 ? '' : 'S'}
+        <div
+          style={{
+            fontFamily: "'Press Start 2P', monospace",
+            fontSize: 10, letterSpacing: 2,
+            color: 'var(--arcade-accent, #8338EC)',
+          }}
+        >
+          LIVE · {ranked.length} PLAYER{ranked.length === 1 ? '' : 'S'}
+        </div>
+        {finishedCount > 0 && (
+          <div
+            style={{
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: 9, letterSpacing: 1.5,
+              color: '#F5C542',
+              padding: '4px 10px', borderRadius: 999,
+              background: 'rgba(245,197,66,0.12)',
+              border: '1px solid rgba(245,197,66,0.35)',
+            }}
+          >
+            {finishedCount}/{ranked.length} FINISHED
+          </div>
+        )}
       </div>
-      {rows.length === 0 ? (
+      {ranked.length === 0 ? (
         <div style={{ fontSize: 13, color: 'rgba(247,247,255,0.55)' }}>
           Waiting for students to start flipping tiles…
         </div>
       ) : (
-        <div
+        <motion.div
+          layout
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
             gap: 10,
           }}
         >
-          {rows.map(r => {
+          {ranked.map((r, idx) => {
             const pct = totalPairs > 0 ? (r.matches / totalPairs) * 100 : 0;
+            const finishRank = r.done ? idx + 1 : null; // 1-based
+            const medal = finishRank === 1 ? '🥇' : finishRank === 2 ? '🥈' : finishRank === 3 ? '🥉' : null;
+            const deltaMs = r.done && firstFinishAt ? Math.max(0, r.finishedAt - firstFinishAt) : 0;
+            const deltaLabel = finishRank === 1 ? 'FIRST!' : `+${Math.round(deltaMs / 1000)}s`;
             return (
-              <div
+              <motion.div
+                layout
                 key={r.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 22 }}
                 style={{
                   padding: '10px 12px',
                   borderRadius: 10,
                   background: r.done
-                    ? 'linear-gradient(180deg, rgba(245,197,66,0.18), rgba(10,10,24,0.7))'
+                    ? 'linear-gradient(180deg, rgba(245,197,66,0.22), rgba(10,10,24,0.7))'
                     : 'rgba(10,10,24,0.6)',
-                  border: `1px solid ${r.done ? 'rgba(245,197,66,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                  border: `1px solid ${r.done ? 'rgba(245,197,66,0.55)' : 'rgba(255,255,255,0.08)'}`,
+                  boxShadow: finishRank === 1 ? '0 0 18px rgba(245,197,66,0.35)' : 'none',
+                  position: 'relative',
                 }}
               >
                 <div
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    marginBottom: 6,
+                    marginBottom: 6, gap: 8,
                   }}
                 >
                   <span
                     style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
                       fontFamily: 'Space Grotesk, sans-serif',
-                      fontSize: 13, fontWeight: 700, color: r.done ? '#F5C542' : 'rgba(247,247,255,0.85)',
+                      fontSize: 13, fontWeight: 700,
+                      color: r.done ? '#F5C542' : 'rgba(247,247,255,0.85)',
+                      minWidth: 0,
                     }}
                   >
-                    {r.name}
+                    {medal && <span style={{ fontSize: 16 }}>{medal}</span>}
+                    <span style={{ fontSize: 15 }}>{r.avatar}</span>
+                    <span style={{
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{r.name}</span>
                   </span>
                   <span
                     style={{
                       fontFamily: "'Press Start 2P', monospace",
                       fontSize: 9, letterSpacing: 1.5,
                       color: r.done ? '#F5C542' : 'rgba(247,247,255,0.7)',
+                      flexShrink: 0,
                     }}
                   >
-                    {r.matches}/{totalPairs}{r.done ? ' ★' : ''}
+                    {r.done ? deltaLabel : `${r.matches}/${totalPairs}`}
                   </span>
                 </div>
                 <div
@@ -615,11 +715,119 @@ function TeacherProgress({ players, totalPairs }) {
                     }}
                   />
                 </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+//         WaitingOnClassmates — student early-finisher strip
+// ============================================================
+
+function WaitingOnClassmates({ players, totalPairs, selfId }) {
+  const others = useMemo(() => {
+    return (players || [])
+      .filter(p => (p.player_id || p.id) !== selfId)
+      .map(p => {
+        const rawMatches = p.memory_matches ?? p.answers_correct ?? Math.round((p.score || 0) / 100);
+        const matches = Math.max(0, Math.min(rawMatches, totalPairs));
+        return {
+          id: p.player_id || p.id,
+          name: p.name || 'Player',
+          avatar: p.avatar || '🎭',
+          matches,
+          done: matches >= totalPairs,
+        };
+      });
+  }, [players, totalPairs, selfId]);
+
+  if (others.length === 0) return null;
+
+  const remaining = others.filter(o => !o.done).length;
+  const allOthersDone = remaining === 0;
+
+  return (
+    <div
+      style={{
+        maxWidth: 620, margin: '18px auto 0',
+        padding: '14px 18px',
+        borderRadius: 14,
+        background: 'linear-gradient(180deg, rgba(10,10,24,0.7), rgba(10,10,24,0.5))',
+        border: '1px solid rgba(255,255,255,0.08)',
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "'Press Start 2P', monospace",
+          fontSize: 10, letterSpacing: 2,
+          color: allOthersDone ? '#F5C542' : 'rgba(247,247,255,0.65)',
+          marginBottom: 10,
+          textAlign: 'center',
+        }}
+      >
+        {allOthersDone
+          ? '★ EVERYONE FINISHED ★'
+          : `WAITING ON ${remaining} CLASSMATE${remaining === 1 ? '' : 'S'}…`}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {others
+          .slice()
+          .sort((a, b) => (b.matches - a.matches))
+          .map(o => {
+            const pct = totalPairs > 0 ? (o.matches / totalPairs) * 100 : 0;
+            return (
+              <div
+                key={o.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 10px', borderRadius: 8,
+                  background: o.done ? 'rgba(245,197,66,0.1)' : 'rgba(255,255,255,0.04)',
+                }}
+              >
+                <span style={{ fontSize: 14 }}>{o.avatar}</span>
+                <span style={{
+                  flex: 1, minWidth: 0,
+                  fontFamily: 'Space Grotesk, sans-serif',
+                  fontSize: 12, fontWeight: 600,
+                  color: o.done ? '#F5C542' : 'rgba(247,247,255,0.8)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {o.name}
+                </span>
+                <div
+                  style={{
+                    flex: '0 0 120px',
+                    height: 5, borderRadius: 999,
+                    background: 'rgba(255,255,255,0.08)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${pct}%`, height: '100%',
+                      background: o.done
+                        ? 'linear-gradient(90deg, #F5C542, #FFDE7A)'
+                        : 'linear-gradient(90deg, var(--arcade-accent, #8338EC), #C77DFF)',
+                      transition: 'width 0.35s ease',
+                    }}
+                  />
+                </div>
+                <span style={{
+                  fontFamily: "'Press Start 2P', monospace",
+                  fontSize: 8, letterSpacing: 1,
+                  color: o.done ? '#F5C542' : 'rgba(247,247,255,0.55)',
+                  minWidth: 34, textAlign: 'right',
+                }}>
+                  {o.done ? 'DONE' : `${o.matches}/${totalPairs}`}
+                </span>
               </div>
             );
           })}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
