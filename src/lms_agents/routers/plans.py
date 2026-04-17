@@ -105,7 +105,8 @@ async def approve(plan_id: UUID, req: ApproveRequest = ApproveRequest()):
 
     When all materials are done, plan status changes to 'complete'.
     """
-    import threading
+    import inngest as _inngest
+    from src.lms_agents.inngest.client import inngest_client
 
     plan_id_str = str(plan_id)
 
@@ -120,28 +121,17 @@ async def approve(plan_id: UUID, req: ApproveRequest = ApproveRequest()):
     cur_pre.close()
     conn_pre.close()
 
-    # Run generation in background thread
-    def _run():
-        try:
-            approve_plan(plan_id_str, sync_to_classroom=req.sync_to_classroom)
-        except Exception as e:
-            log.error(f"Background generation failed for plan {plan_id_str}: {e}")
-            # Mark plan as failed
-            try:
-                conn_err = get_db_conn()
-                cur_err = conn_err.cursor()
-                cur_err.execute(
-                    "UPDATE lesson_plans SET status = 'failed' WHERE plan_id = %s",
-                    (plan_id_str,),
-                )
-                conn_err.commit()
-                cur_err.close()
-                conn_err.close()
-            except Exception:
-                pass
-
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+    # Fire Inngest event — the plan_approval function picks it up with
+    # automatic retries and observability via the Inngest dashboard.
+    await inngest_client.send(
+        _inngest.Event(
+            name="plan/approval.requested",
+            data={
+                "plan_id": plan_id_str,
+                "sync_to_classroom": req.sync_to_classroom,
+            },
+        )
+    )
 
     return {"plan_id": plan_id_str, "status": "generating"}
 

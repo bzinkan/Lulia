@@ -298,54 +298,47 @@ async def generate(req: GenerateClipRequest, conn=Depends(get_db)):
         cur.close()
         return JSONResponse({"error": charge.get("error", "Credit charge failed"), **charge}, status_code=402)
 
-    log.info(f"[Clips] Charged {req.duration_sec * CLIP_CREDITS_PER_SECOND} credits for clip {clip_id}")
+    credits_charged = req.duration_sec * CLIP_CREDITS_PER_SECOND
+    log.info(f"[Clips] Charged {credits_charged} credits for clip {clip_id}")
 
-    # Call Veo (with teacher-selected preview image as reference if provided)
-    result = generate_clip(
-        prompt=req.prompt,
-        duration_sec=req.duration_sec,
-        aspect_ratio=req.aspect_ratio,
-        reference_image_uri=req.reference_image_uri,
-    )
-
-    if not result.get("success"):
-        # Refund on failure
-        grant_credits(
-            req.teacher_id,
-            req.duration_sec * CLIP_CREDITS_PER_SECOND,
-            reason=f"Refund: Veo generation failed for clip {clip_id}",
-            bucket="purchased",  # refund goes to purchased so it doesn't silently expire
-        )
-        log.error(f"[Clips] Veo failed, refunded credits for {clip_id}: {result.get('error')}")
-        cur.close()
-        return JSONResponse({
-            "error": "Video generation failed. Your credits have been refunded.",
-            "details": result.get("error"),
-        }, status_code=502)
-
-    # Persist the clip
+    # Insert placeholder row so the frontend can poll GET /clips/{id}
     cur.execute(
         """INSERT INTO short_clips
            (clip_id, teacher_id, class_id, prompt, topic_label, duration_sec,
-            aspect_ratio, video_uris, primary_uri, segments, model, credits_charged)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            aspect_ratio, credits_charged, status)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'generating')""",
         (
             clip_id, req.teacher_id, req.class_id, req.prompt, req.topic_label,
-            result["duration_sec"], req.aspect_ratio,
-            result["video_uris"], result["primary_uri"], result["segments"],
-            result["model"], req.duration_sec * CLIP_CREDITS_PER_SECOND,
+            req.duration_sec, req.aspect_ratio, credits_charged,
         ),
     )
     conn.commit()
     cur.close()
 
+    # Fire Inngest event — Veo generation runs as a retryable background step.
+    # If Veo permanently fails, on_failure handler refunds credits + marks row failed.
+    import inngest as _inngest
+    from src.lms_agents.inngest.client import inngest_client
+
+    await inngest_client.send(
+        _inngest.Event(
+            name="clip/generation.requested",
+            data={
+                "clip_id": clip_id,
+                "teacher_id": req.teacher_id,
+                "prompt": req.prompt,
+                "duration_sec": req.duration_sec,
+                "aspect_ratio": req.aspect_ratio,
+                "reference_image_uri": req.reference_image_uri,
+                "credits_charged": credits_charged,
+            },
+        )
+    )
+
     return {
         "clip_id": clip_id,
-        "video_uris": result["video_uris"],
-        "primary_uri": result["primary_uri"],
-        "duration_sec": result["duration_sec"],
-        "segments": result["segments"],
-        "credits_charged": req.duration_sec * CLIP_CREDITS_PER_SECOND,
+        "status": "generating",
+        "credits_charged": credits_charged,
         "balance_after": charge["balance_after"],
     }
 

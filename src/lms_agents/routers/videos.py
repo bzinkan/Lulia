@@ -68,15 +68,26 @@ async def create_video(req: GenerateVideoRequest):
             status_code=402,
         )
 
-    result = generate_video(
-        assignment_id=req.assignment_id,
-        teacher_id=req.teacher_id,
-        voice_id=req.voice_id,
-        use_my_voice=req.use_my_voice,
-        target_duration=req.target_duration,
-        theme=req.theme,
+    # Fire Inngest event — video generation runs as a retryable background step.
+    # generate_video() handles the full pipeline + DB persistence internally.
+    import inngest as _inngest
+    from src.lms_agents.inngest.client import inngest_client
+
+    await inngest_client.send(
+        _inngest.Event(
+            name="video/generation.requested",
+            data={
+                "assignment_id": req.assignment_id,
+                "teacher_id": req.teacher_id,
+                "voice_id": req.voice_id,
+                "use_my_voice": req.use_my_voice,
+                "target_duration": req.target_duration,
+                "theme": req.theme,
+            },
+        )
     )
-    return result
+
+    return {"status": "generating", "message": "Video generation started"}
 
 
 @router.get("/voices")

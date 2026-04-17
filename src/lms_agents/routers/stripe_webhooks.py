@@ -46,9 +46,31 @@ async def stripe_webhook(request: Request):
         return JSONResponse({"error": "Invalid signature"}, status_code=400)
 
     event_type = event.get("type", "")
+    event_id = event.get("id")
     data = event.get("data", {}).get("object", {})
 
-    log.info(f"[Stripe Webhook] {event_type}")
+    log.info(f"[Stripe Webhook] {event_type} ({event_id})")
+
+    # Idempotency guard: skip if this event was already processed.
+    # Stripe retries webhooks on timeout or 5xx — this prevents double-grants.
+    if event_id:
+        try:
+            conn_dedup = get_connection()
+            cur_dedup = conn_dedup.cursor()
+            cur_dedup.execute(
+                "INSERT INTO processed_webhooks (event_id, event_type) "
+                "VALUES (%s, %s) ON CONFLICT (event_id) DO NOTHING RETURNING event_id",
+                (event_id, event_type),
+            )
+            inserted = cur_dedup.fetchone()
+            conn_dedup.commit()
+            cur_dedup.close()
+            conn_dedup.close()
+            if not inserted:
+                log.info(f"[Stripe Webhook] Duplicate event {event_id}, skipping")
+                return {"received": True, "duplicate": True}
+        except Exception as e:
+            log.warning(f"[Stripe Webhook] Dedup check failed (proceeding anyway): {e}")
 
     try:
         if event_type == "customer.subscription.created":

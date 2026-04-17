@@ -1,0 +1,48 @@
+{
+  "family": "lulia-inngest",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "inngest",
+      "image": "inngest/inngest:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8288,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "INNGEST_SIGNING_KEY",
+          "value": "REPLACE_WITH_SIGNING_KEY"
+        },
+        {
+          "name": "INNGEST_EVENT_KEY",
+          "value": "REPLACE_WITH_EVENT_KEY"
+        },
+        {
+          "name": "INNGEST_REDIS_URI",
+          "value": "redis://REPLACE_WITH_ELASTICACHE_ENDPOINT:6379"
+        },
+        {
+          "name": "INNGEST_SERVE_ORIGIN",
+          "value": "http://lulia-api-service.lulia:8000"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/lulia-inngest",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "inngest"
+        }
+      }
+    }
+  ]
+}

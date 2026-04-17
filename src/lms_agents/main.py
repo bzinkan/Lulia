@@ -103,3 +103,10 @@ app.include_router(classes.router, prefix="/api/v1")
 app.include_router(class_intelligence.router, prefix="/api/v1")
 app.include_router(google_generate.router, prefix="/api/v1")
 app.include_router(canva.router, prefix="/api/v1")
+
+# --- Inngest: durable workflow engine ---
+import inngest.fast_api
+from src.lms_agents.inngest.client import inngest_client
+from src.lms_agents.inngest.functions import all_functions
+
+inngest.fast_api.serve(app, inngest_client, all_functions)
