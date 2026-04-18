@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { X, Play, Loader2, AlertTriangle, Film, Lock, Sparkles, CheckCircle } from 'lucide-react';
+import { X, Play, Loader2, AlertTriangle, Film, Lock, Sparkles, CheckCircle, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
+import InpaintEditor from './InpaintEditor';
 
 const WARN_STYLES = {
   green:  { bg: 'rgba(107,160,138,0.08)', color: 'var(--sage)',   border: 'var(--sage)'  },
@@ -30,6 +31,7 @@ export default function ClipCostModal({
   const [previewMeta, setPreviewMeta] = useState(null); // { within_free_allowance, credits_charged, free_remaining }
   const [selectedImage, setSelectedImage] = useState(null);
   const [loadingPreviews, setLoadingPreviews] = useState(false);
+  const [editingPreview, setEditingPreview] = useState(null); // URL of preview being inpainted
 
   const [duration, setDuration] = useState(initialDuration);
   const [cost, setCost] = useState(null);
@@ -209,22 +211,31 @@ export default function ClipCostModal({
                     {previews.map((uri, i) => {
                       const selected = selectedImage === uri;
                       return (
-                        <button key={i} onClick={() => setSelectedImage(uri)}
-                          className="relative aspect-video rounded-lg overflow-hidden transition-all"
+                        <div key={i}
+                          className="relative aspect-video rounded-lg overflow-hidden transition-all group"
                           style={{
                             border: `3px solid ${selected ? 'var(--coral)' : 'var(--border)'}`,
                             cursor: 'pointer',
                             background: '#1F1B17',
                           }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={uri} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
+                          <button onClick={() => setSelectedImage(uri)} className="w-full h-full block"
+                            style={{ cursor: 'pointer' }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={uri} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
+                          </button>
                           {selected && (
-                            <div className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center"
+                            <div className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center pointer-events-none"
                               style={{ background: 'var(--coral)' }}>
                               <CheckCircle className="w-4 h-4 text-white" />
                             </div>
                           )}
-                        </button>
+                          <button onClick={(e) => { e.stopPropagation(); setEditingPreview(uri); }}
+                            className="absolute bottom-1 right-1 px-2 py-1 rounded-md text-[10px] font-bold flex items-center gap-1 transition-opacity opacity-0 group-hover:opacity-100"
+                            style={{ background: 'rgba(255,255,255,0.95)', color: 'var(--text-dark)' }}
+                            title="Edit this image with AI inpainting">
+                            <Wand2 className="w-3 h-3" /> Edit
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -408,6 +419,19 @@ export default function ClipCostModal({
           </>
         )}
       </div>
+
+      {editingPreview && (
+        <InpaintEditor
+          imageUrl={editingPreview}
+          teacherId={teacherId}
+          onComplete={(newUrl) => {
+            setPreviews(prev => prev.map(p => p === editingPreview ? newUrl : p));
+            if (selectedImage === editingPreview) setSelectedImage(newUrl);
+            setEditingPreview(null);
+          }}
+          onClose={() => setEditingPreview(null)}
+        />
+      )}
     </div>
   );
 }
