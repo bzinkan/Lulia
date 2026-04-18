@@ -60,6 +60,12 @@ ARTIFACT_TYPES = [
     "reference_text",      # textbook chapters, reference prose
     "graphic_organizer",
     "task_cards",
+    # Video library artifact types (classifies transcripts)
+    "instructional_video",   # direct-teach, "here's how fractions work"
+    "demonstration",         # hands-on / experiment / model-it
+    "read_aloud",            # story reading, poem, text performance
+    "virtual_field_trip",    # museum tour, ecosystem walk, historical site
+    "song_or_chant",         # mnemonic, rhyme, educational song
     "other",
 ]
 

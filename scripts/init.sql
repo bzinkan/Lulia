@@ -447,6 +447,7 @@ CREATE TABLE videos (
     video_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     assignment_id UUID REFERENCES assignments(assignment_id),
     teacher_id UUID REFERENCES teachers(teacher_id),
+    class_id UUID REFERENCES classes(class_id),
     title VARCHAR,
     duration_seconds INTEGER,
     file_url VARCHAR,
@@ -458,8 +459,42 @@ CREATE TABLE videos (
     status VARCHAR DEFAULT 'pending',
     character_count INTEGER DEFAULT 0,
     cost_estimate DECIMAL DEFAULT 0,
+    -- Video library fields (Phase 24b)
+    grade_level VARCHAR,
+    subject VARCHAR,
+    domain VARCHAR,
+    grade_bands TEXT[] DEFAULT '{}',
+    reading_level REAL,
+    hosting_type VARCHAR NOT NULL DEFAULT 'self_hosted',
+        -- 'self_hosted' | 'youtube_embed' | 'external_url'
+    youtube_video_id VARCHAR,
+    external_url TEXT,
+    source_lane VARCHAR NOT NULL DEFAULT 'generated',
+        -- 'generated' | 'teacher_upload' | 'youtube_embed' | 'oer_public_domain' | 'lulia_signature'
+    scope VARCHAR NOT NULL DEFAULT 'teacher',
+        -- 'teacher' | 'class' | 'public'
+    attribution TEXT,
+    license VARCHAR,
+    source_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE INDEX idx_videos_class           ON videos(class_id);
+CREATE INDEX idx_videos_scope_lane      ON videos(scope, source_lane);
+CREATE INDEX idx_videos_grade_subject   ON videos(grade_level, subject);
+CREATE INDEX idx_videos_hosting         ON videos(hosting_type);
+CREATE INDEX idx_videos_youtube_id      ON videos(youtube_video_id) WHERE youtube_video_id IS NOT NULL;
+
+CREATE TABLE video_standards (
+    video_id    UUID    NOT NULL REFERENCES videos(video_id) ON DELETE CASCADE,
+    standard_id UUID    NOT NULL REFERENCES standards(standard_id) ON DELETE CASCADE,
+    strength    VARCHAR NOT NULL,  -- 'strong' | 'partial'
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (video_id, standard_id)
+);
+
+CREATE INDEX idx_video_standards_std    ON video_standards(standard_id);
+CREATE INDEX idx_video_standards_strong ON video_standards(video_id, strength) WHERE strength = 'strong';
 
 CREATE TABLE tts_usage (
     usage_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

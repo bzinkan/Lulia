@@ -1,0 +1,25 @@
+{
+  "notes": "Curated public-domain / CC0 educational videos safe to self-host.",
+  "sources": [
+    {
+      "id": "nasa-eyes-on-earth-2023",
+      "title": "Eyes on Earth: Earth's vital signs in 2023",
+      "source_url": "https://svs.gsfc.nasa.gov/14245",
+      "mp4_url": "https://svs.gsfc.nasa.gov/vis/a010000/a014200/a014245/EyesOnEarth_2023.mp4",
+      "subject": "Science",
+      "grade_hint": "6-8",
+      "attribution": "NASA",
+      "license": "Public Domain"
+    },
+    {
+      "id": "nasa-water-cycle-basics",
+      "title": "The Water Cycle (NASA SciJinks)",
+      "source_url": "https://scijinks.gov/water-cycle/",
+      "mp4_url": "",
+      "subject": "Science",
+      "grade_hint": "3-5",
+      "attribution": "NASA",
+      "license": "Public Domain"
+    }
+  ]
+}

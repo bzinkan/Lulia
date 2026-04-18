@@ -1,10 +1,11 @@
-"""Video routes — generate, list, retrieve, delete."""
+"""Video routes — generate, list, retrieve, delete + Video Library endpoints."""
 import os
 import tempfile
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+import boto3
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -98,6 +99,192 @@ async def available_voices(teacher_id: str = Query("00000000-0000-0000-0000-0000
     return {"voices": voices, "default_voice": "Joanna"}
 
 
+# ---------------------------------------------------------------------------
+# IMPORTANT: the /library, /upload/presign, /upload/complete routes must be
+# declared BEFORE /{video_id} so FastAPI matches the literal paths first.
+# Otherwise "/library" is interpreted as a video_id UUID and fails validation.
+# ---------------------------------------------------------------------------
+
+def _get_s3():
+    return boto3.client(
+        "s3",
+        endpoint_url=os.environ.get("S3_ENDPOINT"),
+        aws_access_key_id=os.environ.get("S3_ACCESS_KEY"),
+        aws_secret_access_key=os.environ.get("S3_SECRET_KEY"),
+    )
+
+
+_LIBRARY_BUCKET = "lulia-generated"
+
+
+@router.get("/library")
+async def browse_library(
+    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    class_id: Optional[str] = Query(None),
+    grade_band: Optional[str] = Query(None),
+    subject: Optional[str] = Query(None),
+    domain: Optional[str] = Query(None),
+    source_lane: Optional[str] = Query(None),
+    standard_code: Optional[str] = Query(None),
+    duration_max: Optional[int] = Query(None),
+    limit: int = Query(48, le=200),
+    offset: int = Query(0),
+    conn=Depends(get_db),
+):
+    """Browse the class-scoped video library.
+
+    Visibility rule:
+      - scope='public'  → everyone
+      - scope='teacher' → only the uploading teacher
+      - scope='class'   → teachers of that class_id
+    """
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    sql = """
+        SELECT DISTINCT v.video_id, v.title, v.duration_seconds, v.thumbnail_url,
+                        v.file_url, v.hosting_type, v.youtube_video_id, v.external_url,
+                        v.grade_level, v.subject, v.domain, v.grade_bands,
+                        v.reading_level, v.source_lane, v.scope, v.attribution,
+                        v.license, v.created_at
+        FROM videos v
+    """
+    wheres = [
+        "(v.scope = 'public' OR (v.scope = 'teacher' AND v.teacher_id = %s::uuid)"
+        " OR (v.scope = 'class' AND v.class_id = %s::uuid))"
+    ]
+    params: list = [teacher_id, class_id or teacher_id]
+    wheres.append("COALESCE(v.status, 'ready') IN ('ready', 'complete')")
+
+    if grade_band:
+        wheres.append("%s = ANY(v.grade_bands)")
+        params.append(grade_band)
+    if subject:
+        wheres.append("v.subject = %s")
+        params.append(subject)
+    if domain:
+        wheres.append("v.domain ILIKE %s")
+        params.append(f"%{domain}%")
+    if source_lane:
+        wheres.append("v.source_lane = %s")
+        params.append(source_lane)
+    if duration_max:
+        wheres.append("(v.duration_seconds IS NULL OR v.duration_seconds <= %s)")
+        params.append(duration_max)
+
+    if standard_code:
+        sql += """
+            JOIN video_standards vs ON vs.video_id = v.video_id
+            JOIN standards s ON s.standard_id = vs.standard_id
+        """
+        wheres.append("s.code = %s")
+        params.append(standard_code)
+
+    sql += " WHERE " + " AND ".join(wheres)
+    sql += " ORDER BY v.created_at DESC LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
+
+    cur.execute(sql, params)
+    rows = cur.fetchall()
+    cur.close()
+
+    return {"videos": [dict(r) for r in rows], "limit": limit, "offset": offset}
+
+
+class PresignUploadRequest(BaseModel):
+    filename: str
+    content_type: str = "video/mp4"
+    teacher_id: str = "00000000-0000-0000-0000-000000000001"
+    class_id: Optional[str] = None
+    title: Optional[str] = None
+
+
+@router.post("/upload/presign")
+async def upload_presign(req: PresignUploadRequest, conn=Depends(get_db)):
+    """Create a videos row in 'uploading' state and return a presigned PUT URL."""
+    allowed_types = {"video/mp4", "video/quicktime", "video/webm", "video/x-matroska"}
+    if req.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"content_type must be one of {allowed_types}")
+
+    video_id = str(uuid4())
+    s3_key = f"library/uploads/{video_id}.mp4"
+    s3 = _get_s3()
+    try:
+        presigned_url = s3.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": _LIBRARY_BUCKET, "Key": s3_key, "ContentType": req.content_type},
+            ExpiresIn=3600,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to presign: {e}")
+
+    cur = conn.cursor()
+    cur.execute(
+        """INSERT INTO videos
+            (video_id, teacher_id, class_id, title, file_url,
+             status, hosting_type, source_lane, scope)
+           VALUES (%s::uuid, %s::uuid, %s, %s, %s,
+                   'uploading', 'self_hosted', 'teacher_upload', 'teacher')""",
+        (video_id, req.teacher_id, req.class_id, req.title or req.filename, s3_key),
+    )
+    conn.commit()
+    cur.close()
+
+    return {
+        "video_id": video_id,
+        "s3_key": s3_key,
+        "upload_url": presigned_url,
+        "content_type": req.content_type,
+        "expires_in": 3600,
+    }
+
+
+class CompleteUploadRequest(BaseModel):
+    video_id: str
+
+
+@router.post("/upload/complete")
+async def upload_complete(req: CompleteUploadRequest, conn=Depends(get_db)):
+    """Mark an upload complete and fire the Inngest post-processing pipeline."""
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        "SELECT video_id, file_url, status FROM videos WHERE video_id = %s::uuid",
+        (req.video_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        raise HTTPException(status_code=404, detail="video not found")
+
+    s3 = _get_s3()
+    try:
+        s3.head_object(Bucket=_LIBRARY_BUCKET, Key=row["file_url"])
+    except Exception:
+        cur.close()
+        raise HTTPException(status_code=400, detail="S3 object not found — upload incomplete")
+
+    cur.execute(
+        "UPDATE videos SET status = 'processing' WHERE video_id = %s::uuid",
+        (req.video_id,),
+    )
+    conn.commit()
+    cur.close()
+
+    try:
+        import inngest
+        from src.lms_agents.inngest.client import inngest_client
+        await inngest_client.send(
+            inngest.Event(
+                name="video/upload.completed",
+                data={"video_id": req.video_id, "s3_key": row["file_url"]},
+            )
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to fire Inngest event: {e}")
+
+    return {"video_id": req.video_id, "status": "processing"}
+
+
 @router.get("/{video_id}")
 async def get_video(video_id: UUID, conn=Depends(get_db)):
     """Get video metadata."""
@@ -171,3 +358,57 @@ async def remove_cloned_voice(teacher_id: str = Query("00000000-0000-0000-0000-0
     """Remove teacher's cloned voice."""
     delete_cloned_voice(teacher_id)
     return {"status": "deleted"}
+
+
+class PatchVideoRequest(BaseModel):
+    title: Optional[str] = None
+    grade_level: Optional[str] = None
+    subject: Optional[str] = None
+    domain: Optional[str] = None
+    grade_bands: Optional[list[str]] = None
+
+
+@router.patch("/{video_id}")
+async def patch_video(video_id: UUID, req: PatchVideoRequest, conn=Depends(get_db)):
+    """Teacher-override classification. Never overwritten by Haiku reclassification."""
+    updates: dict = {}
+    if req.title is not None:
+        updates["title"] = req.title
+    if req.grade_level is not None:
+        updates["grade_level"] = req.grade_level
+    if req.subject is not None:
+        updates["subject"] = req.subject
+    if req.domain is not None:
+        updates["domain"] = req.domain
+    if req.grade_bands is not None:
+        updates["grade_bands"] = req.grade_bands
+    if not updates:
+        return {"status": "no_changes"}
+
+    set_parts = ", ".join(f"{k} = %s" for k in updates)
+    params = list(updates.values()) + [str(video_id)]
+
+    cur = conn.cursor()
+    cur.execute(f"UPDATE videos SET {set_parts} WHERE video_id = %s::uuid", params)
+    conn.commit()
+    cur.close()
+    return {"status": "updated", "fields": list(updates.keys())}
+
+
+class ShareVideoRequest(BaseModel):
+    scope: str  # 'teacher' | 'class' | 'public'
+
+
+@router.post("/{video_id}/share")
+async def share_video(video_id: UUID, req: ShareVideoRequest, conn=Depends(get_db)):
+    """Change a video's visibility scope. Admin-check should be added in prod."""
+    if req.scope not in {"teacher", "class", "public"}:
+        raise HTTPException(status_code=400, detail="scope must be teacher|class|public")
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE videos SET scope = %s WHERE video_id = %s::uuid",
+        (req.scope, str(video_id)),
+    )
+    conn.commit()
+    cur.close()
+    return {"video_id": str(video_id), "scope": req.scope}
