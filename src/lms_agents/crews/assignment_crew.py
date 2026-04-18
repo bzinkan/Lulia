@@ -598,21 +598,49 @@ def run_format_agent(
     work_order: dict,
     content_output: dict,
     rubric_output: dict,
+    pedagogy_brief: str | None = None,
 ) -> dict:
     """
     Render content through the Output Template Library.
 
-    Uses the template renderer (no LLM call) — deterministic, instant,
-    and produces consistent TpT-quality HTML for all 10 template types.
+    Two renderer backends:
+      - "gemini" (default): Gemini 2.5 Pro produces polished HTML in a single
+        API call — mirrors the gemini.google.com Canvas UI output.
+      - "python": legacy deterministic template renderer (no LLM call).
+
+    Selected via WORKSHEET_RENDERER env var. Gemini failures fall back to
+    Python so a generation never gets stuck without an HTML document.
     """
-    log.info("[Format Agent] Rendering output via template library...")
-
-    from src.lms_agents.tools.template_renderer import render_template
-
+    renderer = os.environ.get("WORKSHEET_RENDERER", "gemini").lower()
     template_id = work_order.get("output_template_id", "worksheet")
     theme = work_order.get("design_theme", "modern_clean")
 
-    # Merge rubric answers into content for answer key rendering
+    log.info(f"[Format Agent] Rendering {template_id} via {renderer}...")
+
+    if renderer == "gemini":
+        try:
+            from src.lms_agents.tools.gemini_worksheet_renderer import render_worksheet_html
+            student_html = render_worksheet_html(
+                template_id, content_output, rubric_output,
+                pedagogy_brief=pedagogy_brief, work_order=work_order,
+                answer_key=False, theme=theme,
+            )
+            answer_key_html = render_worksheet_html(
+                template_id, content_output, rubric_output,
+                pedagogy_brief=pedagogy_brief, work_order=work_order,
+                answer_key=True, theme=theme,
+            )
+            log.info(
+                f"[Format Agent] Gemini rendered {template_id}: "
+                f"{len(student_html)} chars student, {len(answer_key_html)} chars key"
+            )
+            return {"student_html": student_html, "answer_key_html": answer_key_html}
+        except Exception as e:
+            log.warning(f"[Format Agent] Gemini renderer failed ({e}), falling back to Python template")
+
+    # Python fallback (or explicitly selected)
+    from src.lms_agents.tools.template_renderer import render_template
+
     answer_key_content = dict(content_output)
     if rubric_output and rubric_output.get("answer_key"):
         for ak_item in rubric_output["answer_key"]:
@@ -625,11 +653,11 @@ def run_format_agent(
     student_html = render_template(template_id, content_output, answer_key=False, theme=theme)
     answer_key_html = render_template(template_id, answer_key_content, answer_key=True, theme=theme)
 
-    log.info(f"[Format Agent] Rendered {template_id}: {len(student_html)} chars student, {len(answer_key_html)} chars key")
-    return {
-        "student_html": student_html,
-        "answer_key_html": answer_key_html,
-    }
+    log.info(
+        f"[Format Agent] Python rendered {template_id}: "
+        f"{len(student_html)} chars student, {len(answer_key_html)} chars key"
+    )
+    return {"student_html": student_html, "answer_key_html": answer_key_html}
 
 
 # ---------------------------------------------------------------------------
@@ -888,8 +916,14 @@ def run_assignment_crew(work_order: dict) -> dict:
             if attempt > QA_MAX_RETRIES:
                 log.warning("[QA Agent] Max retries reached — proceeding with best attempt")
 
-    # Agent 5: Format
-    format_output = run_format_agent(client, work_order, content_output, rubric_output)
+    # Agent 5: Format — pass the pedagogy brief so the renderer (Gemini or
+    # Python) can honor developmental visual constraints (font size, whitespace,
+    # scaffolding intensity) per grade band.
+    brief_text = format_brief_for_prompt(pedagogy_brief) if pedagogy_brief else None
+    format_output = run_format_agent(
+        client, work_order, content_output, rubric_output,
+        pedagogy_brief=brief_text,
+    )
 
     # Store in database
     assignment_id = _store_assignment(work_order, content_output, rubric_output, qa_output, format_output)
