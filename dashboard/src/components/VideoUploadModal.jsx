@@ -13,9 +13,11 @@ import { apiFetch } from '@/lib/api';
  *   4. POST /videos/upload/complete → fire Inngest post-processing workflow.
  *   5. Show success; teacher can close and come back when auto-classification finishes.
  */
-export default function VideoUploadModal({ teacherId, classId, onUploaded, onClose }) {
+export default function VideoUploadModal({ teacherId, classId, isAdmin = false, onUploaded, onClose }) {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
+  const [videoKind, setVideoKind] = useState('explainer_video'); // 'short_clip' | 'explainer_video'
+  const [publishPublic, setPublishPublic] = useState(isAdmin);   // admin default: true (library-wide)
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState('idle'); // idle | presigning | uploading | completing | done | error
   const [error, setError] = useState(null);
@@ -62,6 +64,9 @@ export default function VideoUploadModal({ teacherId, classId, onUploaded, onClo
           teacher_id: teacherId,
           class_id: classId || null,
           title: title || file.name,
+          video_kind: videoKind,
+          source_lane: (isAdmin && publishPublic) ? 'lulia_signature' : 'teacher_upload',
+          scope: publishPublic ? 'public' : 'teacher',
         }),
       });
       if (!presign.upload_url) throw new Error('Failed to get upload URL');
@@ -151,6 +156,49 @@ export default function VideoUploadModal({ teacherId, classId, onUploaded, onClo
               placeholder="Water cycle demonstration"
               className="w-full rounded-xl px-3 py-2 text-[14px] mb-4"
               style={{ background: 'var(--cream)', border: '1px solid var(--border)', color: 'var(--text-dark)' }} />
+
+            <label className="block text-[13px] font-bold mb-2" style={{ color: 'var(--text-dark)' }}>
+              Video type
+            </label>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {[
+                { value: 'short_clip', label: 'Short Clip', desc: 'Hook, vocab intro, or single visual (under ~90 sec)' },
+                { value: 'explainer_video', label: 'Explainer Video', desc: 'Multi-scene concept walkthrough with narration' },
+              ].map(opt => {
+                const active = videoKind === opt.value;
+                return (
+                  <button key={opt.value} type="button" onClick={() => setVideoKind(opt.value)}
+                    className="text-left rounded-xl p-3 transition-all"
+                    style={{
+                      background: active ? 'var(--coral)' : 'var(--cream)',
+                      color: active ? 'white' : 'var(--text-dark)',
+                      border: `2px solid ${active ? 'var(--coral)' : 'var(--border)'}`,
+                      cursor: 'pointer',
+                    }}>
+                    <div className="font-bold text-[13px] mb-0.5">{opt.label}</div>
+                    <div className="text-[11px]" style={{ opacity: active ? 0.9 : 0.7 }}>
+                      {opt.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {isAdmin && (
+              <label className="flex items-start gap-2 mb-4 p-3 rounded-xl"
+                style={{ background: 'rgba(233,180,76,0.1)', border: '1px solid rgba(233,180,76,0.4)' }}>
+                <input type="checkbox" checked={publishPublic} onChange={e => setPublishPublic(e.target.checked)}
+                  className="mt-0.5" style={{ accentColor: 'var(--mustard, #E9B44C)' }} />
+                <div>
+                  <div className="font-bold text-[13px]" style={{ color: 'var(--text-dark)' }}>
+                    Publish to all teachers (Lulia signature)
+                  </div>
+                  <div className="text-[11px]" style={{ color: 'var(--text-mid)' }}>
+                    Admin-only. Teachers across all schools will see this video in the library.
+                  </div>
+                </div>
+              </label>
+            )}
 
             {error && (
               <div className="rounded-xl p-3 mb-4 flex items-start gap-2"

@@ -127,6 +127,7 @@ async def browse_library(
     source_lane: Optional[str] = Query(None),
     standard_code: Optional[str] = Query(None),
     duration_max: Optional[int] = Query(None),
+    video_kind: Optional[str] = Query(None, regex=r"^(short_clip|explainer_video)$"),
     limit: int = Query(48, le=200),
     offset: int = Query(0),
     conn=Depends(get_db),
@@ -145,7 +146,7 @@ async def browse_library(
                         v.file_url, v.hosting_type, v.youtube_video_id, v.external_url,
                         v.grade_level, v.subject, v.domain, v.grade_bands,
                         v.reading_level, v.source_lane, v.scope, v.attribution,
-                        v.license, v.created_at
+                        v.license, v.video_kind, v.created_at
         FROM videos v
     """
     wheres = [
@@ -170,6 +171,9 @@ async def browse_library(
     if duration_max:
         wheres.append("(v.duration_seconds IS NULL OR v.duration_seconds <= %s)")
         params.append(duration_max)
+    if video_kind:
+        wheres.append("v.video_kind = %s")
+        params.append(video_kind)
 
     if standard_code:
         sql += """
@@ -196,6 +200,9 @@ class PresignUploadRequest(BaseModel):
     teacher_id: str = "00000000-0000-0000-0000-000000000001"
     class_id: Optional[str] = None
     title: Optional[str] = None
+    video_kind: Optional[str] = None         # 'short_clip' | 'explainer_video'
+    source_lane: Optional[str] = None        # 'teacher_upload' (default) | 'lulia_signature' (admin)
+    scope: Optional[str] = None              # 'teacher' (default) | 'class' | 'public'
 
 
 @router.post("/upload/presign")
@@ -204,6 +211,18 @@ async def upload_presign(req: PresignUploadRequest, conn=Depends(get_db)):
     allowed_types = {"video/mp4", "video/quicktime", "video/webm", "video/x-matroska"}
     if req.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail=f"content_type must be one of {allowed_types}")
+
+    # Validate video_kind if provided
+    if req.video_kind and req.video_kind not in ("short_clip", "explainer_video"):
+        raise HTTPException(status_code=400, detail="video_kind must be 'short_clip' or 'explainer_video'")
+
+    # Validate scope/source_lane
+    scope = req.scope or "teacher"
+    if scope not in ("teacher", "class", "public"):
+        raise HTTPException(status_code=400, detail="scope must be 'teacher', 'class', or 'public'")
+    source_lane = req.source_lane or "teacher_upload"
+    if source_lane not in ("teacher_upload", "lulia_signature", "oer_public_domain", "generated"):
+        raise HTTPException(status_code=400, detail="invalid source_lane")
 
     video_id = str(uuid4())
     s3_key = f"library/uploads/{video_id}.mp4"
@@ -221,10 +240,11 @@ async def upload_presign(req: PresignUploadRequest, conn=Depends(get_db)):
     cur.execute(
         """INSERT INTO videos
             (video_id, teacher_id, class_id, title, file_url,
-             status, hosting_type, source_lane, scope)
+             status, hosting_type, source_lane, scope, video_kind)
            VALUES (%s::uuid, %s::uuid, %s, %s, %s,
-                   'uploading', 'self_hosted', 'teacher_upload', 'teacher')""",
-        (video_id, req.teacher_id, req.class_id, req.title or req.filename, s3_key),
+                   'uploading', 'self_hosted', %s, %s, %s)""",
+        (video_id, req.teacher_id, req.class_id, req.title or req.filename, s3_key,
+         source_lane, scope, req.video_kind),
     )
     conn.commit()
     cur.close()

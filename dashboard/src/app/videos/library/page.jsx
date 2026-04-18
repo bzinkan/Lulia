@@ -1,11 +1,20 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Play, Upload, Clock, Tag, Filter, ExternalLink, Loader2, Video } from 'lucide-react';
+import { Play, Upload, Clock, Tag, Filter, ExternalLink, Loader2, Video, Film, Clapperboard } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import VideoUploadModal from '@/components/VideoUploadModal';
 import StandardsPickerModal from '@/components/StandardsPickerModal';
 
 const TEACHER_ID = '00000000-0000-0000-0000-000000000001'; // TODO: replace with auth context
+
+// TODO: source from auth context. For now, toggle via URL flag ?admin=1 when testing Lulia-signature uploads.
+const IS_ADMIN = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('admin') === '1';
+
+const KIND_TABS = [
+  { value: '',                 label: 'All',              icon: Video },
+  { value: 'short_clip',       label: 'Short Clips',      icon: Film },
+  { value: 'explainer_video',  label: 'Explainer Videos', icon: Clapperboard },
+];
 
 const BANDS = [
   { value: '', label: 'All grade bands' },
@@ -47,6 +56,7 @@ const LANE_BADGE = {
 export default function VideoLibraryPage() {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [videoKind, setVideoKind] = useState(''); // '', 'short_clip', 'explainer_video'
   const [gradeBand, setGradeBand] = useState('');
   const [subject, setSubject] = useState('');
   const [sourceLane, setSourceLane] = useState('');
@@ -62,6 +72,7 @@ export default function VideoLibraryPage() {
         teacher_id: TEACHER_ID,
         limit: '48',
       });
+      if (videoKind) params.set('video_kind', videoKind);
       if (gradeBand) params.set('grade_band', gradeBand);
       if (subject) params.set('subject', subject);
       if (sourceLane) params.set('source_lane', sourceLane);
@@ -76,7 +87,7 @@ export default function VideoLibraryPage() {
     }
   }
 
-  useEffect(() => { load(); }, [gradeBand, subject, sourceLane, standardCode]);
+  useEffect(() => { load(); }, [videoKind, gradeBand, subject, sourceLane, standardCode]);
 
   const hasFilters = gradeBand || subject || sourceLane || standardCode;
 
@@ -98,6 +109,27 @@ export default function VideoLibraryPage() {
           style={{ background: 'var(--coral)', color: 'white', border: 'none', cursor: 'pointer' }}>
           <Upload className="w-4 h-4" /> Upload video
         </button>
+      </div>
+
+      {/* Kind tabs — primary sort: Short Clips vs Explainer Videos */}
+      <div className="flex gap-2 mb-4">
+        {KIND_TABS.map(tab => {
+          const Icon = tab.icon;
+          const active = videoKind === tab.value;
+          return (
+            <button key={tab.value} onClick={() => setVideoKind(tab.value)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[14px] font-bold transition-all"
+              style={{
+                background: active ? 'var(--coral)' : 'var(--warm-card)',
+                color: active ? 'white' : 'var(--text-mid)',
+                border: `1px solid ${active ? 'var(--coral)' : 'var(--border)'}`,
+                cursor: 'pointer',
+                boxShadow: active ? '0 3px 12px rgba(216, 108, 82, 0.3)' : 'none',
+              }}>
+              <Icon className="w-4 h-4" /> {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Filter bar */}
@@ -162,6 +194,7 @@ export default function VideoLibraryPage() {
       {showUpload && (
         <VideoUploadModal
           teacherId={TEACHER_ID}
+          isAdmin={IS_ADMIN}
           onUploaded={() => { setShowUpload(false); load(); }}
           onClose={() => setShowUpload(false)} />
       )}
