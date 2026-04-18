@@ -396,3 +396,93 @@ async def generate_image_endpoint(req: GenerateImageRequest, conn=Depends(get_db
     conn.commit(); cur.close()
 
     return {"image_id": image_id, "storage_url": storage_url, "prompt": req.prompt}
+
+
+@router.post("/inpaint")
+async def inpaint_image(
+    image: UploadFile = File(..., description="Original image to edit (PNG/JPG)"),
+    mask: UploadFile = File(..., description="Mask PNG (white = change this region, black = keep)"),
+    prompt: str = Form(..., description="Describe what to put in the masked area"),
+    teacher_id: str = Form("00000000-0000-0000-0000-000000000001"),
+    save_to_library: bool = Form(True),
+    conn=Depends(get_db),
+):
+    """
+    Leonardo Canvas inpaint. Teacher brushes over a region on the original image
+    (client-side), the browser exports the mask as a PNG, both are uploaded here,
+    and Leonardo fills the masked area with AI-generated content matching `prompt`.
+
+    Flow:
+      1. Receive image + mask + prompt from the dashboard
+      2. Upload both to Leonardo (init-image presigned upload)
+      3. Call Leonardo inpaint API, poll for completion
+      4. Download result, persist to MinIO/S3, add to teacher_images library
+      5. Return the new image URL so the frontend can preview
+    """
+    from src.lms_agents.tools.leonardo_client import upload_init_image, inpaint as leo_inpaint
+
+    image_bytes = await image.read()
+    mask_bytes = await mask.read()
+    if len(image_bytes) > 10 * 1024 * 1024 or len(mask_bytes) > 10 * 1024 * 1024:
+        return JSONResponse({"error": "Image or mask exceeds 10MB"}, status_code=400)
+
+    img_ext = (image.filename or "upload.png").rsplit(".", 1)[-1].lower()
+    if img_ext not in ("png", "jpg", "jpeg", "webp"):
+        img_ext = "png"
+
+    # Step 1: upload original + mask to Leonardo
+    init_up = upload_init_image(image_bytes, extension=img_ext)
+    if not init_up["success"]:
+        return JSONResponse({"error": f"Image upload failed: {init_up['error']}"}, status_code=502)
+    mask_up = upload_init_image(mask_bytes, extension="png")
+    if not mask_up["success"]:
+        return JSONResponse({"error": f"Mask upload failed: {mask_up['error']}"}, status_code=502)
+
+    # Step 2: call inpaint
+    result = leo_inpaint(
+        init_image_id=init_up["image_id"],
+        mask_image_id=mask_up["image_id"],
+        prompt=prompt,
+    )
+    if not result.get("success"):
+        return JSONResponse({"error": result.get("error", "Inpaint failed")}, status_code=502)
+
+    result_url = result["images"][0]
+
+    # Step 3: optionally persist to teacher's library
+    storage_url = result_url
+    image_id = None
+    if save_to_library:
+        try:
+            with httpx.Client(timeout=60.0) as http_client:
+                r = http_client.get(result_url)
+                if r.status_code == 200:
+                    image_id = str(uuid4())
+                    filename = f"inpaint_{image_id}.png"
+                    key = f"images/{teacher_id}/{image_id}/{filename}"
+                    s3 = _get_s3()
+                    s3.put_object(
+                        Bucket=os.environ.get("S3_BUCKET_GENERATED", "lulia-generated"),
+                        Key=key,
+                        Body=r.content,
+                        ContentType="image/png",
+                    )
+                    storage_url = f"{_public_endpoint()}/{os.environ.get('S3_BUCKET_GENERATED', 'lulia-generated')}/{key}"
+                    cur = conn.cursor()
+                    cur.execute(
+                        """INSERT INTO teacher_images (image_id, teacher_id, filename, storage_url, thumbnail_url, source, generation_prompt)
+                           VALUES (%s, %s::uuid, %s, %s, %s, 'inpaint', %s)""",
+                        (image_id, teacher_id, filename, storage_url, storage_url, prompt),
+                    )
+                    conn.commit()
+                    cur.close()
+        except Exception as e:
+            log.warning(f"[Inpaint] Library save failed (returning Leonardo URL anyway): {e}")
+
+    return {
+        "image_id": image_id,
+        "storage_url": storage_url,
+        "leonardo_url": result_url,
+        "generation_id": result.get("generation_id"),
+        "prompt": prompt,
+    }

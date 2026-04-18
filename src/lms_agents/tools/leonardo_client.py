@@ -186,6 +186,155 @@ def get_generation(generation_id: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
+def upload_init_image(image_bytes: bytes, extension: str = "png") -> dict:
+    """
+    Upload an image to Leonardo so it can be used as a reference or inpaint base.
+
+    Returns:
+      {"success": True, "image_id": str}
+    or {"success": False, "error": str}
+
+    Leonardo's upload flow is a two-step presigned POST:
+      1. POST /init-image {extension} -> {id, url, fields}
+      2. POST to S3 url with multipart form (fields + image) -> image is stored
+    """
+    if not _api_key():
+        return {"success": False, "error": "LEONARDO.AI_API_KEY not set"}
+
+    ext = extension.lower().lstrip(".")
+    if ext not in ("png", "jpg", "jpeg", "webp"):
+        return {"success": False, "error": f"Unsupported extension: {ext}"}
+
+    try:
+        import json as _json
+        with httpx.Client(timeout=30.0) as client:
+            r = client.post(
+                f"{BASE_URL}/init-image",
+                json={"extension": ext},
+                headers=_headers(),
+            )
+            if r.status_code != 200:
+                log.error(f"[Leonardo] init-image failed: {r.status_code} {r.text[:300]}")
+                return {"success": False, "error": f"Leonardo init-image {r.status_code}"}
+
+            upload = r.json().get("uploadInitImage") or {}
+            image_id = upload.get("id")
+            upload_url = upload.get("url")
+            fields_raw = upload.get("fields")  # returned as JSON string
+            if not (image_id and upload_url and fields_raw):
+                return {"success": False, "error": "init-image response missing required fields"}
+
+            fields = _json.loads(fields_raw) if isinstance(fields_raw, str) else fields_raw
+            # S3 presigned POST — fields go first, then file last
+            content_type = f"image/{'jpeg' if ext == 'jpg' else ext}"
+            files = {"file": (f"upload.{ext}", image_bytes, content_type)}
+            s3_resp = client.post(upload_url, data=fields, files=files)
+            if s3_resp.status_code not in (200, 201, 204):
+                log.error(f"[Leonardo] S3 upload failed: {s3_resp.status_code} {s3_resp.text[:300]}")
+                return {"success": False, "error": f"S3 upload {s3_resp.status_code}"}
+
+            return {"success": True, "image_id": image_id}
+
+    except Exception as e:
+        log.error(f"[Leonardo] upload_init_image error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def inpaint(
+    init_image_id: str,
+    mask_image_id: str,
+    prompt: str,
+    model_id: Optional[str] = None,
+    width: int = 1024,
+    height: int = 576,
+    num_images: int = 1,
+    guidance_scale: int = 7,
+) -> dict:
+    """
+    Run a Canvas inpaint generation. Both init and mask images must already be
+    uploaded via upload_init_image(). Mask PNG should be white where the teacher
+    wants to change, black elsewhere.
+
+    Returns:
+      {"success": True, "images": [url, ...], "generation_id": str}
+    or {"success": False, "error": str}
+    """
+    if not _api_key():
+        return {"success": False, "error": "LEONARDO.AI_API_KEY not set"}
+
+    model = model_id or DEFAULT_MODEL
+
+    body = {
+        "canvasRequestType": "INPAINT",
+        "canvasRequest": True,
+        "canvasInitId": init_image_id,
+        "canvasMaskId": mask_image_id,
+        "prompt": prompt,
+        "modelId": model,
+        "num_images": max(1, min(num_images, 4)),
+        "width": width,
+        "height": height,
+        "guidance_scale": guidance_scale,
+    }
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            r = client.post(
+                f"{BASE_URL}/generations-lcm",
+                json=body,
+                headers=_headers(),
+            )
+            # Leonardo's canvas generations endpoint historically lived at a few
+            # different paths; fall back to the standard /generations if the LCM
+            # path returns 404 on this account tier.
+            if r.status_code == 404:
+                r = client.post(f"{BASE_URL}/generations", json=body, headers=_headers())
+
+            if r.status_code != 200:
+                log.error(f"[Leonardo] inpaint POST failed: {r.status_code} {r.text[:300]}")
+                return {"success": False, "error": f"Leonardo API {r.status_code}: {r.text[:200]}"}
+
+            payload = r.json()
+            job = payload.get("sdGenerationJob") or payload.get("lcmGenerationJob") or {}
+            generation_id = job.get("generationId")
+
+            # Some LCM responses return images synchronously
+            if "imageDataUrl" in payload or "generated_images" in payload:
+                urls = payload.get("imageDataUrl") or [
+                    img.get("url") for img in (payload.get("generated_images") or []) if img.get("url")
+                ]
+                if isinstance(urls, str):
+                    urls = [urls]
+                if urls:
+                    return {"success": True, "images": urls, "generation_id": generation_id}
+
+            if not generation_id:
+                return {"success": False, "error": "No generationId returned"}
+
+            # Poll like a normal generation
+            deadline = time.time() + DEFAULT_TIMEOUT_SEC
+            while time.time() < deadline:
+                time.sleep(DEFAULT_INTERVAL_SEC)
+                poll = client.get(f"{BASE_URL}/generations/{generation_id}", headers=_headers())
+                if poll.status_code != 200:
+                    continue
+                gen = poll.json().get("generations_by_pk") or {}
+                status = gen.get("status")
+                if status == "COMPLETE":
+                    urls = [img["url"] for img in gen.get("generated_images", []) if img.get("url")]
+                    if not urls:
+                        return {"success": False, "error": "Leonardo returned no images"}
+                    return {"success": True, "images": urls, "generation_id": generation_id}
+                if status == "FAILED":
+                    return {"success": False, "error": "Leonardo inpaint FAILED"}
+
+            return {"success": False, "error": f"Inpaint timed out after {DEFAULT_TIMEOUT_SEC}s"}
+
+    except Exception as e:
+        log.error(f"[Leonardo] inpaint error: {e}")
+        return {"success": False, "error": str(e)}
+
+
 def estimate_image_cost_usd(count: int = 4) -> float:
     """Approximate Leonardo Phoenix cost per image set (~$0.004/image at current rates)."""
     return count * 0.004
