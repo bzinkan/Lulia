@@ -85,14 +85,15 @@ def _clean_content_for_activity(content: dict) -> dict:
             q_copy["question_text"] = _strip_bracketed_visual_refs(q_copy["question_text"])
         # Pre-render the structured `visual` (if any) to an HTML string.
         # Renderer returns empty string when visual is missing or malformed.
-        visual = q_copy.get("visual")
-        if visual:
-            try:
-                svg_html = render_visual(visual)
-                if svg_html:
-                    q_copy["visual_html"] = svg_html
-            except Exception as e:
-                log.warning(f"[Interactive] visual render failed: {e}")
+        for src_key, dst_key in (("visual", "visual_html"), ("answer_visual", "answer_visual_html")):
+            v = q_copy.get(src_key)
+            if v:
+                try:
+                    svg_html = render_visual(v)
+                    if svg_html:
+                        q_copy[dst_key] = svg_html
+                except Exception as e:
+                    log.warning(f"[Interactive] {src_key} render failed: {e}")
         cleaned.append(q_copy)
     out = dict(content)
     out["questions"] = cleaned
@@ -164,7 +165,9 @@ h2 {{ font-family: 'DM Serif Display', serif; color: #78350F; font-size: 16px; m
 .match-col {{ display: flex; flex-direction: column; gap: 8px; }}
 .match-item {{ padding: 10px; border: 2px solid #E7E5E4; border-radius: 10px; cursor: pointer; text-align: center; font-size: 13px; transition: all 0.2s; }}
 .match-item.active {{ border-color: #F97316; background: #FFF7ED; }}
-.match-item.matched {{ border-color: #22C55E; background: #DCFCE7; }}
+.match-item.matched {{ border-color: #22C55E; background: #DCFCE7; cursor: default; }}
+.match-item.wrong {{ border-color: #EF4444; background: #FEF2F2; animation: shake 0.4s; }}
+@keyframes shake {{ 0%, 100% {{ transform: translateX(0); }} 25% {{ transform: translateX(-4px); }} 75% {{ transform: translateX(4px); }} }}
 .flip-card {{ perspective: 1000px; cursor: pointer; }}
 .flip-inner {{ transition: transform 0.5s; transform-style: preserve-3d; position: relative; min-height: 120px; }}
 .flip-card.flipped .flip-inner {{ transform: rotateY(180deg); }}
@@ -260,10 +263,31 @@ function App() {{
     </div>
   );
 
-  // Play screen — differs by template
+  // ── Play screen dispatch ──────────────────────────────────────────────
+  // Each template type gets its own renderer. MCQ is the fallback for
+  // types that haven't been specialized yet (keeps them working).
+  const template = window.LULIA_TEMPLATE || 'multiple_choice_quiz';
+
+  function finishWithScore(s) {{
+    setScore(s);
+    setScreen('results');
+    fetch(apiUrl + '/api/v1/interactive/' + activityId + '/submit', {{
+      method: 'POST', headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{
+        student_name: name,
+        responses: s.responses || {{}},
+        time_spent: Math.round((Date.now() - startTime) / 1000),
+      }}),
+    }}).catch(() => {{}});
+  }}
+
+  if (template === 'matching_pairs') {{
+    return <PlayMatchingPairs data={{data}} name={{name}} onComplete={{finishWithScore}} />;
+  }}
+
+  // ── MCQ (fallback for all other templates until specialized) ─────────
   const q = questions[current];
   const progress = ((current + 1) / questions.length) * 100;
-
   return (
     <div className="app">
       <div className="progress"><div className="progress-bar" style={{{{width: progress + '%'}}}} /></div>
@@ -273,11 +297,9 @@ function App() {{
       </div>
       <div className="question-card">
         <h2>{{q?.question_text}}</h2>
-        {{/* Pre-rendered structured visual (ten-frame, fraction bar, etc.) */}}
         {{q?.visual_html && (
           <div dangerouslySetInnerHTML={{{{ __html: q.visual_html }}}} />
         )}}
-        {{/* MC mode when options are present; short-answer input otherwise */}}
         {{Array.isArray(q?.options) && q.options.length >= 2 ? (
           ['A', 'B', 'C', 'D'].slice(0, q.options.length).map((letter, i) => {{
             const optionText = q.options[i];
@@ -302,6 +324,123 @@ function App() {{
         ) : (
           <button className="btn-primary" onClick={{submitAll}}>Submit</button>
         )}}
+      </div>
+      <div className="logo">Powered by Lulia AI</div>
+    </div>
+  );
+}}
+
+// ── Matching Pairs renderer ────────────────────────────────────────────
+// Content shape: uses the same questions[] — each entry becomes a pair
+// where question_text is the left side and answer is the right side.
+// Either side can carry an optional structured visual which was
+// pre-rendered to visual_html / answer_visual_html at build time.
+function PlayMatchingPairs({{ data, name, onComplete }}) {{
+  const allPairs = (data.questions || []).map((q, i) => ({{
+    id: q.question_number || i,
+    left: q.question_text || '',
+    leftHtml: q.visual_html || null,
+    right: q.answer || '',
+    rightHtml: q.answer_visual_html || null,
+  }}));
+
+  // Shuffled columns
+  const [leftOrder] = useState(() => allPairs.map(p => p.id).sort(() => Math.random() - 0.5));
+  const [rightOrder] = useState(() => allPairs.map(p => p.id).sort(() => Math.random() - 0.5));
+  const pairById = Object.fromEntries(allPairs.map(p => [p.id, p]));
+
+  const [selectedLeft, setSelectedLeft] = useState(null);
+  const [selectedRight, setSelectedRight] = useState(null);
+  const [matched, setMatched] = useState(new Set());
+  const [wrongFlash, setWrongFlash] = useState(null);
+  const [attempts, setAttempts] = useState(0);
+  const [correctHits, setCorrectHits] = useState(0);
+
+  function tryMatch(leftId, rightId) {{
+    setAttempts(a => a + 1);
+    if (leftId === rightId) {{
+      setCorrectHits(h => h + 1);
+      const next = new Set(matched);
+      next.add(leftId);
+      setMatched(next);
+      setSelectedLeft(null);
+      setSelectedRight(null);
+      if (next.size === allPairs.length) {{
+        setTimeout(() => onComplete({{
+          correct: next.size,
+          total: allPairs.length,
+          percentage: Math.round((next.size / allPairs.length) * 100),
+          attempts: attempts + 1,
+          accuracy: Math.round(((correctHits + 1) / (attempts + 1)) * 100),
+          responses: {{}},
+        }}), 400);
+      }}
+    }} else {{
+      setWrongFlash({{ left: leftId, right: rightId }});
+      setTimeout(() => {{
+        setWrongFlash(null);
+        setSelectedLeft(null);
+        setSelectedRight(null);
+      }}, 500);
+    }}
+  }}
+
+  function clickLeft(id) {{
+    if (matched.has(id)) return;
+    setSelectedLeft(id);
+    if (selectedRight !== null) tryMatch(id, selectedRight);
+  }}
+  function clickRight(id) {{
+    if (matched.has(id)) return;
+    setSelectedRight(id);
+    if (selectedLeft !== null) tryMatch(selectedLeft, id);
+  }}
+
+  function tileClass(id, side) {{
+    const isSel = side === 'L' ? selectedLeft === id : selectedRight === id;
+    const isMatched = matched.has(id);
+    const isWrong = wrongFlash && (side === 'L' ? wrongFlash.left === id : wrongFlash.right === id);
+    if (isMatched) return 'match-item matched';
+    if (isWrong) return 'match-item wrong';
+    if (isSel) return 'match-item active';
+    return 'match-item';
+  }}
+
+  const progress = Math.round((matched.size / Math.max(allPairs.length, 1)) * 100);
+  return (
+    <div className="app">
+      <div className="progress"><div className="progress-bar" style={{{{width: progress + '%'}}}} /></div>
+      <div style={{{{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}}}>
+        <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>Matched {{matched.size}} of {{allPairs.length}}</span>
+        <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>{{name}}</span>
+      </div>
+      <h2 style={{{{marginBottom: 12}}}}>{{data.title || 'Matching Pairs'}}</h2>
+      {{data.instructions && <p className="subtitle">{{data.instructions}}</p>}}
+      <div style={{{{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12}}}}>
+        <div className="match-col">
+          {{leftOrder.map(id => {{
+            const p = pairById[id];
+            return (
+              <div key={{'L' + id}} className={{tileClass(id, 'L')}} onClick={{() => clickLeft(id)}}>
+                {{p.leftHtml
+                  ? <div dangerouslySetInnerHTML={{{{ __html: p.leftHtml }}}} />
+                  : <span>{{p.left}}</span>}}
+              </div>
+            );
+          }})}}
+        </div>
+        <div className="match-col">
+          {{rightOrder.map(id => {{
+            const p = pairById[id];
+            return (
+              <div key={{'R' + id}} className={{tileClass(id, 'R')}} onClick={{() => clickRight(id)}}>
+                {{p.rightHtml
+                  ? <div dangerouslySetInnerHTML={{{{ __html: p.rightHtml }}}} />
+                  : <span>{{p.right}}</span>}}
+              </div>
+            );
+          }})}}
+        </div>
       </div>
       <div className="logo">Powered by Lulia AI</div>
     </div>
