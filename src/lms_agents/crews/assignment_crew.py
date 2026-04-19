@@ -246,6 +246,7 @@ def run_content_agent(
     from src.lms_agents.tools.generation_history import query_history, build_exclusion_prompt
 
     template_id = work_order.get("output_template_id", "worksheet")
+    interactive_template_id = work_order.get("interactive_template_id")
     question_count = work_order.get("question_count", 10)
     difficulty = work_order.get("difficulty_distribution", {"easy": 3, "medium": 4, "hard": 3})
     subject = work_order.get("subject", "")
@@ -330,9 +331,34 @@ def run_content_agent(
         from src.lms_agents.tools.teacher_style_analyzer import format_style_for_prompt
         style_section = "\n\n" + format_style_for_prompt(teacher_style) + "\n"
 
+    # Build an activity-type directive that overrides the generic template
+    # guidance when the downstream output is a specialized interactive type.
+    activity_directive = ""
+    if interactive_template_id == "hotspot_labeling":
+        activity_directive = (
+            "\n\nCRITICAL: This content will power a HOTSPOT-LABELING interactive "
+            "activity. You MUST emit a top-level `diagram_visual` field (NOT "
+            "per-question) with type='hotspot_diagram', a subject string, and a "
+            "parts list. Each question MUST be 'Click the <part>' with `answer` "
+            "exactly matching one of the listed parts. Do NOT generate open-ended "
+            "short-answer questions about the parts — the student answers by "
+            "clicking on a generated diagram. See the HOTSPOT-LABELING ACTIVITIES "
+            "section of the instructions for the exact shape."
+        )
+    elif interactive_template_id == "matching_pairs":
+        activity_directive = (
+            "\n\nCRITICAL: This content will power a MATCHING-PAIRS interactive "
+            "activity. Each question becomes one pair where `question_text` is the "
+            "left side and `answer` is the right side. Pairs should be concise — "
+            "terms, symbols, or short phrases on each side. Either side can carry "
+            "an optional `visual` or `answer_visual` for diagram-to-label matching. "
+            "Do NOT emit `options` arrays — there's no multiple choice here."
+        )
+
     system = (
         f"You are an expert educational content creator for grade {grade} {subject}. "
-        f"You create content for the '{template_id}' template format. "
+        f"You create content for the '{template_id}' template format."
+        f"{activity_directive} "
         f"All content must align with the provided standards and be grade-appropriate. "
         f"When a Pedagogy Brief is provided, every field in it is AUTHORITATIVE — "
         f"honor vocabulary caps, banned terms, layout directives, assessment modes, "

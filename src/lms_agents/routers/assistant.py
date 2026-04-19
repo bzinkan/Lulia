@@ -198,6 +198,10 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
         "class_id": req.class_id,
         "teacher_id": req.teacher_id,
         "output_template_id": base_template,
+        # Carry the intended interactive template forward so the Content
+        # Agent can shape its output correctly (e.g. emit diagram_visual
+        # for hotspot_labeling, matching pairs for matching_pairs, etc.)
+        "interactive_template_id": target_interactive,
         "subject": params.get("subject", "Mathematics"),
         "grade_level": str(params.get("grade", "4")),
         "standards_ids": params.get("standards", []),
