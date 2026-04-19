@@ -1,13 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { Gamepad2, Copy, ExternalLink, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Gamepad2, Copy, ExternalLink, Loader2, CheckCircle, Target, FileText, ChevronDown, Sparkles, Lightbulb } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
-import GenerationTabs from '@/components/GenerationTabs';
 import { useClassContext } from '@/components/ClassContext';
+import { useTopicSuggestions } from '@/lib/useTopicSuggestions';
+import StandardsPickerModal from '@/components/StandardsPickerModal';
+import AssignmentPicker from '@/components/AssignmentPicker';
 
 // All 15 interactive activity templates, grouped by pedagogical purpose.
-// Order matches tools/interactive_generator.py INTERACTIVE_TEMPLATES.
 const TEMPLATE_GROUPS = [
   {
     group: 'Quick Assessment',
@@ -50,18 +50,51 @@ const TEMPLATE_GROUPS = [
     ],
   },
 ];
-
 const FLAT_TEMPLATES = TEMPLATE_GROUPS.flatMap(g => g.templates);
+
+// Activity-aware topic placeholders — what kind of input each type needs.
+const TOPIC_PLACEHOLDERS = {
+  multiple_choice_quiz:    'e.g. adding fractions with unlike denominators',
+  fill_in_blank:           'e.g. past-tense verb conjugations',
+  drag_drop_sort:          "e.g. sort nouns vs verbs, or rocks by type",
+  drag_drop_sequence:      'e.g. steps of the water cycle',
+  category_sort:           'e.g. solids, liquids, gases',
+  matching_pairs:          'e.g. countries to capitals, terms to definitions',
+  click_to_reveal:         'e.g. multiplication facts 1 to 12',
+  flash_cards_interactive: 'e.g. Civil War key vocabulary',
+  word_search_interactive: "Words or topic — e.g. 'igneous, sedimentary, metamorphic' or 'rock types'",
+  crossword_interactive:   "Topic or word list — e.g. 'state capitals' or 'photosynthesis vocabulary'",
+  number_line:             'e.g. fractions between 0 and 1',
+  slider_estimation:       'e.g. classroom object lengths in cm',
+  timeline_builder:        'e.g. Civil War battles 1861 to 1865',
+  whiteboard_response:     "Open prompt — e.g. 'Explain how plants make food'",
+  hotspot_labeling:        'e.g. parts of a plant cell',
+};
+
+const DEFAULT_TEACHER_ID = '00000000-0000-0000-0000-000000000001';
 
 export default function InteractivePage() {
   const { classes, activeClassId } = useClassContext();
   const activeClass = classes.find(c => c.class_id === activeClassId);
+
+  // Core state
+  const [selectedTemplate, setSelectedTemplate] = useState(FLAT_TEMPLATES[0].id);
+  const [topic, setTopic] = useState('');
+  const [standardsCodes, setStandardsCodes] = useState([]);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+
+  // UI state
+  const [showStandardsPicker, setShowStandardsPicker] = useState(false);
+  const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
+
+  // Library
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTemplate, setSelectedTemplate] = useState(FLAT_TEMPLATES[0].id);
 
   useEffect(() => { load(); }, []);
-
   function load() {
     apiFetch('/api/v1/interactive')
       .then(d => setActivities(d.activities || []))
@@ -69,9 +102,91 @@ export default function InteractivePage() {
       .finally(() => setLoading(false));
   }
 
+  const selectedTemplateMeta = FLAT_TEMPLATES.find(t => t.id === selectedTemplate);
+  const { suggestions } = useTopicSuggestions({
+    activityType: selectedTemplate,
+    topic,
+    classId: activeClass?.class_id,
+    teacherId: DEFAULT_TEACHER_ID,
+  });
+
+  const canGenerate = useMemo(() => {
+    if (generating) return false;
+    if (selectedAssignment) return true; // From-existing path
+    return topic.trim().length >= 3;
+  }, [generating, selectedAssignment, topic]);
+
+  async function handleGenerate() {
+    setGenerating(true);
+    setGenerateError(null);
+    setLastResult(null);
+
+    try {
+      let result;
+      if (selectedAssignment) {
+        // From Existing path — unchanged backend call
+        result = await apiFetch('/api/v1/interactive/generate', {
+          method: 'POST',
+          body: JSON.stringify({
+            assignment_id: selectedAssignment.assignment_id,
+            interactive_template_id: selectedTemplate,
+            teacher_id: DEFAULT_TEACHER_ID,
+            class_id: activeClass?.class_id,
+          }),
+        });
+      } else {
+        // Unified prompt-style generation. Synthesize a single prompt from
+        // tile + topic + optional standards + class context.
+        const subject = activeClass?.subject || 'General';
+        const grade = activeClass?.grade_level || '4';
+        const stateClause = activeClass?.state_code ? ` (${activeClass.state_code} standards)` : '';
+        const standardsClause = standardsCodes.length
+          ? ` aligned to ${standardsCodes.join(', ')}`
+          : '';
+        const synthPrompt = `Create a ${selectedTemplate} for Grade ${grade} ${subject}${stateClause}${standardsClause} on: ${topic.trim()}. 10 items, medium difficulty, standards-aligned.`;
+        result = await apiFetch('/api/v1/assistant/generate-from-prompt', {
+          method: 'POST',
+          body: JSON.stringify({
+            prompt: synthPrompt,
+            output_type: 'interactive',
+            teacher_id: DEFAULT_TEACHER_ID,
+            class_id: activeClass?.class_id,
+          }),
+        });
+      }
+
+      // Extract the interactive bit out of whichever shape we got back
+      const activity = result?.interactive || result;
+      if (activity?.error) {
+        setGenerateError(activity.error);
+      } else if (activity?.activity_id) {
+        setLastResult(activity);
+        load(); // refresh library in background
+      } else {
+        setGenerateError('Generation returned an unexpected response. Try again?');
+      }
+    } catch (e) {
+      setGenerateError(e?.message || 'Generation failed. Try again?');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  const pickAssignment = (a) => {
+    setSelectedAssignment(a);
+    setShowAssignmentPicker(false);
+    // When using an existing assignment, the topic is implied by the assignment
+    if (a?.title) setTopic(`(from assignment) ${a.title}`);
+  };
+
+  const clearAssignment = () => {
+    setSelectedAssignment(null);
+    setTopic('');
+  };
+
   return (
     <div className="max-w-[1100px] mx-auto">
-      {/* Header — matches Short Clips page pattern */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-[14px] flex items-center justify-center"
@@ -86,34 +201,53 @@ export default function InteractivePage() {
               Interactive Activities
             </h1>
             <p className="text-[14px]" style={{ color: 'var(--text-mid)' }}>
-              Web-based student activities with instant feedback. 15 formats across quiz, drag-drop, study tools, puzzles, and subject-specific.
+              Web-based student activities with instant feedback. Pick a type, type a topic, refine until it's right.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Generation card */}
-      <div className="mb-5">
-        <GenerationTabs
-          outputType="interactive"
-          templates={FLAT_TEMPLATES}
-          templateLabel="Activity Type"
-          activeClass={activeClass}
-          selectedTemplate={selectedTemplate}
-          onTemplateChange={setSelectedTemplate}
-          onResult={load}
-        />
-      </div>
+      {/* Class context banner */}
+      {activeClass && (
+        <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl text-[12px] flex-wrap"
+          style={{
+            background: 'rgba(107,160,138,0.1)',
+            border: '1px solid rgba(107,160,138,0.3)',
+            color: 'var(--text-dark)',
+          }}>
+          <span className="font-bold uppercase tracking-wider text-[10px]" style={{ color: 'var(--sage)' }}>
+            Generating for
+          </span>
+          <span className="font-semibold">{activeClass.name}</span>
+          <span style={{ color: 'var(--text-light)' }}>·</span>
+          <span style={{ color: 'var(--text-mid)' }}>
+            Grade {activeClass.grade_level} {activeClass.subject}
+          </span>
+          {activeClass.state_code && (
+            <>
+              <span style={{ color: 'var(--text-light)' }}>·</span>
+              <span style={{ color: 'var(--text-mid)' }}>{activeClass.state_code} standards</span>
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Template gallery — tiles are the primary picker. Click to select. */}
-      <div className="rounded-card p-5 mb-5"
+      {/* STEP 1 — Tile gallery */}
+      <div className="rounded-card p-5 mb-4"
         style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
-        <h2 className="font-serif text-[18px] mb-1" style={{ color: 'var(--text-dark)' }}>
-          Pick an activity type
-        </h2>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+            style={{ background: 'var(--coral)', color: 'white' }}>
+            Step 1
+          </span>
+          <h2 className="font-serif text-[18px]" style={{ color: 'var(--text-dark)' }}>
+            Pick an activity type
+          </h2>
+        </div>
         <p className="text-[12px] mb-4" style={{ color: 'var(--text-mid)' }}>
-          Click any tile to select it, then generate above. All 15 types are grouped by purpose.
+          15 types grouped by purpose. Click any tile to select it.
         </p>
+
         <div className="space-y-4">
           {TEMPLATE_GROUPS.map(group => (
             <div key={group.group}>
@@ -157,6 +291,164 @@ export default function InteractivePage() {
         </div>
       </div>
 
+      {/* STEP 2 — Topic + generate */}
+      <div className="rounded-card p-5 mb-5"
+        style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+            style={{ background: 'var(--coral)', color: 'white' }}>
+            Step 2
+          </span>
+          <h2 className="font-serif text-[18px]" style={{ color: 'var(--text-dark)' }}>
+            What should it cover?
+          </h2>
+        </div>
+        <p className="text-[12px] mb-3" style={{ color: 'var(--text-mid)' }}>
+          Describe the topic. Suggestions appear below to help you get specific.
+        </p>
+
+        {/* From-existing shortcut — shows when an assignment is selected */}
+        {selectedAssignment && (
+          <div className="mb-3 px-3 py-2 rounded-xl flex items-center gap-2 flex-wrap"
+            style={{ background: 'rgba(78,140,150,0.1)', border: '1px solid rgba(78,140,150,0.3)' }}>
+            <FileText className="w-4 h-4" style={{ color: 'var(--teal, #4E8C96)' }} />
+            <span className="text-[12px] font-semibold" style={{ color: 'var(--text-dark)' }}>
+              Using assignment: {selectedAssignment.title}
+            </span>
+            <button onClick={clearAssignment}
+              className="ml-auto text-[11px] underline"
+              style={{ color: 'var(--teal)', cursor: 'pointer' }}>
+              Remove
+            </button>
+          </div>
+        )}
+
+        {/* Topic textarea — hidden when using an existing assignment */}
+        {!selectedAssignment && (
+          <>
+            <textarea value={topic} onChange={e => setTopic(e.target.value)}
+              placeholder={TOPIC_PLACEHOLDERS[selectedTemplate] || 'Describe the topic...'}
+              rows={2}
+              className="w-full rounded-xl p-3 text-[14px] outline-none resize-none"
+              style={{
+                border: '1px solid var(--border)', background: 'white',
+                color: 'var(--text-dark)', fontFamily: "'Nunito', sans-serif",
+              }} />
+
+            {/* Inline suggestion pills (Pattern A) */}
+            {suggestions.length > 0 && (
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider"
+                  style={{ color: 'var(--sage)' }}>
+                  <Lightbulb className="w-3 h-3" /> Get specific:
+                </span>
+                {suggestions.map(s => (
+                  <button key={s} onClick={() => setTopic(s)}
+                    className="text-[12px] px-3 py-1 rounded-full transition-all"
+                    style={{
+                      background: 'rgba(107,160,138,0.12)',
+                      border: '1px solid rgba(107,160,138,0.4)',
+                      color: 'var(--sage)',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(107,160,138,0.2)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(107,160,138,0.12)'; }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Secondary affordances — standards + existing */}
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          {standardsCodes.map(code => (
+            <span key={code} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full font-bold"
+              style={{ background: 'rgba(78,140,150,0.12)', color: 'var(--teal, #4E8C96)' }}>
+              {code}
+              <button onClick={() => setStandardsCodes(prev => prev.filter(c => c !== code))}
+                style={{ color: 'var(--teal)', fontSize: 14, lineHeight: 1, cursor: 'pointer' }}>
+                ×
+              </button>
+            </span>
+          ))}
+          {!selectedAssignment && (
+            <button onClick={() => setShowStandardsPicker(true)}
+              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full"
+              style={{ border: '1px dashed var(--border)', background: 'white', color: 'var(--text-mid)', cursor: 'pointer' }}>
+              <Target className="w-3 h-3" />
+              {standardsCodes.length ? 'Add another standard' : 'Align to standard'}
+            </button>
+          )}
+          {!selectedAssignment && (
+            <button onClick={() => setShowAssignmentPicker(true)}
+              className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full"
+              style={{ border: '1px dashed var(--border)', background: 'white', color: 'var(--text-mid)', cursor: 'pointer' }}>
+              <FileText className="w-3 h-3" /> Use existing assignment
+            </button>
+          )}
+        </div>
+
+        {/* Generate button */}
+        <button onClick={handleGenerate} disabled={!canGenerate}
+          className="w-full mt-4 py-3 rounded-xl text-[14px] font-bold flex items-center justify-center gap-2"
+          style={{
+            background: canGenerate ? 'var(--coral)' : 'var(--coral-light)',
+            color: 'white',
+            cursor: canGenerate ? 'pointer' : 'not-allowed',
+            opacity: canGenerate ? 1 : 0.6,
+            boxShadow: canGenerate ? '0 4px 14px rgba(216,108,82,0.3)' : 'none',
+          }}>
+          {generating ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+          ) : (
+            <><Sparkles className="w-4 h-4" /> Generate {selectedTemplateMeta?.name || 'activity'}</>
+          )}
+        </button>
+
+        {generateError && (
+          <div className="mt-3 p-3 rounded-xl text-[12px]"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid #FECACA', color: '#B91C1C' }}>
+            {generateError}
+          </div>
+        )}
+      </div>
+
+      {/* STEP 3 — Current result (Phase 3 will add iframe + refinement chips here) */}
+      {lastResult && (
+        <div className="rounded-card p-5 mb-5"
+          style={{
+            background: 'var(--warm-card)',
+            border: '2px solid var(--coral)',
+            boxShadow: '0 4px 16px rgba(216,108,82,0.15)',
+          }}>
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-5 h-5" style={{ color: 'var(--sage)' }} />
+            <h2 className="font-serif text-[18px]" style={{ color: 'var(--text-dark)' }}>
+              Activity ready
+            </h2>
+          </div>
+          <p className="text-[12px] mb-3" style={{ color: 'var(--text-mid)' }}>
+            Access code <strong style={{ color: 'var(--coral)' }}>{lastResult.access_code}</strong>
+            {lastResult.access_url && (
+              <>
+                {' · '}
+                <a href={lastResult.access_url} target="_blank" rel="noopener"
+                  className="underline inline-flex items-center gap-1"
+                  style={{ color: 'var(--coral)' }}>
+                  Open activity <ExternalLink className="w-3 h-3" />
+                </a>
+              </>
+            )}
+          </p>
+          <p className="text-[11px] italic" style={{ color: 'var(--text-light)' }}>
+            (Refinement chips land in Phase 3 — you'll be able to tap "Make it harder", "Simpler vocabulary", etc.)
+          </p>
+        </div>
+      )}
+
       {/* Recent activities */}
       <div className="rounded-card p-5"
         style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
@@ -166,25 +458,48 @@ export default function InteractivePage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-28 rounded-xl animate-pulse"
-                style={{ background: 'var(--cream)' }} />
+              <div key={i} className="h-28 rounded-xl animate-pulse" style={{ background: 'var(--cream)' }} />
             ))}
           </div>
         ) : activities.length === 0 ? (
           <div className="text-center py-8">
             <Gamepad2 className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-light)' }} />
             <p className="text-[13px]" style={{ color: 'var(--text-mid)' }}>
-              No activities yet. Generate one above to get started.
+              No activities yet. Pick a type and topic above to get started.
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {activities.map(a => (
-              <ActivityCard key={a.activity_id} activity={a} />
-            ))}
+            {activities.map(a => <ActivityCard key={a.activity_id} activity={a} />)}
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {showStandardsPicker && (
+        <StandardsPickerModal
+          subject={activeClass?.subject}
+          gradeLevel={activeClass?.grade_level}
+          stateCode={activeClass?.state_code}
+          initialSelected={standardsCodes}
+          onConfirm={(codes) => { setStandardsCodes(codes); setShowStandardsPicker(false); }}
+          onClose={() => setShowStandardsPicker(false)} />
+      )}
+
+      {showAssignmentPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style={{ background: 'rgba(60,40,20,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowAssignmentPicker(false)}>
+          <div className="rounded-card p-5 max-w-lg w-full"
+            style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 className="font-serif text-[18px] mb-3" style={{ color: 'var(--text-dark)' }}>
+              Pick an existing assignment
+            </h3>
+            <AssignmentPicker onSelect={pickAssignment} selected={selectedAssignment?.assignment_id} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -203,9 +518,9 @@ function ActivityCard({ activity: a }) {
 
   const status = a.status || 'draft';
   const statusColors = {
-    live:    { bg: 'rgba(107,160,138,0.12)', fg: 'var(--sage)' },
-    draft:   { bg: 'rgba(218,176,78,0.12)',  fg: 'var(--mustard, #DAB04E)' },
-    failed:  { bg: 'rgba(239,68,68,0.08)',    fg: '#B91C1C' },
+    live:   { bg: 'rgba(107,160,138,0.12)', fg: 'var(--sage)' },
+    draft:  { bg: 'rgba(218,176,78,0.12)',  fg: 'var(--mustard, #DAB04E)' },
+    failed: { bg: 'rgba(239,68,68,0.08)',   fg: '#B91C1C' },
   }[status] || { bg: 'var(--cream)', fg: 'var(--text-mid)' };
 
   return (
