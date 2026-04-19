@@ -332,6 +332,164 @@ def generate_interactive_activity(
     }
 
 
+# ---------------------------------------------------------------------------
+# Refinement (Pattern C — post-generation chips)
+# ---------------------------------------------------------------------------
+# Given an existing activity and a refinement instruction, produce a NEW
+# activity with the refinement applied. Preserves the original for
+# before/after comparison. Uses Claude Sonnet to rewrite content_json.
+
+REFINE_INSTRUCTIONS = {
+    "make_harder":         "Increase cognitive demand. Add application or multi-step reasoning, use more precise vocabulary, and make distractors (if any) harder to eliminate.",
+    "simpler_vocabulary":  "Use simpler words — aim for 1-2 grade levels below the listed grade. Shorten sentences. Keep the same concept.",
+    "trickier_distractors":"Keep the same questions, but replace wrong-answer distractors with common misconceptions students at this grade actually have.",
+    "add_visuals":         "Where natural, add structured visual elements (fraction bars, number lines, ten-frames, labeled diagrams) inline with the questions. Use the structured `visual` field, not bracketed text.",
+    "different_examples":  "Keep the same topic and difficulty, but swap every specific example for a fresh one. Do not reuse any numbers, names, or wording from the original.",
+    "more_items":          "Increase the item count by 50%. Maintain the current difficulty distribution.",
+    "fewer_items":         "Reduce to the strongest 60% of items. Drop the weakest — keep the ones that best assess the objective.",
+    "more_clues":          "Increase the number of words or clues by 50%. Maintain difficulty.",
+    "simpler_clues":       "Rewrite the clues to use simpler vocabulary and shorter phrasing. Keep the same answer words.",
+    "picture_clues":       "Where applicable, add a structured visual to each clue so students can answer from a picture as well as the text.",
+    "more_pairs":          "Add 50% more pairs, keeping the same pair-type relationship.",
+    "visual_cues":         "Add a small structured visual alongside each pair so the relationship is visible, not just readable.",
+    "trickier_matches":    "Keep the same topic, but pick pairs where the relationship is less obvious — students must actually think, not just pattern-match.",
+    "simpler_pairs":       "Replace pairs with more familiar, high-frequency examples at a grade level below the listed grade.",
+    "more_labels":         "Increase the number of hotspots/labels by 50%. Cover more parts of the diagram.",
+    "different_diagram":   "Swap the diagram for a different image covering the same concept (e.g. different cell type, different map region).",
+}
+
+
+def refine_activity(
+    activity_id: str,
+    instruction_id: str,
+    custom_instructions: str | None = None,
+) -> dict:
+    """
+    Produce a refined copy of an existing activity. Creates a NEW activity row
+    so the original is preserved for before/after comparison.
+
+    Args:
+        activity_id: the activity to refine (source)
+        instruction_id: one of the keys in REFINE_INSTRUCTIONS, or "custom"
+        custom_instructions: free-form text when instruction_id == "custom"
+
+    Returns: same shape as generate_interactive_activity()
+    """
+    import anthropic
+    from psycopg2.extras import RealDictCursor
+
+    instruction_text = REFINE_INSTRUCTIONS.get(instruction_id)
+    if instruction_id == "custom":
+        instruction_text = (custom_instructions or "").strip()
+    if not instruction_text:
+        return {"error": f"Unknown refinement instruction: {instruction_id}"}
+
+    # Load existing activity
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        "SELECT * FROM interactive_activities WHERE activity_id = %s",
+        (activity_id,),
+    )
+    original = cur.fetchone()
+    cur.close(); conn.close()
+    if not original:
+        return {"error": "Activity not found"}
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {"error": "ANTHROPIC_API_KEY not set"}
+
+    template_id = original["interactive_template_id"]
+    original_content = original["content_json"]
+
+    prompt = (
+        f"You are refining an interactive {template_id} activity based on teacher feedback.\n\n"
+        f"ORIGINAL CONTENT JSON:\n{json.dumps(original_content, indent=2)}\n\n"
+        f"TEACHER REFINEMENT REQUEST:\n{instruction_text}\n\n"
+        f"Produce the refined content JSON in EXACTLY the same schema as the original. "
+        f"Preserve the overall topic and activity type. Only change what the refinement "
+        f"request asks you to change. Return ONLY valid JSON — no preamble, no markdown."
+    )
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        resp = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = (resp.content[0].text or "").strip()
+        import re as _re
+        match = _re.search(r"\{[\s\S]*\}", text)
+        if not match:
+            return {"error": "Sonnet did not return valid JSON"}
+        new_content = json.loads(match.group())
+    except Exception as e:
+        log.error(f"[Refine] Sonnet call failed: {e}")
+        return {"error": f"Refinement failed: {e}"}
+
+    # Deploy refined activity as a NEW row + new HTML upload
+    new_activity_id = str(uuid4())
+    new_access_code = _generate_access_code()
+    api_url = os.environ.get("API_URL", "http://localhost:8000")
+    html = _build_activity_html(template_id, new_content, new_activity_id, api_url)
+
+    access_url = None
+    try:
+        s3 = boto3.client(
+            "s3", endpoint_url=os.environ.get("S3_ENDPOINT"),
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY"),
+            aws_secret_access_key=os.environ.get("S3_SECRET_KEY"),
+        )
+        key = f"activities/{new_activity_id}/index.html"
+        s3.put_object(
+            Bucket=os.environ.get("S3_BUCKET_ACTIVITIES", "lulia-activities"),
+            Key=key,
+            Body=html.encode(),
+            ContentType="text/html",
+        )
+        endpoint = os.environ.get("S3_PUBLIC_ENDPOINT") or os.environ.get("S3_ENDPOINT", "http://localhost:9000")
+        access_url = f"{endpoint}/lulia-activities/{key}"
+    except Exception as e:
+        log.error(f"[Refine] Deploy failed: {e}")
+        access_url = f"/activities/{new_activity_id}"
+
+    # Insert new row linked back to the original via content_json metadata
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        new_content["_refined_from"] = activity_id
+        new_content["_refinement_instruction"] = instruction_id
+        cur.execute(
+            """INSERT INTO interactive_activities
+               (activity_id, assignment_id, teacher_id, class_id,
+                interactive_template_id, content_json, access_code, access_url,
+                max_attempts, time_limit_seconds, show_answers_after, status)
+               VALUES (%s, %s, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, 'live')""",
+            (new_activity_id, original["assignment_id"], original["teacher_id"], original["class_id"],
+             template_id, Json(new_content), new_access_code, access_url,
+             original["max_attempts"], original["time_limit_seconds"], original["show_answers_after"]),
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[Refine] DB insert failed: {e}")
+        return {"error": f"DB insert failed: {e}"}
+    finally:
+        cur.close(); conn.close()
+
+    return {
+        "activity_id": new_activity_id,
+        "access_code": new_access_code,
+        "access_url": access_url,
+        "template": template_id,
+        "refined_from": activity_id,
+        "instruction_id": instruction_id,
+        "status": "live",
+    }
+
+
 def submit_interactive_response(
     activity_id: str,
     student_name: str,

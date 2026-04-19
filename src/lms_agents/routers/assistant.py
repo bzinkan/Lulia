@@ -18,6 +18,12 @@ router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
 log = logging.getLogger(__name__)
 
+# In-process cache for topic suggestions: {cache_key: (ts, suggestions)}
+# Debounce/cancel handles most duplicate requests client-side, but a tiny
+# server-side cache catches the rest (identical body across tabs, etc.).
+_SUGGEST_CACHE: dict = {}
+_SUGGEST_CACHE_TTL = 60  # seconds
+
 
 def get_db():
     conn = psycopg2.connect(
@@ -219,3 +225,117 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
 
     output_result["parsed_intent"] = params
     return output_result
+
+
+# ---------------------------------------------------------------------------
+# Topic suggestions (Pattern A — inline pills)
+# ---------------------------------------------------------------------------
+# Fired while teacher types a topic. Haiku returns 3 specific classroom-ready
+# phrases that narrow the vague input. ~$0.0001 per call; server-side cached
+# for 60s per (class_id, activity_type, partial_topic).
+
+class TopicSuggestionsRequest(BaseModel):
+    activity_type: str
+    partial_topic: str
+    class_id: Optional[str] = None
+    teacher_id: str = "00000000-0000-0000-0000-000000000001"
+
+
+_ACTIVITY_META = {
+    "multiple_choice_quiz": "multiple-choice questions with 4 answer options each",
+    "fill_in_blank": "sentences with blanks students fill from a word bank",
+    "drag_drop_sort": "items students drag into 2 or more categories",
+    "drag_drop_sequence": "items students reorder into a correct sequence",
+    "category_sort": "items students drop into labeled buckets",
+    "matching_pairs": "two columns students match (e.g. terms to definitions)",
+    "click_to_reveal": "cards students click to reveal answers",
+    "flash_cards_interactive": "term/definition flashcards students swipe through",
+    "word_search_interactive": "a grid of letters with hidden words students find",
+    "crossword_interactive": "a grid with word clues students type into",
+    "number_line": "values students place on a number line",
+    "slider_estimation": "values students estimate with a slider",
+    "timeline_builder": "events students drag into chronological order",
+    "whiteboard_response": "an open-response prompt students answer in free text",
+    "hotspot_labeling": "a diagram students click to label specific parts",
+}
+
+
+@router.post("/topic-suggestions")
+async def topic_suggestions(req: TopicSuggestionsRequest):
+    """Return 3 specific topic phrases for a vague partial_topic."""
+    import time
+    if not req.partial_topic or len(req.partial_topic.strip()) < 3:
+        return {"suggestions": []}
+
+    cache_key = f"{req.class_id}|{req.activity_type}|{req.partial_topic.strip().lower()}"
+    hit = _SUGGEST_CACHE.get(cache_key)
+    if hit and (time.time() - hit[0]) < _SUGGEST_CACHE_TTL:
+        return {"suggestions": hit[1]}
+
+    # Resolve class context
+    grade, subject, state_code = "5", "General", None
+    class_intel_summary = None
+    if req.class_id:
+        try:
+            conn = psycopg2.connect(
+                host=os.environ.get("DB_HOST", "db"),
+                port=int(os.environ.get("DB_PORT", 5432)),
+                dbname=os.environ.get("DB_NAME", "lulia"),
+                user=os.environ.get("DB_USER", "lulia"),
+                password=os.environ.get("DB_PASSWORD", "devpassword"),
+            )
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                """SELECT c.grade_level, c.subject, t.state_code
+                   FROM classes c LEFT JOIN teachers t ON c.teacher_id = t.teacher_id
+                   WHERE c.class_id = %s::uuid""",
+                (req.class_id,),
+            )
+            row = cur.fetchone()
+            if row:
+                grade = row.get("grade_level") or grade
+                subject = row.get("subject") or subject
+                state_code = row.get("state_code")
+            cur.close(); conn.close()
+        except Exception as e:
+            log.warning(f"[TopicSuggest] class lookup failed: {e}")
+
+    activity_desc = _ACTIVITY_META.get(req.activity_type, req.activity_type)
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {"suggestions": []}
+
+    prompt = (
+        f"You help a Grade {grade} {subject} teacher"
+        f"{f' in {state_code}' if state_code else ''} narrow a vague topic "
+        f"into something specific enough to generate an interactive activity.\n\n"
+        f"Selected activity: {req.activity_type} — {activity_desc}\n"
+        f"Teacher typed: \"{req.partial_topic.strip()}\"\n\n"
+        f"Return 3 specific, classroom-ready topic phrases that narrow what they "
+        f"typed. Each phrase must be 2-6 words, grade-appropriate, and concrete "
+        f"enough that generation can proceed without clarifying questions. Avoid "
+        f"generic phrases like 'review of X' — suggest the underlying concept.\n\n"
+        f"Respond with ONLY a JSON object: "
+        f'{{"suggestions": ["...", "...", "..."]}} — no preamble, no markdown.'
+    )
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = (resp.content[0].text or "").strip()
+        # Tolerant JSON parsing
+        match = re.search(r"\{[\s\S]*\}", text)
+        data = json.loads(match.group()) if match else {}
+        sugg = data.get("suggestions", []) or []
+        sugg = [s.strip() for s in sugg if isinstance(s, str) and s.strip()][:3]
+        _SUGGEST_CACHE[cache_key] = (time.time(), sugg)
+        return {"suggestions": sugg}
+    except Exception as e:
+        log.warning(f"[TopicSuggest] Haiku failed: {e}")
+        return {"suggestions": []}

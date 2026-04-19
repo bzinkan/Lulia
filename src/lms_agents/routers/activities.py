@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from src.lms_agents.tools.interactive_generator import (
     generate_interactive_activity, submit_interactive_response,
+    refine_activity, REFINE_INSTRUCTIONS,
     INTERACTIVE_TEMPLATES,
 )
 
@@ -167,3 +168,34 @@ async def delete_activity(activity_id: UUID, conn=Depends(get_db)):
     conn.commit()
     cur.close()
     return {"status": "deleted"}
+
+
+# ---------------------------------------------------------------------------
+# Refinement (Pattern C — post-generation chips)
+# ---------------------------------------------------------------------------
+
+class RefineRequest(BaseModel):
+    instruction_id: str
+    custom_instructions: Optional[str] = None
+
+
+@router.get("/refinements/instructions")
+async def list_refinement_instructions():
+    """Return the canonical chip-id -> instruction-text map for the frontend."""
+    return {"instructions": REFINE_INSTRUCTIONS}
+
+
+@router.post("/{activity_id}/refine")
+async def refine(activity_id: UUID, req: RefineRequest):
+    """
+    Apply a refinement chip to an existing activity. Creates a new activity
+    row (preserves original) and returns the new activity metadata.
+    """
+    result = refine_activity(
+        activity_id=str(activity_id),
+        instruction_id=req.instruction_id,
+        custom_instructions=req.custom_instructions,
+    )
+    if result.get("error"):
+        return JSONResponse({"error": result["error"]}, status_code=400)
+    return result
