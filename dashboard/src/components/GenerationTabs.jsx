@@ -18,8 +18,16 @@ const GRADES = ['K','1','2','3','4','5','6','7','8','9','10','11','12'];
  *   templateLabel: string — label for template selector
  *   activeClass: {name, subject, grade_level} — optional. When provided,
  *     Subject/Grade fields are hidden and values are sourced from the class.
+ *   selectedTemplate, onTemplateChange: optional controlled-select pattern.
+ *     When both provided, the internal Template dropdown is hidden — the
+ *     parent (e.g. a tile gallery) drives the selection. Shown as a chip.
  */
-export default function GenerationTabs({ outputType, templates = [], onResult, templateLabel = "Template", activeClass = null }) {
+export default function GenerationTabs({
+  outputType, templates = [], onResult, templateLabel = "Template",
+  activeClass = null,
+  selectedTemplate = null,
+  onTemplateChange = null,
+}) {
   const [tab, setTab] = useState('prompt');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -27,6 +35,11 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
   // Class-scoped defaults (when the page is inside a class tab)
   const classSubject = activeClass?.subject || null;
   const classGrade = activeClass?.grade_level || null;
+
+  // Controlled-template pattern: parent owns the choice (e.g. via a tile gallery).
+  const isTemplateControlled = !!(selectedTemplate && onTemplateChange);
+  const effectiveTemplate = isTemplateControlled ? selectedTemplate : (templates[0]?.id || '');
+  const selectedTemplateName = templates.find(t => t.id === effectiveTemplate)?.name || effectiveTemplate;
 
   // Prompt mode
   const [prompt, setPrompt] = useState('');
@@ -39,10 +52,13 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
     template: templates[0]?.id || '',
     questionCount: 10,
   });
+  // When template is externally controlled, sync form.template so generation uses it
+  const formTemplate = isTemplateControlled ? selectedTemplate : form.template;
 
   // Existing mode
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [existingTemplate, setExistingTemplate] = useState(templates[0]?.id || '');
+  const effectiveExistingTemplate = isTemplateControlled ? selectedTemplate : existingTemplate;
 
   // Standards mode
   const [showStandardsPicker, setShowStandardsPicker] = useState(false);
@@ -52,6 +68,7 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
     subject: classSubject || 'Mathematics',
     template: templates[0]?.id || '',
   });
+  const standardsTemplate = isTemplateControlled ? selectedTemplate : standardsForm.template;
 
   const placeholders = {
     interactive: 'Create a drag-and-drop activity about the water cycle for 5th grade...',
@@ -89,7 +106,8 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
     // Class context is authoritative when present
     const effSubject = classSubject || form.subject;
     const effGrade = classGrade || form.grade;
-    const fakePrompt = `Create a ${form.template || 'quiz'} about ${form.topic || effSubject} for grade ${effGrade} ${effSubject}, ${form.questionCount} questions, medium difficulty`;
+    const effTemplate = formTemplate;
+    const fakePrompt = `Create a ${effTemplate || 'quiz'} about ${form.topic || effSubject} for grade ${effGrade} ${effSubject}, ${form.questionCount} questions, medium difficulty`;
     setPrompt(fakePrompt);
     setGenerating(true); setError(null);
     try {
@@ -115,12 +133,12 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
       if (outputType === 'interactive') {
         result = await apiFetch('/api/v1/interactive/generate', {
           method: 'POST',
-          body: JSON.stringify({ assignment_id: selectedAssignment.assignment_id, interactive_template_id: existingTemplate }),
+          body: JSON.stringify({ assignment_id: selectedAssignment.assignment_id, interactive_template_id: effectiveExistingTemplate }),
         });
       } else if (outputType === 'game') {
         result = await apiFetch('/api/v1/games/create', {
           method: 'POST',
-          body: JSON.stringify({ assignment_id: selectedAssignment.assignment_id, game_shell_id: existingTemplate }),
+          body: JSON.stringify({ assignment_id: selectedAssignment.assignment_id, game_shell_id: effectiveExistingTemplate }),
         });
       } else if (outputType === 'video') {
         result = await apiFetch('/api/v1/videos/generate', {
@@ -141,7 +159,8 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
     }
     const effSubject = classSubject || standardsForm.subject;
     const effGrade = classGrade || standardsForm.grade;
-    const synth = `Create a ${standardsForm.template || 'quiz'} for Grade ${effGrade} ${effSubject}, covering standards: ${standardsCodes.join(', ')}. 10 questions, medium difficulty, standards-aligned.`;
+    const effTemplate = standardsTemplate;
+    const synth = `Create a ${effTemplate || 'quiz'} for Grade ${effGrade} ${effSubject}, covering standards: ${standardsCodes.join(', ')}. 10 questions, medium difficulty, standards-aligned.`;
     setPrompt(synth);
     setGenerating(true); setError(null);
     try {
@@ -172,7 +191,7 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
       style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
       {/* Class context banner — shown when we know the active class */}
       {activeClass && (
-        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-[12px]"
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-[12px] flex-wrap"
           style={{
             background: 'rgba(107,160,138,0.1)',
             border: '1px solid rgba(107,160,138,0.3)',
@@ -187,6 +206,32 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
           <span style={{ color: 'var(--text-mid)' }}>
             Grade {activeClass.grade_level} {activeClass.subject}
           </span>
+          {isTemplateControlled && selectedTemplate && (
+            <>
+              <span style={{ color: 'var(--text-light)' }}>·</span>
+              <span className="font-bold uppercase tracking-wider text-[10px]"
+                style={{ color: 'var(--coral)' }}>
+                {templateLabel}
+              </span>
+              <span className="font-semibold">{selectedTemplateName}</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Template chip when controlled but no class context (standalone case) */}
+      {!activeClass && isTemplateControlled && selectedTemplate && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-[12px]"
+          style={{
+            background: 'rgba(216,108,82,0.08)',
+            border: '1px solid rgba(216,108,82,0.3)',
+            color: 'var(--text-dark)',
+          }}>
+          <span className="font-bold uppercase tracking-wider text-[10px]"
+            style={{ color: 'var(--coral)' }}>
+            {templateLabel}
+          </span>
+          <span className="font-semibold">{selectedTemplateName}</span>
         </div>
       )}
 
@@ -270,7 +315,7 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
               placeholder="e.g. equivalent fractions, water cycle"
               className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase} />
           </div>
-          {templates.length > 0 && (
+          {!isTemplateControlled && templates.length > 0 && (
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>{templateLabel}</label>
               <select value={form.template} onChange={e => setForm(f => ({...f, template: e.target.value}))}
@@ -328,7 +373,7 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
             </div>
           </div>
 
-          {templates.length > 0 && (
+          {!isTemplateControlled && templates.length > 0 && (
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>{templateLabel}</label>
               <select value={standardsForm.template} onChange={e => setStandardsForm(f => ({...f, template: e.target.value}))}
@@ -350,7 +395,7 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
       {tab === 'existing' && (
         <div>
           <AssignmentPicker onSelect={a => setSelectedAssignment(a)} selected={selectedAssignment?.assignment_id} />
-          {templates.length > 0 && selectedAssignment && (
+          {!isTemplateControlled && templates.length > 0 && selectedAssignment && (
             <div className="mt-3">
               <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>{templateLabel}</label>
               <select value={existingTemplate} onChange={e => setExistingTemplate(e.target.value)}

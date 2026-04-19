@@ -58,6 +58,7 @@ export default function InteractivePage() {
   const activeClass = classes.find(c => c.class_id === activeClassId);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState(FLAT_TEMPLATES[0].id);
 
   useEffect(() => { load(); }, []);
 
@@ -98,18 +99,20 @@ export default function InteractivePage() {
           templates={FLAT_TEMPLATES}
           templateLabel="Activity Type"
           activeClass={activeClass}
+          selectedTemplate={selectedTemplate}
+          onTemplateChange={setSelectedTemplate}
           onResult={load}
         />
       </div>
 
-      {/* Template gallery — grouped by pedagogical purpose */}
+      {/* Template gallery — tiles are the primary picker. Click to select. */}
       <div className="rounded-card p-5 mb-5"
         style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
         <h2 className="font-serif text-[18px] mb-1" style={{ color: 'var(--text-dark)' }}>
-          All 15 activity types
+          Pick an activity type
         </h2>
         <p className="text-[12px] mb-4" style={{ color: 'var(--text-mid)' }}>
-          Pick any type from the generator above, or browse what's available here.
+          Click any tile to select it, then generate above. All 15 types are grouped by purpose.
         </p>
         <div className="space-y-4">
           {TEMPLATE_GROUPS.map(group => (
@@ -120,17 +123,34 @@ export default function InteractivePage() {
               </div>
               <div className="grid gap-2"
                 style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-                {group.templates.map(t => (
-                  <div key={t.id} className="rounded-xl p-3"
-                    style={{ background: 'var(--cream)', border: '1px solid var(--border)' }}>
-                    <div className="text-[13px] font-bold mb-0.5" style={{ color: 'var(--text-dark)' }}>
-                      {t.name}
-                    </div>
-                    <div className="text-[11px]" style={{ color: 'var(--text-mid)' }}>
-                      {t.desc}
-                    </div>
-                  </div>
-                ))}
+                {group.templates.map(t => {
+                  const active = selectedTemplate === t.id;
+                  return (
+                    <button key={t.id}
+                      onClick={() => setSelectedTemplate(t.id)}
+                      className="rounded-xl p-3 text-left relative transition-all"
+                      style={{
+                        background: active ? 'rgba(216,108,82,0.08)' : 'var(--cream)',
+                        border: active ? '2px solid var(--coral)' : '2px solid transparent',
+                        cursor: 'pointer',
+                        boxShadow: active ? '0 2px 8px rgba(216,108,82,0.2)' : 'none',
+                      }}>
+                      {active && (
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: 'var(--coral)' }}>
+                          <CheckCircle className="w-3 h-3" style={{ color: 'white' }} strokeWidth={3} />
+                        </div>
+                      )}
+                      <div className="text-[13px] font-bold mb-0.5 pr-6"
+                        style={{ color: active ? 'var(--coral)' : 'var(--text-dark)' }}>
+                        {t.name}
+                      </div>
+                      <div className="text-[11px]" style={{ color: 'var(--text-mid)' }}>
+                        {t.desc}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
