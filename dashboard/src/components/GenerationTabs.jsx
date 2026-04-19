@@ -16,19 +16,28 @@ const GRADES = ['K','1','2','3','4','5','6','7','8','9','10','11','12'];
  *   templates: [{id, name}] — available output templates
  *   onResult: (result) => void — called when generation completes
  *   templateLabel: string — label for template selector
+ *   activeClass: {name, subject, grade_level} — optional. When provided,
+ *     Subject/Grade fields are hidden and values are sourced from the class.
  */
-export default function GenerationTabs({ outputType, templates = [], onResult, templateLabel = "Template" }) {
+export default function GenerationTabs({ outputType, templates = [], onResult, templateLabel = "Template", activeClass = null }) {
   const [tab, setTab] = useState('prompt');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Class-scoped defaults (when the page is inside a class tab)
+  const classSubject = activeClass?.subject || null;
+  const classGrade = activeClass?.grade_level || null;
 
   // Prompt mode
   const [prompt, setPrompt] = useState('');
 
   // Form mode
   const [form, setForm] = useState({
-    subject: 'Mathematics', grade: '4', topic: '',
-    template: templates[0]?.id || '', questionCount: 10,
+    subject: classSubject || 'Mathematics',
+    grade: classGrade || '4',
+    topic: '',
+    template: templates[0]?.id || '',
+    questionCount: 10,
   });
 
   // Existing mode
@@ -39,7 +48,9 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
   const [showStandardsPicker, setShowStandardsPicker] = useState(false);
   const [standardsCodes, setStandardsCodes] = useState([]); // string[]
   const [standardsForm, setStandardsForm] = useState({
-    grade: '4', subject: 'Mathematics', template: templates[0]?.id || '',
+    grade: classGrade || '4',
+    subject: classSubject || 'Mathematics',
+    template: templates[0]?.id || '',
   });
 
   const placeholders = {
@@ -60,7 +71,11 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
     try {
       const result = await apiFetch('/api/v1/assistant/generate-from-prompt', {
         method: 'POST',
-        body: JSON.stringify({ prompt, output_type: outputType }),
+        body: JSON.stringify({
+          prompt,
+          output_type: outputType,
+          class_id: activeClass?.class_id,
+        }),
       });
       onResult(result);
     } catch (e) {
@@ -71,13 +86,20 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
   }
 
   async function handleFormGenerate() {
-    const fakePrompt = `Create a ${form.template || 'quiz'} about ${form.topic || form.subject} for grade ${form.grade} ${form.subject}, ${form.questionCount} questions, medium difficulty`;
+    // Class context is authoritative when present
+    const effSubject = classSubject || form.subject;
+    const effGrade = classGrade || form.grade;
+    const fakePrompt = `Create a ${form.template || 'quiz'} about ${form.topic || effSubject} for grade ${effGrade} ${effSubject}, ${form.questionCount} questions, medium difficulty`;
     setPrompt(fakePrompt);
     setGenerating(true); setError(null);
     try {
       const result = await apiFetch('/api/v1/assistant/generate-from-prompt', {
         method: 'POST',
-        body: JSON.stringify({ prompt: fakePrompt, output_type: outputType }),
+        body: JSON.stringify({
+          prompt: fakePrompt,
+          output_type: outputType,
+          class_id: activeClass?.class_id,
+        }),
       });
       onResult(result);
     } catch (e) {
@@ -117,13 +139,19 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
       setError('Pick at least one standard first.');
       return;
     }
-    const synth = `Create a ${standardsForm.template || 'quiz'} for Grade ${standardsForm.grade} ${standardsForm.subject}, covering standards: ${standardsCodes.join(', ')}. 10 questions, medium difficulty, standards-aligned.`;
+    const effSubject = classSubject || standardsForm.subject;
+    const effGrade = classGrade || standardsForm.grade;
+    const synth = `Create a ${standardsForm.template || 'quiz'} for Grade ${effGrade} ${effSubject}, covering standards: ${standardsCodes.join(', ')}. 10 questions, medium difficulty, standards-aligned.`;
     setPrompt(synth);
     setGenerating(true); setError(null);
     try {
       const result = await apiFetch('/api/v1/assistant/generate-from-prompt', {
         method: 'POST',
-        body: JSON.stringify({ prompt: synth, output_type: outputType }),
+        body: JSON.stringify({
+          prompt: synth,
+          output_type: outputType,
+          class_id: activeClass?.class_id,
+        }),
       });
       onResult(result);
     } catch (e) {
@@ -142,6 +170,26 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
   return (
     <div className="rounded-[14px] p-5"
       style={{ background: 'var(--warm-card)', border: '1px solid var(--border)' }}>
+      {/* Class context banner — shown when we know the active class */}
+      {activeClass && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-[12px]"
+          style={{
+            background: 'rgba(107,160,138,0.1)',
+            border: '1px solid rgba(107,160,138,0.3)',
+            color: 'var(--text-dark)',
+          }}>
+          <span className="font-bold uppercase tracking-wider text-[10px]"
+            style={{ color: 'var(--sage)' }}>
+            Generating for
+          </span>
+          <span className="font-semibold">{activeClass.name}</span>
+          <span style={{ color: 'var(--text-light)' }}>·</span>
+          <span style={{ color: 'var(--text-mid)' }}>
+            Grade {activeClass.grade_level} {activeClass.subject}
+          </span>
+        </div>
+      )}
+
       {/* Tab strip */}
       <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ background: 'var(--cream)' }}>
         {[
@@ -198,22 +246,24 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
       {/* FORM TAB */}
       {tab === 'form' && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Subject</label>
-              <select value={form.subject} onChange={e => setForm(f => ({...f, subject: e.target.value}))}
-                className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase}>
-                {SUBJECTS.map(s => <option key={s}>{s}</option>)}
-              </select>
+          {!activeClass && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Subject</label>
+                <select value={form.subject} onChange={e => setForm(f => ({...f, subject: e.target.value}))}
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase}>
+                  {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Grade</label>
+                <select value={form.grade} onChange={e => setForm(f => ({...f, grade: e.target.value}))}
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase}>
+                  {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Grade</label>
-              <select value={form.grade} onChange={e => setForm(f => ({...f, grade: e.target.value}))}
-                className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase}>
-                {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
-              </select>
-            </div>
-          </div>
+          )}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Topic</label>
             <input value={form.topic} onChange={e => setForm(f => ({...f, topic: e.target.value}))}
@@ -240,22 +290,24 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
       {/* FROM STANDARDS TAB */}
       {tab === 'standards' && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Subject</label>
-              <select value={standardsForm.subject} onChange={e => setStandardsForm(f => ({...f, subject: e.target.value}))}
-                className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase}>
-                {SUBJECTS.map(s => <option key={s}>{s}</option>)}
-              </select>
+          {!activeClass && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Subject</label>
+                <select value={standardsForm.subject} onChange={e => setStandardsForm(f => ({...f, subject: e.target.value}))}
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase}>
+                  {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Grade</label>
+                <select value={standardsForm.grade} onChange={e => setStandardsForm(f => ({...f, grade: e.target.value}))}
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase}>
+                  {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Grade</label>
-              <select value={standardsForm.grade} onChange={e => setStandardsForm(f => ({...f, grade: e.target.value}))}
-                className="w-full rounded-xl px-3 py-2 text-sm outline-none" style={inputBase}>
-                {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
-              </select>
-            </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-mid)' }}>Standards</label>

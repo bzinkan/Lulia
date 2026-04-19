@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Gamepad2, Copy, ExternalLink, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import GenerationTabs from '@/components/GenerationTabs';
+import { useClassContext } from '@/components/ClassContext';
 
 // All 15 interactive activity templates, grouped by pedagogical purpose.
 // Order matches tools/interactive_generator.py INTERACTIVE_TEMPLATES.
@@ -53,6 +54,8 @@ const TEMPLATE_GROUPS = [
 const FLAT_TEMPLATES = TEMPLATE_GROUPS.flatMap(g => g.templates);
 
 export default function InteractivePage() {
+  const { classes, activeClassId } = useClassContext();
+  const activeClass = classes.find(c => c.class_id === activeClassId);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -94,6 +97,7 @@ export default function InteractivePage() {
           outputType="interactive"
           templates={FLAT_TEMPLATES}
           templateLabel="Activity Type"
+          activeClass={activeClass}
           onResult={load}
         />
       </div>
