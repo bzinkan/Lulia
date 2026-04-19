@@ -293,7 +293,10 @@ def generate_interactive_activity(
             Body=html.encode(),
             ContentType="text/html",
         )
-        endpoint = os.environ.get("S3_ENDPOINT", "http://localhost:9000")
+        # Browser-facing URL MUST use the public endpoint (localhost:9000 in
+        # dev, CloudFront/S3 domain in prod). S3_ENDPOINT is the Docker-internal
+        # hostname that only boto3 inside the api container can resolve.
+        endpoint = os.environ.get("S3_PUBLIC_ENDPOINT") or os.environ.get("S3_ENDPOINT", "http://localhost:9000")
         access_url = f"{endpoint}/lulia-activities/{key}"
         log.info(f"[Interactive] Deployed to {access_url}")
     except Exception as e:
