@@ -113,9 +113,10 @@ export default function InteractivePage() {
 
   const canGenerate = useMemo(() => {
     if (generating) return false;
-    if (selectedAssignment) return true; // From-existing path
+    if (selectedAssignment) return true;          // From-existing path
+    if (standardsCodes.length > 0) return true;   // Standards are a valid anchor on their own
     return topic.trim().length >= 3;
-  }, [generating, selectedAssignment, topic]);
+  }, [generating, selectedAssignment, topic, standardsCodes]);
 
   async function handleGenerate() {
     setGenerating(true);
@@ -142,9 +143,15 @@ export default function InteractivePage() {
         const grade = activeClass?.grade_level || '4';
         const stateClause = activeClass?.state_code ? ` (${activeClass.state_code} standards)` : '';
         const standardsClause = standardsCodes.length
-          ? ` aligned to ${standardsCodes.join(', ')}`
+          ? ` aligned to standards: ${standardsCodes.join(', ')}.`
           : '';
-        const synthPrompt = `Create a ${selectedTemplate} for Grade ${grade} ${subject}${stateClause}${standardsClause} on: ${topic.trim()}. 10 items, medium difficulty, standards-aligned.`;
+        const trimmedTopic = topic.trim();
+        // Drop '(from assignment)' prefix if it leaked through
+        const cleanTopic = trimmedTopic.startsWith('(from assignment)') ? '' : trimmedTopic;
+        const topicClause = cleanTopic ? ` Topic: ${cleanTopic}.` : '';
+        const synthPrompt =
+          `Create a ${selectedTemplate} for Grade ${grade} ${subject}${stateClause}.${standardsClause}${topicClause} ` +
+          `10 items, medium difficulty, standards-aligned.`;
         result = await apiFetch('/api/v1/assistant/generate-from-prompt', {
           method: 'POST',
           body: JSON.stringify({
@@ -305,7 +312,9 @@ export default function InteractivePage() {
           </h2>
         </div>
         <p className="text-[12px] mb-3" style={{ color: 'var(--text-mid)' }}>
-          Describe the topic. Suggestions appear below to help you get specific.
+          {standardsCodes.length > 0
+            ? 'Topic is optional when aligned to a standard — the standard itself defines what to cover.'
+            : 'Describe the topic. Suggestions appear below to help you get specific.'}
         </p>
 
         {/* From-existing shortcut — shows when an assignment is selected */}
