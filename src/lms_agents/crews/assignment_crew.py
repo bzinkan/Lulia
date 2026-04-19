@@ -806,17 +806,23 @@ def _fetch_textbook_grounding(work_order: dict, curriculum_output: dict) -> list
         return None
 
 
-def run_assignment_crew(work_order: dict) -> dict:
+def run_assignment_crew(work_order: dict, skip_format: bool = False) -> dict:
     """
     Run the full 6-step assignment generation crew.
 
     Sequential: Curriculum → Pedagogy Director → Content → Rubric → QA → Format
     With QA rejection loop (max 2 retries).
 
-    Returns a dict with all agent outputs and the final rendered content.
+    When skip_format=True, the Format Agent (HTML rendering) is skipped.
+    Use this when the caller only needs the question content — e.g.
+    generate_interactive_activity builds its own HTML and throws away the
+    worksheet render, so running Format Agent wastes 15-30s + Gemini tokens.
+
+    Returns a dict with all agent outputs and (when not skipped) the final
+    rendered content.
     """
     log.info(f"=== Assignment Crew: {work_order.get('work_order_id', 'unnamed')} ===")
-    log.info(f"  Template: {work_order.get('output_template_id')}")
+    log.info(f"  Template: {work_order.get('output_template_id')}  (skip_format={skip_format})")
     log.info(f"  Subject: {work_order.get('subject')}, Grade: {work_order.get('grade_level')}")
 
     client = _get_client()
@@ -921,11 +927,17 @@ def run_assignment_crew(work_order: dict) -> dict:
     # Agent 5: Format — pass the pedagogy brief so the renderer (Gemini or
     # Python) can honor developmental visual constraints (font size, whitespace,
     # scaffolding intensity) per grade band.
-    brief_text = format_brief_for_prompt(pedagogy_brief) if pedagogy_brief else None
-    format_output = run_format_agent(
-        client, work_order, content_output, rubric_output,
-        pedagogy_brief=brief_text,
-    )
+    # Callers that only need the question JSON (e.g. interactive + game
+    # generators that build their own HTML) can skip this step entirely.
+    if skip_format:
+        log.info("[Format Agent] SKIPPED (caller requested skip_format=True)")
+        format_output = {"student_html": "", "answer_key_html": "", "skipped": True}
+    else:
+        brief_text = format_brief_for_prompt(pedagogy_brief) if pedagogy_brief else None
+        format_output = run_format_agent(
+            client, work_order, content_output, rubric_output,
+            pedagogy_brief=brief_text,
+        )
 
     # Store in database
     assignment_id = _store_assignment(work_order, content_output, rubric_output, qa_output, format_output)

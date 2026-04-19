@@ -190,8 +190,12 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
         "has_kb_coverage": True,
     }
 
+    # Skip Format Agent (worksheet HTML rendering) for output types that build
+    # their own HTML — interactive activities and games only consume the
+    # question JSON. Saves 15-30s + Gemini tokens per generation.
+    skip_format = req.output_type in ("interactive", "game")
     try:
-        assignment_result = run_assignment_crew(work_order)
+        assignment_result = run_assignment_crew(work_order, skip_format=skip_format)
     except Exception as e:
         return JSONResponse({"error": f"Generation failed: {str(e)}"}, status_code=500)
 
