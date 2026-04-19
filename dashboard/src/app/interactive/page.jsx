@@ -6,6 +6,7 @@ import { useClassContext } from '@/components/ClassContext';
 import { useTopicSuggestions } from '@/lib/useTopicSuggestions';
 import StandardsPickerModal from '@/components/StandardsPickerModal';
 import AssignmentPicker from '@/components/AssignmentPicker';
+import InteractiveResult from '@/components/InteractiveResult';
 
 // All 15 interactive activity templates, grouped by pedagogical purpose.
 const TEMPLATE_GROUPS = [
@@ -416,37 +417,12 @@ export default function InteractivePage() {
         )}
       </div>
 
-      {/* STEP 3 — Current result (Phase 3 will add iframe + refinement chips here) */}
+      {/* Current result — live iframe preview + refinement chips */}
       {lastResult && (
-        <div className="rounded-card p-5 mb-5"
-          style={{
-            background: 'var(--warm-card)',
-            border: '2px solid var(--coral)',
-            boxShadow: '0 4px 16px rgba(216,108,82,0.15)',
-          }}>
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="w-5 h-5" style={{ color: 'var(--sage)' }} />
-            <h2 className="font-serif text-[18px]" style={{ color: 'var(--text-dark)' }}>
-              Activity ready
-            </h2>
-          </div>
-          <p className="text-[12px] mb-3" style={{ color: 'var(--text-mid)' }}>
-            Access code <strong style={{ color: 'var(--coral)' }}>{lastResult.access_code}</strong>
-            {lastResult.access_url && (
-              <>
-                {' · '}
-                <a href={lastResult.access_url} target="_blank" rel="noopener"
-                  className="underline inline-flex items-center gap-1"
-                  style={{ color: 'var(--coral)' }}>
-                  Open activity <ExternalLink className="w-3 h-3" />
-                </a>
-              </>
-            )}
-          </p>
-          <p className="text-[11px] italic" style={{ color: 'var(--text-light)' }}>
-            (Refinement chips land in Phase 3 — you'll be able to tap "Make it harder", "Simpler vocabulary", etc.)
-          </p>
-        </div>
+        <InteractiveResult
+          activity={lastResult}
+          onResult={(newActivity) => { setLastResult(newActivity); load(); }}
+        />
       )}
 
       {/* Recent activities */}
