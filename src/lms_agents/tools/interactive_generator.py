@@ -66,15 +66,33 @@ def _clean_content_for_activity(content: dict) -> dict:
     """
     Pre-process content before embedding in the activity HTML:
     - Strip [Visual ...] placeholder text from question stems
-    - (Future) Flatten structured 'visual' objects to inline HTML via
-      visual_renderer so the activity template can just render them
+    - Pre-render structured `visual` objects to inline SVG/HTML so the
+      React template can show them via dangerouslySetInnerHTML. Python
+      stays the single source of truth for the 19 canonical visual types
+      (ten_frame, number_bond, fraction_bar, array, bar_model, area_model,
+      number_line, coordinate_grid, function_table, equation_box,
+      base_ten_blocks, counting_objects, data_table, labeled_diagram,
+      letter_box, word_box, handwriting_lines, picture_choice, plus any
+      registered additions).
     """
+    from src.lms_agents.tools.visual_renderer import render_visual
+
     questions = content.get("questions", [])
     cleaned = []
     for q in questions:
         q_copy = dict(q) if isinstance(q, dict) else {}
         if "question_text" in q_copy:
             q_copy["question_text"] = _strip_bracketed_visual_refs(q_copy["question_text"])
+        # Pre-render the structured `visual` (if any) to an HTML string.
+        # Renderer returns empty string when visual is missing or malformed.
+        visual = q_copy.get("visual")
+        if visual:
+            try:
+                svg_html = render_visual(visual)
+                if svg_html:
+                    q_copy["visual_html"] = svg_html
+            except Exception as e:
+                log.warning(f"[Interactive] visual render failed: {e}")
         cleaned.append(q_copy)
     out = dict(content)
     out["questions"] = cleaned
@@ -86,6 +104,8 @@ def _build_activity_html(template_id: str, content: dict, activity_id: str, api_
     Build a self-contained HTML file for the interactive activity.
     Uses React via CDN — no build step needed.
     """
+    from src.lms_agents.tools.visual_renderer import get_visual_css
+
     content = _clean_content_for_activity(content)
     title = content.get("title", "Activity")
     questions = content.get("questions", [])
@@ -93,6 +113,10 @@ def _build_activity_html(template_id: str, content: dict, activity_id: str, api_
 
     # Serialize content for embedding
     content_json = json.dumps(content)
+    # CSS for structured visuals — uses CSS variable fallbacks so it inherits
+    # whatever colors the activity shell defines. Kept separate so the
+    # visual_renderer is the single source of truth.
+    visual_css = get_visual_css()
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -147,6 +171,11 @@ h2 {{ font-family: 'DM Serif Display', serif; color: #78350F; font-size: 16px; m
 .flip-front, .flip-back {{ position: absolute; width: 100%; backface-visibility: hidden; border-radius: 14px; padding: 20px; display: flex; align-items: center; justify-content: center; text-align: center; }}
 .flip-front {{ background: white; border: 2px solid #E7E5E4; }}
 .flip-back {{ background: #FFF7ED; border: 2px solid #F97316; transform: rotateY(180deg); }}
+
+/* ── Structured visuals (ten_frame, number_bond, fraction_bar, etc.) ── */
+/* Inlined from visual_renderer.get_visual_css() so interactive activities
+   render visuals the same way worksheets do. */
+{visual_css}
 </style>
 </head>
 <body>
@@ -244,6 +273,10 @@ function App() {{
       </div>
       <div className="question-card">
         <h2>{{q?.question_text}}</h2>
+        {{/* Pre-rendered structured visual (ten-frame, fraction bar, etc.) */}}
+        {{q?.visual_html && (
+          <div dangerouslySetInnerHTML={{{{ __html: q.visual_html }}}} />
+        )}}
         {{/* MC mode when options are present; short-answer input otherwise */}}
         {{Array.isArray(q?.options) && q.options.length >= 2 ? (
           ['A', 'B', 'C', 'D'].slice(0, q.options.length).map((letter, i) => {{
