@@ -193,6 +193,11 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
         if req.output_type == "interactive" else "worksheet"
     )
 
+    # Pull the teacher's topic back out of the Haiku parse — without this the
+    # Content Agent was generating content shaped purely by RAG exemplars
+    # and ignoring the teacher's actual subject matter.
+    teacher_topic = (params.get("topic") or "").strip() or req.prompt.strip()
+
     work_order = {
         "work_order_id": f"PROMPT-{os.urandom(4).hex()}",
         "class_id": req.class_id,
@@ -202,6 +207,10 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
         # Agent can shape its output correctly (e.g. emit diagram_visual
         # for hotspot_labeling, matching pairs for matching_pairs, etc.)
         "interactive_template_id": target_interactive,
+        # Authoritative topic — Content Agent must generate ON this topic,
+        # not drift to whatever RAG exemplar it happens to match.
+        "topic": teacher_topic,
+        "original_prompt": req.prompt,
         "subject": params.get("subject", "Mathematics"),
         "grade_level": str(params.get("grade", "4")),
         "standards_ids": params.get("standards", []),

@@ -252,6 +252,10 @@ def run_content_agent(
     subject = work_order.get("subject", "")
     grade = work_order.get("grade_level", "")
     teacher_id = work_order.get("teacher_id", "")
+    # Authoritative topic from the teacher. When present this OVERRIDES any
+    # drift toward RAG exemplar content — reference exemplars inform STRUCTURE,
+    # never subject matter.
+    topic = (work_order.get("topic") or "").strip()
 
     # If the pedagogy brief recommends a different template, honor it.
     if pedagogy_brief:
@@ -375,6 +379,15 @@ def run_content_agent(
         f"renderer converts your structured data into actual SVG graphics."
     )
 
+    topic_block = (
+        f"\n=== AUTHORITATIVE TOPIC (must be followed) ===\n"
+        f"TOPIC: {topic}\n"
+        f"Every question MUST be about this topic. Do NOT drift to a different "
+        f"subject matter even if reference exemplars below cover different "
+        f"topics — exemplars inform STRUCTURE and SHAPE, not content.\n"
+        f"=== END TOPIC ===\n"
+    ) if topic else ""
+
     user = f"""Create educational content for the following assignment:
 
 TEMPLATE: {template_id}
@@ -382,7 +395,7 @@ SUBJECT: {subject}
 GRADE LEVEL: {grade}
 QUESTION COUNT: {question_count}
 DIFFICULTY DISTRIBUTION: {json.dumps(difficulty)}
-
+{topic_block}
 ALIGNED STANDARDS:
 {standards_text}
 {kb_context}
