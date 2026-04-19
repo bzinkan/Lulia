@@ -62,20 +62,63 @@ def _strip_bracketed_visual_refs(text: str) -> str:
     ).replace("  ", " ").strip()
 
 
+def _ensure_hotspot_diagram(content: dict) -> dict:
+    """
+    If the content carries a top-level `diagram_visual` with type=hotspot_diagram
+    and no image_url yet, generate the image + coordinates now. Cached on
+    subsequent builds via the hotspot_diagrams table (the generator dedupes
+    by subject+parts hash).
+    """
+    dv = content.get("diagram_visual")
+    if not dv or not isinstance(dv, dict):
+        return content
+    if dv.get("type") != "hotspot_diagram":
+        return content
+    if dv.get("image_url"):
+        return content  # already generated
+    subject = dv.get("subject", "")
+    parts = dv.get("parts", [])
+    if not subject or not parts:
+        log.warning("[Interactive] hotspot_diagram missing subject or parts — skipping generation")
+        return content
+    try:
+        from src.lms_agents.tools.hotspot_diagram_generator import generate_hotspot_diagram
+        result = generate_hotspot_diagram(subject, parts)
+        if result.get("error"):
+            log.warning(f"[Interactive] hotspot_diagram generation failed: {result['error']}")
+            return content
+        # Merge into diagram_visual so renderers + React can consume
+        dv.update({
+            "image_url": result["image_url"],
+            "image_width": result.get("image_width", 1024),
+            "image_height": result.get("image_height", 1024),
+            "hotspots": result.get("hotspots", []),
+        })
+        content = dict(content)
+        content["diagram_visual"] = dv
+    except Exception as e:
+        log.error(f"[Interactive] hotspot_diagram pipeline exception: {e}")
+    return content
+
+
 def _clean_content_for_activity(content: dict) -> dict:
     """
     Pre-process content before embedding in the activity HTML:
     - Strip [Visual ...] placeholder text from question stems
     - Pre-render structured `visual` objects to inline SVG/HTML so the
       React template can show them via dangerouslySetInnerHTML. Python
-      stays the single source of truth for the 19 canonical visual types
+      stays the single source of truth for the 20 canonical visual types
       (ten_frame, number_bond, fraction_bar, array, bar_model, area_model,
       number_line, coordinate_grid, function_table, equation_box,
       base_ten_blocks, counting_objects, data_table, labeled_diagram,
-      letter_box, word_box, handwriting_lines, picture_choice, plus any
-      registered additions).
+      letter_box, word_box, handwriting_lines, picture_choice,
+      hotspot_diagram, plus any registered additions).
+    - Trigger hotspot_diagram generation if the activity needs one.
     """
     from src.lms_agents.tools.visual_renderer import render_visual
+
+    # Generate hotspot diagram + coords if needed (once per unique subject+parts)
+    content = _ensure_hotspot_diagram(content)
 
     questions = content.get("questions", [])
     cleaned = []
@@ -286,6 +329,9 @@ function App() {{
   }}
   if (template === 'number_line') {{
     return <PlayNumberLine data={{data}} name={{name}} onComplete={{finishWithScore}} />;
+  }}
+  if (template === 'hotspot_labeling' && data.diagram_visual?.image_url) {{
+    return <PlayHotspotLabeling data={{data}} name={{name}} onComplete={{finishWithScore}} />;
   }}
 
   // ── MCQ (fallback for all other templates until specialized) ─────────
@@ -567,6 +613,108 @@ function PlayNumberLine({{ data, name, onComplete }}) {{
       <button className="btn-primary" disabled={{currentValue === undefined}} onClick={{confirmAndNext}}>
         {{current < questions.length - 1 ? 'Next' : 'Finish'}}
       </button>
+      <div className="logo">Powered by Lulia AI</div>
+    </div>
+  );
+}}
+
+// ── Hotspot Labeling renderer — click on image to identify parts ──────
+// Content shape:
+//   {{ diagram_visual: {{type: "hotspot_diagram", image_url, image_width,
+//                       image_height, hotspots: [{{label, x, y, w, h}}]}},
+//      questions: [{{question_text: "Click the nucleus", answer: "nucleus"}}] }}
+// Student clicks on the image. We check whether the click falls inside
+// any hotspot's bounding box. Match that hotspot's label against the
+// current question's answer.
+function PlayHotspotLabeling({{ data, name, onComplete }}) {{
+  const dv = data.diagram_visual || {{}};
+  const hotspots = dv.hotspots || [];
+  const W = dv.image_width || 1024;
+  const H = dv.image_height || 1024;
+  const questions = data.questions || [];
+
+  const [current, setCurrent] = useState(0);
+  const [results, setResults] = useState({{}}); // {{qNum: 'correct' | 'wrong'}}
+  const [feedback, setFeedback] = useState(null); // {{kind, hotspotLabel}}
+  const imgRef = React.useRef(null);
+
+  function clickedLabelAt(clientX, clientY) {{
+    if (!imgRef.current) return null;
+    const rect = imgRef.current.getBoundingClientRect();
+    // Normalize click to image pixel space
+    const px = ((clientX - rect.left) / rect.width) * W;
+    const py = ((clientY - rect.top) / rect.height) * H;
+    // Find nearest hotspot whose bounding box contains the click (or very close)
+    for (const h of hotspots) {{
+      const x0 = h.x - h.w / 2;
+      const y0 = h.y - h.h / 2;
+      if (px >= x0 && px <= x0 + h.w && py >= y0 && py <= y0 + h.h) {{
+        return h.label;
+      }}
+    }}
+    return null;
+  }}
+
+  function handleImageClick(e) {{
+    const q = questions[current];
+    if (!q || results[q.question_number]) return;
+    const label = clickedLabelAt(e.clientX, e.clientY);
+    const target = (q.answer || '').toLowerCase().trim();
+    if (label && label.toLowerCase().trim() === target) {{
+      setResults(r => ({{ ...r, [q.question_number]: 'correct' }}));
+      setFeedback({{ kind: 'correct', hotspotLabel: label }});
+      setTimeout(() => {{
+        setFeedback(null);
+        if (current < questions.length - 1) setCurrent(c => c + 1);
+        else {{
+          const correct = Object.values({{ ...results, [q.question_number]: 'correct' }})
+            .filter(v => v === 'correct').length;
+          onComplete({{
+            correct, total: questions.length,
+            percentage: Math.round((correct / Math.max(questions.length, 1)) * 100),
+            responses: {{ ...results, [q.question_number]: 'correct' }},
+          }});
+        }}
+      }}, 700);
+    }} else {{
+      setFeedback({{ kind: 'wrong', hotspotLabel: label || '(no part)' }});
+      setTimeout(() => setFeedback(null), 900);
+    }}
+  }}
+
+  const q = questions[current];
+  const progress = ((current + (results[q?.question_number] === 'correct' ? 1 : 0)) / Math.max(questions.length, 1)) * 100;
+
+  return (
+    <div className="app">
+      <div className="progress"><div className="progress-bar" style={{{{width: progress + '%'}}}} /></div>
+      <div style={{{{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}}}>
+        <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>Question {{current + 1}} of {{questions.length}}</span>
+        <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>{{name}}</span>
+      </div>
+      <div className="question-card">
+        <h2>{{q?.question_text || 'Click the labeled part'}}</h2>
+        <p style={{{{fontSize: 13, color: '#78716C', marginBottom: 10}}}}>
+          Tap the part on the diagram below.
+        </p>
+        <div style={{{{position: 'relative', display: 'block'}}}}>
+          <img ref={{imgRef}} src={{dv.image_url}} alt="diagram"
+               onClick={{handleImageClick}}
+               style={{{{width: '100%', display: 'block', borderRadius: 8, cursor: 'crosshair', userSelect: 'none'}}}} />
+          {{/* Flash an indicator on correct/wrong */}}
+          {{feedback && (
+            <div style={{{{
+              position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+              padding: '6px 14px', borderRadius: 999,
+              background: feedback.kind === 'correct' ? '#22C55E' : '#EF4444',
+              color: 'white', fontSize: 13, fontWeight: 700,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            }}}}>
+              {{feedback.kind === 'correct' ? '✓ Correct!' : 'Try again'}}
+            </div>
+          )}}
+        </div>
+      </div>
       <div className="logo">Powered by Lulia AI</div>
     </div>
   );

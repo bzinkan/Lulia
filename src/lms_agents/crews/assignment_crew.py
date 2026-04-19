@@ -401,6 +401,8 @@ students a grounded representation to reason from:
 For SCIENCE questions with data or named structures:
   - Experimental results / observations         → data_table
   - Anatomy, cell parts, planet/ecosystem parts → labeled_diagram
+  - HOTSPOT-LABELING activities (students click  → diagram_visual at the
+    parts on a generated diagram)                  content level (see below)
 
 For ELA in K-2:
   - Letter identification                       → letter_box
@@ -410,6 +412,41 @@ For ELA in K-2:
 Skip visuals for pure text questions (e.g. "Define photosynthesis",
 "Identify the theme"). If you're not sure whether a visual helps — it
 probably does. Err on the side of including one.
+
+=== HOTSPOT-LABELING ACTIVITIES (special case) ===
+
+If the teacher's request is clearly a LABEL-THE-PARTS activity — e.g.
+"label the parts of a plant cell", "identify the organs in the digestive
+system", "label the water cycle stages" — emit a SINGLE shared diagram
+at the CONTENT level (not per-question) using this shape:
+
+{
+  "diagram_visual": {
+    "type": "hotspot_diagram",
+    "subject": "<short description of the diagram, e.g. 'plant cell
+                 cross-section', 'digestive system', 'water cycle'>",
+    "parts": ["nucleus", "cell wall", "chloroplast", "vacuole",
+              "cytoplasm"]
+  },
+  "questions": [
+    { "question_number": 1, "question_text": "Click the nucleus",
+      "answer": "nucleus" },
+    { "question_number": 2, "question_text": "Click the chloroplast",
+      "answer": "chloroplast" },
+    ...
+  ]
+}
+
+Rules for hotspot diagrams:
+- Exactly ONE diagram_visual per activity (at the content level).
+- Each question's answer MUST match one of the parts listed in
+  diagram_visual.parts (case-insensitive).
+- Each question_text should be "Click the <part>" or similar short
+  command — the student answers by tapping on the diagram.
+- Questions do NOT need their own `visual` field when the activity uses
+  a shared hotspot diagram.
+- Don't put `options` on these questions — there's no multiple choice,
+  the answer is the click target.
 
 === END VISUALS ===
 

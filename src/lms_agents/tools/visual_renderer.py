@@ -109,6 +109,18 @@ VISUAL_CSS = """
   color: var(--t-text, #1C1917);
   margin-bottom: 4px;
 }
+.hotspot-diagram img { border-radius: 8px; border: 1px solid var(--t-border, #E7E5E4); }
+.hotspot-legend {
+  list-style: none; padding: 0; margin: 10px 0 0 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 4px 12px;
+}
+.hotspot-legend li { font-size: 0.85em; color: var(--t-text, #1C1917); display: flex; align-items: center; gap: 6px; }
+.hotspot-legend .legend-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #F97316; color: white; font-weight: 700; font-size: 11px;
+}
 """
 
 
@@ -996,6 +1008,71 @@ def _render_placeholder(v: dict) -> str:
 # Type registry
 # ---------------------------------------------------------------------------
 
+def _render_hotspot_diagram(v: dict) -> str:
+    """
+    AI-generated labeled diagram with optional hotspot coordinates.
+    Input shape (populated by hotspot_diagram_generator):
+      { "type": "hotspot_diagram",
+        "image_url": "https://...",
+        "image_width": 1024, "image_height": 1024,
+        "hotspots": [{"label": "nucleus", "x": 234, "y": 156, "w": 80, "h": 80}, ...],
+        "parts": ["nucleus", ...],      # fallback if image not yet generated
+        "subject": "plant cell" }
+
+    For worksheets this renders the image with numbered circles overlaid
+    on each hotspot so students can identify parts for paper-based
+    answering. For interactive activities the PlayHotspotLabeling React
+    component reads image_url + hotspots directly and handles clicks —
+    this renderer output is ignored in that path.
+    """
+    image_url = v.get("image_url")
+    if not image_url:
+        # Diagram not yet generated — show a titled placeholder
+        subject = v.get("subject") or "diagram"
+        parts = v.get("parts") or []
+        parts_str = ", ".join(parts[:6]) + ("..." if len(parts) > 6 else "")
+        return (
+            f'<div class="visual-placeholder">'
+            f'<strong>Labeled diagram: {html.escape(subject)}</strong>'
+            f'{html.escape(parts_str)}'
+            f'</div>'
+        )
+
+    hotspots = v.get("hotspots") or []
+    w = int(v.get("image_width", 1024))
+    h = int(v.get("image_height", 1024))
+
+    pieces = [
+        f'<div class="hotspot-diagram" style="position:relative; display:inline-block; max-width:100%;">',
+        f'<img src="{html.escape(image_url)}" alt="{html.escape(v.get("subject", "diagram"))}" '
+        f'style="display:block; max-width:100%; height:auto;" />',
+    ]
+    # Numbered overlays for print / worksheet use
+    for i, hs in enumerate(hotspots, start=1):
+        cx_pct = (hs["x"] / w) * 100
+        cy_pct = (hs["y"] / h) * 100
+        pieces.append(
+            f'<span class="hotspot-pin" style="'
+            f'position:absolute; left:{cx_pct:.2f}%; top:{cy_pct:.2f}%; '
+            f'transform:translate(-50%,-50%); width:26px; height:26px; '
+            f'border-radius:50%; background:#F97316; color:white; '
+            f'display:flex; align-items:center; justify-content:center; '
+            f'font-weight:700; font-size:13px; border:2px solid white; '
+            f'box-shadow:0 1px 3px rgba(0,0,0,0.3);">{i}</span>'
+        )
+    pieces.append('</div>')
+
+    # Legend below the image
+    if hotspots:
+        legend_rows = "".join(
+            f'<li><span class="legend-num">{i}</span> {html.escape(hs["label"])}</li>'
+            for i, hs in enumerate(hotspots, start=1)
+        )
+        pieces.append(f'<ol class="hotspot-legend">{legend_rows}</ol>')
+
+    return "".join(pieces)
+
+
 VISUAL_HANDLERS = {
     # K-2 math
     "ten_frame": _render_ten_frame,
@@ -1020,6 +1097,7 @@ VISUAL_HANDLERS = {
     "data_table": _render_data_table,
     "labeled_diagram": _render_labeled_diagram,
     "diagram": _render_labeled_diagram,           # alias
+    "hotspot_diagram": _render_hotspot_diagram,   # AI-generated image + coords
     # ELA
     "letter_box": _render_letter_box,
     "word_box": _render_word_box,
