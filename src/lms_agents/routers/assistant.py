@@ -177,11 +177,27 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
 
     # Step 2: Generate base assignment
     from src.lms_agents.crews.assignment_crew import run_assignment_crew
+    # Map interactive templates to worksheet templates that naturally produce
+    # the right question shape. MCQ activities need multiple-choice questions
+    # with 4 options; most other interactive types work fine with the default
+    # worksheet (short answers / fill-blanks).
+    INTERACTIVE_TO_WORKSHEET = {
+        "multiple_choice_quiz": "quiz_test",       # produces MC with 4 options
+        "fill_in_blank":        "worksheet",       # short answers work
+        "flash_cards_interactive": "vocab_cards",  # term/definition pairs
+        "click_to_reveal":      "vocab_cards",     # same
+    }
+    target_interactive = params.get("output_template_id", "multiple_choice_quiz") if req.output_type == "interactive" else None
+    base_template = (
+        INTERACTIVE_TO_WORKSHEET.get(target_interactive, "worksheet")
+        if req.output_type == "interactive" else "worksheet"
+    )
+
     work_order = {
         "work_order_id": f"PROMPT-{os.urandom(4).hex()}",
         "class_id": req.class_id,
         "teacher_id": req.teacher_id,
-        "output_template_id": "worksheet",
+        "output_template_id": base_template,
         "subject": params.get("subject", "Mathematics"),
         "grade_level": str(params.get("grade", "4")),
         "standards_ids": params.get("standards", []),

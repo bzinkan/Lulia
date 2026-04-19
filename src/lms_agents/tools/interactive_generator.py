@@ -44,11 +44,49 @@ def _generate_access_code() -> str:
     return random.choice(words) + "".join(random.choices(string.digits, k=2))
 
 
+def _strip_bracketed_visual_refs(text: str) -> str:
+    """
+    Remove bracketed visual placeholder text that occasionally leaks past the
+    QA Agent's filter. Covers phrasings like '[Visual shows ...]', '[Image:
+    water cycle]', '[Diagram of cell]'. Keeps the surrounding question stem
+    intact so the student can still answer.
+    """
+    if not isinstance(text, str):
+        return text
+    import re as _re
+    return _re.sub(
+        r"\[(?:image|picture|diagram|illustration|graphic|visual|drawing|figure|photo|chart)[^\]]*\]",
+        "",
+        text,
+        flags=_re.IGNORECASE,
+    ).replace("  ", " ").strip()
+
+
+def _clean_content_for_activity(content: dict) -> dict:
+    """
+    Pre-process content before embedding in the activity HTML:
+    - Strip [Visual ...] placeholder text from question stems
+    - (Future) Flatten structured 'visual' objects to inline HTML via
+      visual_renderer so the activity template can just render them
+    """
+    questions = content.get("questions", [])
+    cleaned = []
+    for q in questions:
+        q_copy = dict(q) if isinstance(q, dict) else {}
+        if "question_text" in q_copy:
+            q_copy["question_text"] = _strip_bracketed_visual_refs(q_copy["question_text"])
+        cleaned.append(q_copy)
+    out = dict(content)
+    out["questions"] = cleaned
+    return out
+
+
 def _build_activity_html(template_id: str, content: dict, activity_id: str, api_url: str) -> str:
     """
     Build a self-contained HTML file for the interactive activity.
     Uses React via CDN — no build step needed.
     """
+    content = _clean_content_for_activity(content)
     title = content.get("title", "Activity")
     questions = content.get("questions", [])
     instructions = content.get("instructions", "")
@@ -206,17 +244,23 @@ function App() {{
       </div>
       <div className="question-card">
         <h2>{{q?.question_text}}</h2>
-        {{/* For MC: show lettered options */}}
-        {{['A', 'B', 'C', 'D'].map((letter, i) => {{
-          const optionText = q?.options?.[i] || (i === 0 ? q?.answer : `Option ${{letter}}`);
-          const selected = answers[q?.question_number] === optionText;
-          return (
-            <button key={{letter}} className={{`option ${{selected ? 'selected' : ''}}`}}
-              onClick={{() => handleAnswer(q.question_number, optionText)}}>
-              <strong>{{letter}}.</strong> {{optionText}}
-            </button>
-          );
-        }})}}
+        {{/* MC mode when options are present; short-answer input otherwise */}}
+        {{Array.isArray(q?.options) && q.options.length >= 2 ? (
+          ['A', 'B', 'C', 'D'].slice(0, q.options.length).map((letter, i) => {{
+            const optionText = q.options[i];
+            const selected = answers[q?.question_number] === optionText;
+            return (
+              <button key={{letter}} className={{`option ${{selected ? 'selected' : ''}}`}}
+                onClick={{() => handleAnswer(q.question_number, optionText)}}>
+                <strong>{{letter}}.</strong> {{optionText}}
+              </button>
+            );
+          }})
+        ) : (
+          <input className="input" placeholder="Type your answer..." autoFocus
+            value={{answers[q?.question_number] || ''}}
+            onChange={{e => handleAnswer(q?.question_number, e.target.value)}} />
+        )}}
       </div>
       <div style={{{{display: 'flex', gap: 8}}}}>
         {{current > 0 && <button className="btn-secondary" onClick={{() => setCurrent(c => c - 1)}}>Back</button>}}
