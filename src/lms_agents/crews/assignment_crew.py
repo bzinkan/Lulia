@@ -476,22 +476,22 @@ If the teacher's request is clearly a LABEL-THE-PARTS activity — e.g.
 system", "label the water cycle stages" — emit a SINGLE shared diagram
 at the CONTENT level (not per-question) using this shape:
 
-{
-  "diagram_visual": {
+{{
+  "diagram_visual": {{
     "type": "hotspot_diagram",
     "subject": "<short description of the diagram, e.g. 'plant cell
                  cross-section', 'digestive system', 'water cycle'>",
     "parts": ["nucleus", "cell wall", "chloroplast", "vacuole",
               "cytoplasm"]
-  },
+  }},
   "questions": [
-    { "question_number": 1, "question_text": "Click the nucleus",
-      "answer": "nucleus" },
-    { "question_number": 2, "question_text": "Click the chloroplast",
-      "answer": "chloroplast" },
+    {{ "question_number": 1, "question_text": "Click the nucleus",
+       "answer": "nucleus" }},
+    {{ "question_number": 2, "question_text": "Click the chloroplast",
+       "answer": "chloroplast" }},
     ...
   ]
-}
+}}
 
 Rules for hotspot diagrams:
 - Exactly ONE diagram_visual per activity (at the content level).
