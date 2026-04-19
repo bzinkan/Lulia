@@ -216,7 +216,7 @@ function App() {{
               <strong>{{letter}}.</strong> {{optionText}}
             </button>
           );
-        }}))}}
+        }})}}
       </div>
       <div style={{{{display: 'flex', gap: 8}}}}>
         {{current > 0 && <button className="btn-secondary" onClick={{() => setCurrent(c => c - 1)}}>Back</button>}}
