@@ -13,6 +13,7 @@ const navItems = [
   { label: 'Calendar',    icon: 'calendar.png',   href: '/calendar' },
   { label: 'Video Library', icon: 'video-camera.png', href: '/videos/library' },
   { label: 'Arcade',      icon: 'arcade.png',     href: '/games' },
+  { label: 'Interactive', icon: 'clipboard.png',  href: '/interactive' },
   { label: 'Analytics',   icon: 'chart.png',      href: '/analytics' },
   { label: 'Grades',      icon: 'check.png',      href: '/grades' },
   { label: 'Settings',    icon: 'settings.png',   href: '/settings' },
