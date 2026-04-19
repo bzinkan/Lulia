@@ -186,6 +186,7 @@ def run_content_agent(
     curriculum_output: dict,
     pedagogy_brief: dict | None = None,
     revision_notes: str | None = None,
+    teacher_style: dict | None = None,
 ) -> dict:
     """
     Generate educational content shaped for the selected template.
@@ -894,9 +895,10 @@ def run_assignment_crew(work_order: dict) -> dict:
     for attempt in range(1, QA_MAX_RETRIES + 2):  # 1 initial + 2 retries
         log.info(f"--- Generation attempt {attempt} ---")
 
-        # Step 3: Content Agent (constrained by brief)
+        # Step 3: Content Agent (constrained by brief + teacher style)
         content_output = run_content_agent(
-            client, work_order, curriculum_output, pedagogy_brief, revision_notes
+            client, work_order, curriculum_output, pedagogy_brief, revision_notes,
+            teacher_style=teacher_style,
         )
 
         # Step 4: Rubric Agent
