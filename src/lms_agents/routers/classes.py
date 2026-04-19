@@ -76,11 +76,12 @@ async def list_classes(
     cur = conn.cursor(cursor_factory=RealDictCursor)
     archive_filter = "" if include_archived else "AND c.archived_at IS NULL"
     cur.execute(
-        f"""SELECT c.*,
+        f"""SELECT c.*, t.state_code,
                 (SELECT count(*) FROM assignments WHERE class_id = c.class_id) AS assignment_count,
                 (SELECT count(*) FROM knowledge_sources WHERE class_id = c.class_id) AS upload_count,
                 (SELECT count(*) FROM videos WHERE class_id = c.class_id) AS video_count
             FROM classes c
+            LEFT JOIN teachers t ON c.teacher_id = t.teacher_id
             WHERE c.teacher_id = %s::uuid {archive_filter}
             ORDER BY c.created_at""",
         (teacher_id,),
@@ -95,11 +96,12 @@ async def get_class(class_id: str, conn=Depends(get_db)):
     """Get a single class with content counts."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
-        """SELECT c.*,
+        """SELECT c.*, t.state_code,
                 (SELECT count(*) FROM assignments WHERE class_id = c.class_id) AS assignment_count,
                 (SELECT count(*) FROM knowledge_sources WHERE class_id = c.class_id) AS upload_count,
                 (SELECT count(*) FROM videos WHERE class_id = c.class_id) AS video_count
             FROM classes c
+            LEFT JOIN teachers t ON c.teacher_id = t.teacher_id
             WHERE c.class_id = %s::uuid""",
         (class_id,),
     )
