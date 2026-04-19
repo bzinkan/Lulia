@@ -985,6 +985,197 @@ def _render_picture_choice(v: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Geometry — polygons, angles, triangles
+# ---------------------------------------------------------------------------
+
+def _render_polygon(v: dict) -> str:
+    """
+    Polygon renderer. Required: sides (int, 3-12) or vertices (list of [x,y]).
+    Optional:
+      - regular (bool, default True for 3-12 sides without vertices)
+      - side_labels (list of strings aligned to each side)
+      - angle_labels (list of strings aligned to each vertex, e.g. "90°")
+      - label (caption below the shape)
+      - highlighted_side (1-based index of a side to emphasize)
+    """
+    import math as _math
+    size = 160
+    cx, cy = size / 2, size / 2
+    radius = size * 0.42
+
+    sides = int(v.get("sides") or 0)
+    vertices = v.get("vertices")
+    if vertices and isinstance(vertices, list) and len(vertices) >= 3:
+        # Normalize user-provided vertices to the view box
+        xs = [float(p[0]) for p in vertices]
+        ys = [float(p[1]) for p in vertices]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        span = max(max_x - min_x, max_y - min_y) or 1
+        pts = []
+        for x, y in zip(xs, ys):
+            nx = ((x - min_x) / span) * (size * 0.82) + size * 0.09
+            ny = ((y - min_y) / span) * (size * 0.82) + size * 0.09
+            pts.append((nx, ny))
+    elif 3 <= sides <= 12:
+        # Regular polygon inscribed in a circle. Start at top (angle -pi/2).
+        pts = []
+        for i in range(sides):
+            theta = -_math.pi / 2 + (2 * _math.pi * i / sides)
+            pts.append((cx + radius * _math.cos(theta), cy + radius * _math.sin(theta)))
+    else:
+        return _render_placeholder({"type": "polygon", "label": "(invalid polygon spec)"})
+
+    side_labels = v.get("side_labels") or []
+    angle_labels = v.get("angle_labels") or []
+    highlighted = v.get("highlighted_side")
+    n = len(pts)
+
+    points_attr = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+    pieces = [
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">',
+        f'<polygon points="{points_attr}" fill="var(--t-secondary-tint, #FEF3E7)" '
+        f'stroke="var(--t-text, #1C1917)" stroke-width="2"/>',
+    ]
+
+    # Highlighted side
+    if highlighted and 1 <= highlighted <= n:
+        a = pts[highlighted - 1]
+        b = pts[highlighted % n]
+        pieces.append(
+            f'<line x1="{a[0]:.1f}" y1="{a[1]:.1f}" x2="{b[0]:.1f}" y2="{b[1]:.1f}" '
+            f'stroke="var(--t-primary, #F97316)" stroke-width="4"/>'
+        )
+
+    # Side labels — place at each edge midpoint, offset outward
+    for i, label in enumerate(side_labels[:n]):
+        if not label:
+            continue
+        a = pts[i]
+        b = pts[(i + 1) % n]
+        mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        # Offset outward from the polygon center
+        dx, dy = mx - cx, my - cy
+        norm = (dx * dx + dy * dy) ** 0.5 or 1
+        tx = mx + dx / norm * 12
+        ty = my + dy / norm * 12 + 4
+        pieces.append(
+            f'<text x="{tx:.1f}" y="{ty:.1f}" text-anchor="middle" '
+            f'font-size="11" fill="var(--t-text, #1C1917)">{html.escape(str(label))}</text>'
+        )
+
+    # Angle labels at each vertex, offset slightly inward
+    for i, label in enumerate(angle_labels[:n]):
+        if not label:
+            continue
+        a = pts[i]
+        dx, dy = cx - a[0], cy - a[1]
+        norm = (dx * dx + dy * dy) ** 0.5 or 1
+        tx = a[0] + dx / norm * 16
+        ty = a[1] + dy / norm * 16 + 3
+        pieces.append(
+            f'<text x="{tx:.1f}" y="{ty:.1f}" text-anchor="middle" '
+            f'font-size="10" fill="var(--t-primary, #F97316)" font-weight="600">{html.escape(str(label))}</text>'
+        )
+
+    pieces.append('</svg>')
+    return "".join(pieces)
+
+
+def _render_angle(v: dict) -> str:
+    """
+    Two rays meeting at a vertex, optionally with an arc + measurement label.
+    Fields:
+      - degrees (number, 0-360): the angle measure between the two rays
+      - measure_label (str): what to show at the arc (defaults to "{degrees}°")
+      - arm_length (number, default 70): pixel length of each arm
+      - orientation (number, default 0): degrees to rotate the whole figure
+      - show_arc (bool, default True)
+      - label (caption)
+    """
+    import math as _math
+    size = 180
+    cx, cy = size / 2, size * 0.7  # vertex near bottom-center
+
+    try:
+        degrees = float(v.get("degrees", 45))
+    except (TypeError, ValueError):
+        degrees = 45.0
+    degrees = max(0.1, min(359.9, degrees))
+    arm = float(v.get("arm_length", 70))
+    orientation = float(v.get("orientation", 0))
+    show_arc = v.get("show_arc", True)
+
+    # Arm 1 extends rightward by default (orientation == 0)
+    angle1 = orientation  # in degrees, 0 = east
+    angle2 = orientation + degrees
+
+    def ray_endpoint(deg, length):
+        rad = _math.radians(deg)
+        return (cx + length * _math.cos(rad), cy - length * _math.sin(rad))
+
+    x1, y1 = ray_endpoint(angle1, arm)
+    x2, y2 = ray_endpoint(angle2, arm)
+
+    pieces = [
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg">',
+        # Arm 1
+        f'<line x1="{cx:.1f}" y1="{cy:.1f}" x2="{x1:.1f}" y2="{y1:.1f}" '
+        f'stroke="var(--t-text, #1C1917)" stroke-width="2" stroke-linecap="round"/>',
+        # Arm 2
+        f'<line x1="{cx:.1f}" y1="{cy:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+        f'stroke="var(--t-text, #1C1917)" stroke-width="2" stroke-linecap="round"/>',
+        # Vertex dot
+        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="2.5" fill="var(--t-text, #1C1917)"/>',
+    ]
+
+    if show_arc:
+        # Right angles get a small square marker; other angles get an arc
+        if abs(degrees - 90) < 0.5:
+            mid_rad = _math.radians(angle1 + degrees / 2)
+            dx = 14 * _math.cos(mid_rad)
+            dy = -14 * _math.sin(mid_rad)
+            perp_rad = mid_rad - _math.pi / 2
+            sx = 10 * _math.cos(perp_rad)
+            sy = -10 * _math.sin(perp_rad)
+            sq_points = [
+                (cx + dx - sx / 2, cy + dy - sy / 2),
+                (cx + dx + sx / 2, cy + dy + sy / 2),
+            ]
+            # Simpler: just draw a small square rotated at the bisector
+            arc_r = 14
+            p1 = (cx + arc_r * _math.cos(_math.radians(angle1)), cy - arc_r * _math.sin(_math.radians(angle1)))
+            p2 = (cx + arc_r * _math.cos(_math.radians(angle2)), cy - arc_r * _math.sin(_math.radians(angle2)))
+            pc = (cx + arc_r * 1.414 * _math.cos(mid_rad), cy - arc_r * 1.414 * _math.sin(mid_rad))
+            pieces.append(
+                f'<path d="M {p1[0]:.1f} {p1[1]:.1f} L {pc[0]:.1f} {pc[1]:.1f} L {p2[0]:.1f} {p2[1]:.1f}" '
+                f'fill="none" stroke="var(--t-primary, #F97316)" stroke-width="1.5"/>'
+            )
+        else:
+            arc_r = 22
+            large = 1 if degrees > 180 else 0
+            p1 = (cx + arc_r * _math.cos(_math.radians(angle1)), cy - arc_r * _math.sin(_math.radians(angle1)))
+            p2 = (cx + arc_r * _math.cos(_math.radians(angle2)), cy - arc_r * _math.sin(_math.radians(angle2)))
+            pieces.append(
+                f'<path d="M {p1[0]:.1f} {p1[1]:.1f} A {arc_r} {arc_r} 0 {large} 0 {p2[0]:.1f} {p2[1]:.1f}" '
+                f'fill="none" stroke="var(--t-primary, #F97316)" stroke-width="1.5"/>'
+            )
+
+    # Measure label at the arc midpoint
+    measure_text = v.get("measure_label") or f"{int(degrees)}°"
+    mid_rad = _math.radians(angle1 + degrees / 2)
+    lx = cx + 38 * _math.cos(mid_rad)
+    ly = cy - 38 * _math.sin(mid_rad) + 4
+    pieces.append(
+        f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle" '
+        f'font-size="12" fill="var(--t-primary, #F97316)" font-weight="600">{html.escape(measure_text)}</text>'
+    )
+
+    pieces.append('</svg>')
+    return "".join(pieces)
+
+
+# ---------------------------------------------------------------------------
 # Generic placeholder
 # ---------------------------------------------------------------------------
 
@@ -1093,6 +1284,10 @@ VISUAL_HANDLERS = {
     "equation_box": _render_equation_box,
     "function_table": _render_function_table,
     "input_output_table": _render_function_table, # alias
+    # Geometry (3-12)
+    "polygon": _render_polygon,
+    "shape": _render_polygon,                     # alias
+    "angle": _render_angle,
     # Science
     "data_table": _render_data_table,
     "labeled_diagram": _render_labeled_diagram,

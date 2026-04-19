@@ -60,6 +60,50 @@ def _detect_bracketed_visuals(content_output: dict) -> list[str]:
     return violations
 
 
+# Phrases that imply a visual IS present (the question refers to one).
+# If question_text contains any of these AND the question has no `visual`
+# field, the Content Agent is promising students something the renderer
+# can't deliver.
+_IMPLIED_VISUAL_RE = re.compile(
+    r"\b(?:"
+    r"look at (?:the |this )?(?:fraction model|model|diagram|figure|picture|image|"
+    r"number line|array|chart|graph|table|shape)"
+    r"|shown (?:below|above|here|in the)"
+    r"|(?:the|this) (?:fraction model|model|diagram|figure|picture|image|"
+    r"number line|array|chart|graph|table)"
+    r"|based on (?:the|this) (?:figure|diagram|picture|image|model|graph|chart)"
+    r"|use (?:the|this) (?:figure|diagram|picture|image|model|graph|chart|number line|array|fraction bar)"
+    r"|count the (?:dots|shapes|objects|stars|circles|squares|blocks)"
+    r"|identify the (?:shape|figure|angle|polygon)"
+    r"|what (?:fraction|angle|shape) is shown"
+    r"|the (?:shaded|highlighted|marked) (?:part|region|area|section|portion)"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _detect_missing_visuals(content_output: dict) -> list[str]:
+    """
+    Scan question_text for phrases that reference a visual (e.g. "look at
+    the fraction model", "shown below", "count the dots"). If such a phrase
+    is present but the question has no `visual` field, the student will see
+    a broken question. Returns a list of offending references.
+    """
+    violations = []
+    for q in content_output.get("questions", []) or []:
+        text = q.get("question_text", "") or ""
+        if not text:
+            continue
+        if q.get("visual"):
+            continue  # Visual is attached — nothing implied
+        m = _IMPLIED_VISUAL_RE.search(text)
+        if m:
+            qnum = q.get("question_number", "?")
+            snippet = text[:100] + ("..." if len(text) > 100 else "")
+            violations.append(f"Question {qnum} references '{m.group(0)}' but has no visual: {snippet}")
+    return violations
+
+
 def _get_client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -370,6 +414,13 @@ K-2 math (use heavily for 1st-2nd grade math):
                      "points": [{{"x": 2, "y": 3, "label": "A"}}], "lines": [{{"from": [-3, -2], "to": [3, 4]}}]}}
   function_table:   {{"type": "function_table", "rows": [{{"x": 1, "y": 3}}, {{"x": 2, "y": 5}}], "x_label": "x", "y_label": "y"}}
 
+Geometry (3-12):
+  polygon:          {{"type": "polygon", "sides": 6, "side_labels": ["5cm","5cm","5cm","5cm","5cm","5cm"], "label": "Regular hexagon"}}
+                    OR with custom vertices and angle labels:
+                    {{"type": "polygon", "vertices": [[0,0],[4,0],[0,3]], "side_labels": ["4","hypotenuse","3"], "angle_labels": ["90°","",""]}}
+  angle:            {{"type": "angle", "degrees": 45, "measure_label": "45°"}}
+                    (right angles get a square marker automatically; set `show_arc: false` to hide it)
+
 Science (any grade):
   data_table:       {{"type": "data_table", "headers": ["Trial", "Mass"], "rows": [[1, "10g"], [2, "15g"]]}}
   labeled_diagram:  {{"type": "labeled_diagram", "subject": "plant cell", "labels": ["nucleus", "cell wall"]}}
@@ -397,6 +448,11 @@ students a grounded representation to reason from:
   - Counting or small quantity (K-2)            → counting_objects OR ten_frame
   - Plotting points / graphing lines            → coordinate_grid
   - Input/output tables                         → function_table
+  - Naming a 2D shape / counting sides          → polygon (regular)
+  - Classifying a triangle / shape with sides   → polygon with side_labels
+  - Angle identification or measurement         → angle (with degrees)
+  - Right-angle recognition                     → angle with degrees=90
+    (square marker auto-added; use 45/135/etc. for acute/obtuse)
 
 For SCIENCE questions with data or named structures:
   - Experimental results / observations         → data_table
@@ -621,9 +677,43 @@ Respond with ONLY the JSON object."""
     if result is None:
         result = {"approved": True, "score": 70, "issues": [], "revision_notes": None}
 
-    # Deterministic post-check: bracketed image references in question_text
+    # Deterministic post-check 1: bracketed image references in question_text
     # are an automatic rejection. The visual_renderer expects structured
     # `visual` objects on questions, never text descriptions like "[Image: ...]".
+    # Post-check 2: questions whose text implies a visual ("look at the fraction
+    # model", "count the dots", etc.) but has no visual field attached. The
+    # student would see a broken question with a dangling reference.
+    missing_visual_violations = _detect_missing_visuals(content_output)
+    if missing_visual_violations:
+        result["approved"] = False
+        result.setdefault("checks", {})["implied_visual_missing"] = {
+            "pass": False,
+            "notes": f"Found {len(missing_visual_violations)} question(s) referencing a visual that isn't attached",
+        }
+        existing_issues = result.get("issues") or []
+        result["issues"] = existing_issues + [
+            f"Missing visual: {v}" for v in missing_visual_violations
+        ]
+        existing_notes = result.get("revision_notes") or ""
+        missing_revision = (
+            "These questions reference a visual in their text but have no "
+            "`visual` field attached. For each one, either (a) attach the "
+            "appropriate structured visual (fraction_bar, number_line, "
+            "polygon, array, etc.) so the renderer can draw it, or (b) "
+            "rewrite the question so it doesn't depend on a visual. "
+            f"Violations: {'; '.join(missing_visual_violations[:3])}"
+            + (f" (and {len(missing_visual_violations) - 3} more)" if len(missing_visual_violations) > 3 else "")
+        )
+        result["revision_notes"] = (
+            (existing_notes + "\n\n" + missing_revision) if existing_notes else missing_revision
+        )
+        if result.get("score", 0) > 50:
+            result["score"] = 50
+        log.info(
+            f"[QA Agent] DETERMINISTIC CHECK FAILED: {len(missing_visual_violations)} "
+            f"questions reference missing visuals — forcing rejection"
+        )
+
     bracket_violations = _detect_bracketed_visuals(content_output)
     if bracket_violations:
         result["approved"] = False
