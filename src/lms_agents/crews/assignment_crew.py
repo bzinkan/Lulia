@@ -382,6 +382,35 @@ ELA (K-2 heavy):
 
 You may add an optional "label" string to any visual to caption it.
 
+=== WHEN TO USE VISUALS (strongly preferred for math/science) ===
+
+For MATH questions, always prefer a structured visual when one of these
+applies — even in grades 3-8. Visuals are not decoration; they give
+students a grounded representation to reason from:
+
+  - Question mentions a specific fraction       → fraction_bar OR fraction_circle
+  - Comparing / ordering numbers                → number_line with highlights
+  - Multiplication or area                      → array OR area_model
+  - Addition/subtraction of multi-digit         → base_ten_blocks or equation_box
+  - Part-part-whole or missing addend           → number_bond OR bar_model
+  - Word problem with known/unknown parts       → bar_model
+  - Counting or small quantity (K-2)            → counting_objects OR ten_frame
+  - Plotting points / graphing lines            → coordinate_grid
+  - Input/output tables                         → function_table
+
+For SCIENCE questions with data or named structures:
+  - Experimental results / observations         → data_table
+  - Anatomy, cell parts, planet/ecosystem parts → labeled_diagram
+
+For ELA in K-2:
+  - Letter identification                       → letter_box
+  - Sight word tracing / spelling               → word_box / handwriting_lines
+  - Picture-based vocabulary                    → picture_choice
+
+Skip visuals for pure text questions (e.g. "Define photosynthesis",
+"Identify the theme"). If you're not sure whether a visual helps — it
+probably does. Err on the side of including one.
+
 === END VISUALS ===
 
 IMPORTANT:
