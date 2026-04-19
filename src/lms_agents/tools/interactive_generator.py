@@ -284,6 +284,9 @@ function App() {{
   if (template === 'matching_pairs') {{
     return <PlayMatchingPairs data={{data}} name={{name}} onComplete={{finishWithScore}} />;
   }}
+  if (template === 'number_line') {{
+    return <PlayNumberLine data={{data}} name={{name}} onComplete={{finishWithScore}} />;
+  }}
 
   // ── MCQ (fallback for all other templates until specialized) ─────────
   const q = questions[current];
@@ -442,6 +445,128 @@ function PlayMatchingPairs({{ data, name, onComplete }}) {{
           }})}}
         </div>
       </div>
+      <div className="logo">Powered by Lulia AI</div>
+    </div>
+  );
+}}
+
+// ── Number Line renderer — click to place a value ──────────────────────
+// Content shape:
+//   {{ number_line_config: {{min, max, interval}},
+//      questions: [{{question_text, answer: <number>}}, ...] }}
+// Student clicks the number line to place each target value. Scored by
+// proximity — within 5% of the total range = correct.
+function PlayNumberLine({{ data, name, onComplete }}) {{
+  const cfg = data.number_line_config || {{ min: 0, max: 10, interval: 1 }};
+  const questions = data.questions || [];
+  const [current, setCurrent] = useState(0);
+  const [placements, setPlacements] = useState({{}}); // {{qNum: value}}
+  const [committed, setCommitted] = useState(new Set());
+  const svgRef = React.useRef(null);
+
+  const nmin = Number(cfg.min);
+  const nmax = Number(cfg.max);
+  const range = nmax - nmin;
+  const tolerance = range * 0.05;
+
+  // Geometry must match visual_renderer._render_number_line
+  const SVG_WIDTH = 460;
+  const SVG_HEIGHT = 70;
+  const MARGIN_X = 30;
+  const LINE_Y = 40;
+  const LINE_W = SVG_WIDTH - MARGIN_X * 2;
+
+  function handleClick(e) {{
+    if (!svgRef.current) return;
+    const q = questions[current];
+    if (!q || committed.has(q.question_number)) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const xFrac = (e.clientX - rect.left) / rect.width;
+    const pxOnSvg = xFrac * SVG_WIDTH;
+    const valFromPx = ((pxOnSvg - MARGIN_X) / LINE_W) * range + nmin;
+    const clamped = Math.max(nmin, Math.min(nmax, valFromPx));
+    setPlacements(prev => ({{ ...prev, [q.question_number]: clamped }}));
+  }}
+
+  function xForValue(v) {{
+    return MARGIN_X + ((v - nmin) / range) * LINE_W;
+  }}
+
+  function confirmAndNext() {{
+    const q = questions[current];
+    if (!q) return;
+    const next = new Set(committed);
+    next.add(q.question_number);
+    setCommitted(next);
+    if (current < questions.length - 1) {{
+      setCurrent(c => c + 1);
+    }} else {{
+      // Score
+      let correct = 0;
+      questions.forEach(qq => {{
+        const placed = placements[qq.question_number];
+        if (placed !== undefined && Math.abs(placed - Number(qq.answer)) <= tolerance) correct++;
+      }});
+      onComplete({{
+        correct, total: questions.length,
+        percentage: Math.round((correct / Math.max(questions.length, 1)) * 100),
+        responses: placements,
+      }});
+    }}
+  }}
+
+  // Build tick marks at each interval
+  const ticks = [];
+  for (let v = nmin; v <= nmax + 0.0001; v += Number(cfg.interval)) {{
+    ticks.push(Math.round(v * 1000) / 1000);
+  }}
+
+  const q = questions[current];
+  const currentValue = q ? placements[q.question_number] : undefined;
+  const progress = ((current + (currentValue !== undefined ? 1 : 0)) / Math.max(questions.length, 1)) * 100;
+
+  return (
+    <div className="app">
+      <div className="progress"><div className="progress-bar" style={{{{width: progress + '%'}}}} /></div>
+      <div style={{{{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}}}>
+        <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>Question {{current + 1}} of {{questions.length}}</span>
+        <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>{{name}}</span>
+      </div>
+      <div className="question-card">
+        <h2>{{q?.question_text || 'Click to place the value'}}</h2>
+        <p style={{{{fontSize: 13, color: '#78716C', marginBottom: 12}}}}>
+          Tap the number line below to place your answer.
+        </p>
+        <svg ref={{svgRef}} viewBox={{`0 0 ${{SVG_WIDTH}} ${{SVG_HEIGHT}}`}} width="100%"
+             style={{{{display: 'block', cursor: 'crosshair', userSelect: 'none'}}}}
+             onClick={{handleClick}}>
+          {{/* Line */}}
+          <line x1={{MARGIN_X}} y1={{LINE_Y}} x2={{SVG_WIDTH - MARGIN_X}} y2={{LINE_Y}}
+                stroke="#78716C" strokeWidth="2" />
+          {{/* Arrows */}}
+          <polygon points={{`${{MARGIN_X - 8}},${{LINE_Y}} ${{MARGIN_X}},${{LINE_Y - 6}} ${{MARGIN_X}},${{LINE_Y + 6}}`}} fill="#78716C" />
+          <polygon points={{`${{SVG_WIDTH - MARGIN_X + 8}},${{LINE_Y}} ${{SVG_WIDTH - MARGIN_X}},${{LINE_Y - 6}} ${{SVG_WIDTH - MARGIN_X}},${{LINE_Y + 6}}`}} fill="#78716C" />
+          {{/* Ticks and labels */}}
+          {{ticks.map((v, i) => (
+            <g key={{i}}>
+              <line x1={{xForValue(v)}} y1={{LINE_Y - 5}} x2={{xForValue(v)}} y2={{LINE_Y + 5}} stroke="#78716C" strokeWidth="1.5" />
+              <text x={{xForValue(v)}} y={{LINE_Y + 20}} fontSize="11" textAnchor="middle" fill="#78716C">{{v}}</text>
+            </g>
+          ))}}
+          {{/* Placed marker */}}
+          {{currentValue !== undefined && (
+            <g>
+              <circle cx={{xForValue(currentValue)}} cy={{LINE_Y}} r="8" fill="#F97316" stroke="white" strokeWidth="2" />
+              <text x={{xForValue(currentValue)}} y={{LINE_Y - 14}} fontSize="11" textAnchor="middle" fill="#F97316" fontWeight="bold">
+                {{Math.round(currentValue * 1000) / 1000}}
+              </text>
+            </g>
+          )}}
+        </svg>
+      </div>
+      <button className="btn-primary" disabled={{currentValue === undefined}} onClick={{confirmAndNext}}>
+        {{current < questions.length - 1 ? 'Next' : 'Finish'}}
+      </button>
       <div className="logo">Powered by Lulia AI</div>
     </div>
   );
