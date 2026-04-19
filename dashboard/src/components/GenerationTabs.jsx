@@ -369,10 +369,12 @@ export default function GenerationTabs({ outputType, templates = [], onResult, t
 
       {showStandardsPicker && (
         <StandardsPickerModal
-          onSelect={(code) => {
-            if (code && !standardsCodes.includes(code)) {
-              setStandardsCodes(prev => [...prev, code]);
-            }
+          subject={classSubject || standardsForm.subject}
+          gradeLevel={classGrade || standardsForm.grade}
+          stateCode={activeClass?.state_code}
+          initialSelected={standardsCodes}
+          onConfirm={(codes) => {
+            setStandardsCodes(codes);
             setShowStandardsPicker(false);
           }}
           onClose={() => setShowStandardsPicker(false)} />
