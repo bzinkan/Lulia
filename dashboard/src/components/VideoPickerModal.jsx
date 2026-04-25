@@ -20,7 +20,7 @@ import { apiFetch } from '@/lib/api';
  * via the existing video_crew pipeline.
  */
 export default function VideoPickerModal({
-  teacherId = '00000000-0000-0000-0000-000000000001',
+  teacherId,
   classId,
   standardCodes = [],
   gradeLevel,

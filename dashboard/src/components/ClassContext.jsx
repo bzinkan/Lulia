@@ -2,7 +2,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
 
-const TEACHER_ID = '00000000-0000-0000-0000-000000000001';
+// Teacher identity: read from env var so dev/staging/prod can differ.
+// When real auth arrives, this will be replaced by a value derived from the
+// session cookie / JWT claim. Consumers should prefer `useClassContext().teacherId`
+// rather than importing this constant directly.
+const TEACHER_ID =
+  process.env.NEXT_PUBLIC_DEV_TEACHER_ID ||
+  '00000000-0000-0000-0000-000000000001';
 const STORAGE_KEY = 'lulia_active_class_id';
 
 const ClassContext = createContext(null);

@@ -51,6 +51,14 @@ cryptography==44.*
 # Redis
 redis>=5,<6
 
+# === Phase 28: Pre-AWS hardening ===
+
+# Per-IP / per-key rate limiting (used on abuse-prone endpoints:
+# assignment generation, game creation, standards/match, standards/suggest).
+# Backed by in-memory by default; set RATE_LIMIT_STORAGE_URI=redis://... to
+# share state across Fargate tasks.
+slowapi>=0.1.9,<1
+
 # === Inngest: Durable Workflow Engine ===
 inngest>=0.4,<1
 

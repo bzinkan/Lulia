@@ -1,7 +1,10 @@
-# Lulia — AI-Powered Learning Management System
+# Lulia Lesson Lab — AI-Powered LMS for Individual Teachers
 
 ## What This Project Is
-Lulia is an AI-powered LMS that replaces Teachers Pay Teachers. Teachers upload curriculum, approve a weekly plan, and the system generates everything: lesson plans, worksheets, task cards, interactive activities, live games, videos, and more — all standards-aligned, TpT-quality, never repeated.
+Lulia (user-facing brand: **Lulia Lesson Lab**) is an AI-powered LMS that replaces Teachers Pay Teachers. Teachers upload curriculum, approve a weekly plan, and the system generates everything: lesson plans, worksheets, task cards, interactive activities, live games, videos, and more — all standards-aligned, TpT-quality, never repeated.
+
+## Who It's For (and Who It's NOT For)
+Lulia sells to **individual teachers** who pay out of pocket — the same audience that pays for TpT. It is **not** sold to schools or districts. When making product, pricing, or roadmap decisions, optimize for individual-teacher acquisition, retention, and value. Skip district-only features (admin dashboards, district-level usage reporting, signed state DPAs, SOC 2 Type II / ISTE Seal pursuit) unless explicitly directed otherwise. Compliance posture: the "student PII never goes to LLMs" rule (architecture decision #10) plus a clear plain-language privacy page is sufficient for the individual-teacher market.
 
 **Current status**: Phases 1–27 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
 
@@ -86,7 +89,7 @@ dashboard/
 │   ├── planner/     # Weekly Planner
 │   └── ...          # billing, games, interactive, videos, etc.
 ├── src/components/  # Shared React components
-│   └── design/      # ComponentRenderers.jsx (157), ComponentEditors.jsx (math toolbar, shapes)
+│   └── design/      # /design page partials (Design Studio WYSIWYG scrapped in Phase 20)
 └── src/lib/         # API client, admin client
 
 scripts/             # DB init, standards import, seed data, Lulings generation, Stripe listener

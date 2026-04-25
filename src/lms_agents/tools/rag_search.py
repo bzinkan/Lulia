@@ -87,6 +87,12 @@ def search_kb(
     conn = get_connection()
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        # Guard the vector scan. HNSW makes the nearest-neighbour lookup
+        # O(log n), but a filter miss (wrong subject/grade/etc.) can force
+        # the planner to fall back to a seq-scan over the full chunk table.
+        # A 5s cap keeps a pathological request from starving the pool while
+        # still leaving plenty of headroom for normal traffic (~50-200ms).
+        cur.execute("SET LOCAL statement_timeout = '5s'")
         cur.execute(sql, all_params)
         results = [dict(r) for r in cur.fetchall()]
         cur.close()

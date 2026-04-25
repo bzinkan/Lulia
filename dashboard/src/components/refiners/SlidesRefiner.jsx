@@ -4,7 +4,7 @@ import { CheckCircle, Plus, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { SLIDES_LAYOUTS } from '@/lib/plannerVariants';
 import AccommodationPicker from './AccommodationPicker';
 
-export default function SlidesRefiner({ workOrder, onConfirm }) {
+export default function SlidesRefiner({ workOrder, onConfirm, classDefaultAccommodations = [] }) {
   const [layout, setLayout] = useState(workOrder.config?.layout_style || 'lecture');
   const [outline, setOutline] = useState(
     workOrder.config?.outline?.length
@@ -17,7 +17,15 @@ export default function SlidesRefiner({ workOrder, onConfirm }) {
           { title: 'Wrap-up & exit' },
         ]
   );
-  const [accommodations, setAccommodations] = useState(workOrder.accommodations || []);
+  const [accommodations, setAccommodations] = useState(
+    // A work order carries its own accommodations once the teacher
+    // confirms it. Before that, fall back to the class-level default
+    // (e.g. "ELL-Beginner on every lesson") so teachers don't have to
+    // tick the same boxes on every work order.
+    (workOrder.accommodations && workOrder.accommodations.length > 0)
+      ? workOrder.accommodations
+      : classDefaultAccommodations,
+  );
 
   function updateSlide(i, title) {
     const next = [...outline]; next[i] = { ...next[i], title }; setOutline(next);

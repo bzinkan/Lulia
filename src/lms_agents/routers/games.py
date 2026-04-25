@@ -4,9 +4,11 @@ import os
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, WebSocket
+from fastapi import APIRouter, Depends, Query, Request, WebSocket
 from fastapi.responses import JSONResponse
 import psycopg2
+from src.lms_agents.tools.db import get_connection as _pool_get_connection
+from src.lms_agents.tools.rate_limit import limiter
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
@@ -22,13 +24,9 @@ router = APIRouter(tags=["Games"])
 
 
 def get_db():
-    conn = psycopg2.connect(
-        host=os.environ.get("DB_HOST", "db"),
-        port=int(os.environ.get("DB_PORT", 5432)),
-        dbname=os.environ.get("DB_NAME", "lulia"),
-        user=os.environ.get("DB_USER", "lulia"),
-        password=os.environ.get("DB_PASSWORD", "devpassword"),
-    )
+    # Borrowed from the shared pool (tools/db.py). `conn.close()` below
+    # releases the connection back rather than tearing the socket down.
+    conn = _pool_get_connection()
     try:
         yield conn
     finally:
@@ -153,7 +151,10 @@ async def suggest_categories(req: SuggestCategoriesRequest, conn=Depends(get_db)
 
 
 @router.post("/api/v1/games/create")
-async def create_game(req: CreateGameRequest):
+# `custom` source generates Haiku questions on the spot — a rogue client
+# could otherwise spam the endpoint to bleed credits or saturate the LLM.
+@limiter.limit("20/minute")
+async def create_game(request: Request, req: CreateGameRequest):
     """
     Create a new game session.
     Question source determines credit charging:

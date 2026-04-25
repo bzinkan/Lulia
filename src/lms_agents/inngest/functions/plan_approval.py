@@ -11,15 +11,11 @@ async def _on_plan_failure(ctx: inngest.Context, step: inngest.Step) -> None:
         return
 
     async def mark_failed():
-        import os
-        import psycopg2
-        conn = psycopg2.connect(
-            host=os.environ.get("DB_HOST", "db"),
-            port=int(os.environ.get("DB_PORT", 5432)),
-            dbname=os.environ.get("DB_NAME", "lulia"),
-            user=os.environ.get("DB_USER", "lulia"),
-            password=os.environ.get("DB_PASSWORD", "devpassword"),
-        )
+        # Pooled connection — Inngest workers share the API's pool when
+        # running in-process, or get their own pool when running as the
+        # standalone worker service. Either way, `.close()` releases.
+        from src.lms_agents.tools.db import get_connection
+        conn = get_connection()
         cur = conn.cursor()
         cur.execute(
             "UPDATE lesson_plans SET status = 'failed' WHERE plan_id = %s",

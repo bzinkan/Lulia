@@ -37,10 +37,22 @@ const CATEGORY_LABELS = {
  * Props:
  *   day: { day, title, work_orders: [...] }
  *   subject: string — class subject for variant catalogs
+ *   classDefaultAccommodations: string[] — class-level defaults from
+ *     `classes.default_accommodations`. Refiners seed their initial state
+ *     from this ONLY when the work order itself has no accommodations
+ *     attached. This lets a teacher with ELL-Beginner on the whole roster
+ *     avoid ticking the same box on every lesson, while still allowing a
+ *     one-off override (removing the chip on a single work order wins).
  *   onSave: (updatedDay) => void
  *   onClose: () => void
  */
-export default function RefineDayModal({ day, subject, onSave, onClose }) {
+export default function RefineDayModal({
+  day,
+  subject,
+  classDefaultAccommodations = [],
+  onSave,
+  onClose,
+}) {
   const [workOrders, setWorkOrders] = useState(day.work_orders || []);
   const [expandedIdx, setExpandedIdx] = useState(0);
 
@@ -145,6 +157,7 @@ export default function RefineDayModal({ day, subject, onSave, onClose }) {
                       workOrder={wo}
                       subject={subject}
                       dayTitle={day.title}
+                      classDefaultAccommodations={classDefaultAccommodations}
                       onConfirm={(updated) => updateWorkOrder(i, updated)}
                     />
                   </div>

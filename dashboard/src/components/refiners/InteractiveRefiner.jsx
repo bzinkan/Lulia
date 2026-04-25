@@ -4,12 +4,20 @@ import { CheckCircle, Sparkles } from 'lucide-react';
 import { INTERACTIVE_TYPES } from '@/lib/plannerVariants';
 import AccommodationPicker from './AccommodationPicker';
 
-export default function InteractiveRefiner({ workOrder, onConfirm }) {
+export default function InteractiveRefiner({ workOrder, onConfirm, classDefaultAccommodations = [] }) {
   const aiSuggested = workOrder.config?.activity_type || workOrder.variant || 'matching';
   const [mode, setMode] = useState('ai'); // 'ai' | 'pick' | 'custom'
   const [activityType, setActivityType] = useState(aiSuggested);
   const [prompt, setPrompt] = useState(workOrder.config?.prompt || '');
-  const [accommodations, setAccommodations] = useState(workOrder.accommodations || []);
+  const [accommodations, setAccommodations] = useState(
+    // A work order carries its own accommodations once the teacher
+    // confirms it. Before that, fall back to the class-level default
+    // (e.g. "ELL-Beginner on every lesson") so teachers don't have to
+    // tick the same boxes on every work order.
+    (workOrder.accommodations && workOrder.accommodations.length > 0)
+      ? workOrder.accommodations
+      : classDefaultAccommodations,
+  );
 
   function handleConfirm() {
     let type = activityType;

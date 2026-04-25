@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { Gamepad2, Copy, ExternalLink, Loader2, CheckCircle, Target, FileText, ChevronDown, Sparkles, Lightbulb } from 'lucide-react';
+import { Gamepad2, Copy, ExternalLink, Loader2, CheckCircle, Target, FileText, ChevronDown, Sparkles, Lightbulb, Trash2, Pencil } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useClassContext } from '@/components/ClassContext';
 import { useTopicSuggestions } from '@/lib/useTopicSuggestions';
 import StandardsPickerModal from '@/components/StandardsPickerModal';
 import AssignmentPicker from '@/components/AssignmentPicker';
 import InteractiveResult from '@/components/InteractiveResult';
+import EditActivityModal from '@/components/EditActivityModal';
 
 // All 15 interactive activity templates, grouped by pedagogical purpose.
 const TEMPLATE_GROUPS = [
@@ -72,10 +73,8 @@ const TOPIC_PLACEHOLDERS = {
   hotspot_labeling:        'e.g. parts of a plant cell',
 };
 
-const DEFAULT_TEACHER_ID = '00000000-0000-0000-0000-000000000001';
-
 export default function InteractivePage() {
-  const { classes, activeClassId } = useClassContext();
+  const { classes, activeClassId, teacherId } = useClassContext();
   const activeClass = classes.find(c => c.class_id === activeClassId);
 
   // Core state
@@ -108,7 +107,7 @@ export default function InteractivePage() {
     activityType: selectedTemplate,
     topic,
     classId: activeClass?.class_id,
-    teacherId: DEFAULT_TEACHER_ID,
+    teacherId: teacherId,
   });
 
   const canGenerate = useMemo(() => {
@@ -132,33 +131,37 @@ export default function InteractivePage() {
           body: JSON.stringify({
             assignment_id: selectedAssignment.assignment_id,
             interactive_template_id: selectedTemplate,
-            teacher_id: DEFAULT_TEACHER_ID,
+            teacher_id: teacherId,
             class_id: activeClass?.class_id,
           }),
         });
       } else {
-        // Unified prompt-style generation. Synthesize a single prompt from
-        // tile + topic + optional standards + class context.
+        // Unified prompt-style generation. We pass template_id, topic,
+        // standards, subject, and grade EXPLICITLY so the backend doesn't
+        // have to re-parse them from a prose prompt — that round-trip was
+        // losing the crossword/number-line/etc. UI choice.
         const subject = activeClass?.subject || 'General';
         const grade = activeClass?.grade_level || '4';
-        const stateClause = activeClass?.state_code ? ` (${activeClass.state_code} standards)` : '';
-        const standardsClause = standardsCodes.length
-          ? ` aligned to standards: ${standardsCodes.join(', ')}.`
-          : '';
         const trimmedTopic = topic.trim();
-        // Drop '(from assignment)' prefix if it leaked through
         const cleanTopic = trimmedTopic.startsWith('(from assignment)') ? '' : trimmedTopic;
-        const topicClause = cleanTopic ? ` Topic: ${cleanTopic}.` : '';
+        // A prose prompt is still sent for any legacy code paths / logging,
+        // but the explicit fields are the source of truth.
         const synthPrompt =
-          `Create a ${selectedTemplate} for Grade ${grade} ${subject}${stateClause}.${standardsClause}${topicClause} ` +
-          `10 items, medium difficulty, standards-aligned.`;
+          `${selectedTemplate} activity for Grade ${grade} ${subject}` +
+          (standardsCodes.length ? ` aligned to ${standardsCodes.join(', ')}` : '') +
+          (cleanTopic ? ` — topic: ${cleanTopic}` : '');
         result = await apiFetch('/api/v1/assistant/generate-from-prompt', {
           method: 'POST',
           body: JSON.stringify({
             prompt: synthPrompt,
             output_type: 'interactive',
-            teacher_id: DEFAULT_TEACHER_ID,
+            teacher_id: teacherId,
             class_id: activeClass?.class_id,
+            template_id: selectedTemplate,
+            topic: cleanTopic,
+            standards: standardsCodes,
+            subject,
+            grade,
           }),
         });
       }
@@ -455,7 +458,7 @@ export default function InteractivePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {activities.map(a => <ActivityCard key={a.activity_id} activity={a} />)}
+            {activities.map(a => <ActivityCard key={a.activity_id} activity={a} onDeleted={load} />)}
           </div>
         )}
       </div>
@@ -490,15 +493,33 @@ export default function InteractivePage() {
 }
 
 
-function ActivityCard({ activity: a }) {
+function ActivityCard({ activity: a, onDeleted }) {
   const [copied, setCopied] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false);
   const templateLabel = FLAT_TEMPLATES.find(t => t.id === a.interactive_template_id)?.name
     || (a.interactive_template_id || '').replace(/_/g, ' ');
+  // Hotspot labeling is a black-box SVG/image artifact; editing it isn't
+  // meaningful — user explicitly excluded it from the edit feature.
+  const isEditable = a.interactive_template_id !== 'hotspot_labeling';
 
   function copyCode() {
     navigator.clipboard?.writeText(a.access_code);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function handleDelete() {
+    const title = a.content_json?.title || 'this activity';
+    if (!window.confirm(`Delete "${title}"? This can't be undone.`)) return;
+    try {
+      setDeleting(true);
+      await apiFetch(`/api/v1/interactive/${a.activity_id}`, { method: 'DELETE' });
+      onDeleted?.();
+    } catch (e) {
+      alert('Delete failed: ' + (e?.message || 'unknown error'));
+      setDeleting(false);
+    }
   }
 
   const status = a.status || 'draft';
@@ -539,7 +560,24 @@ function ActivityCard({ activity: a }) {
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         )}
+        {isEditable && (
+          <button onClick={() => setEditing(true)} title="Edit activity"
+            className="p-1 rounded-md" style={{ color: 'var(--text-mid)' }}>
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button onClick={handleDelete} disabled={deleting} title="Delete activity"
+          className="p-1 rounded-md" style={{ color: '#B91C1C', cursor: deleting ? 'default' : 'pointer', opacity: deleting ? 0.4 : 1 }}>
+          {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+        </button>
       </div>
+      {editing && (
+        <EditActivityModal
+          activity={a}
+          onClose={() => setEditing(false)}
+          onSaved={() => { setEditing(false); onDeleted?.(); /* same reload hook */ }}
+        />
+      )}
     </div>
   );
 }

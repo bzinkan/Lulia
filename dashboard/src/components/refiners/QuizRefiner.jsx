@@ -3,13 +3,21 @@ import { useState } from 'react';
 import { CheckCircle } from 'lucide-react';
 import AccommodationPicker from './AccommodationPicker';
 
-export default function QuizRefiner({ workOrder, onConfirm }) {
+export default function QuizRefiner({ workOrder, onConfirm, classDefaultAccommodations = [] }) {
   const [questionCount, setQuestionCount] = useState(workOrder.config?.question_count || workOrder.question_count || 10);
   const [recall, setRecall] = useState(workOrder.config?.blueprint?.recall ?? 40);
   const [apply, setApply] = useState(workOrder.config?.blueprint?.apply ?? 40);
   const [analyze, setAnalyze] = useState(workOrder.config?.blueprint?.analyze ?? 20);
   const [standards, setStandards] = useState(workOrder.standards || []);
-  const [accommodations, setAccommodations] = useState(workOrder.accommodations || []);
+  const [accommodations, setAccommodations] = useState(
+    // A work order carries its own accommodations once the teacher
+    // confirms it. Before that, fall back to the class-level default
+    // (e.g. "ELL-Beginner on every lesson") so teachers don't have to
+    // tick the same boxes on every work order.
+    (workOrder.accommodations && workOrder.accommodations.length > 0)
+      ? workOrder.accommodations
+      : classDefaultAccommodations,
+  );
 
   const total = recall + apply + analyze;
 

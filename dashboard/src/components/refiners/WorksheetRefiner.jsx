@@ -4,12 +4,20 @@ import { CheckCircle } from 'lucide-react';
 import { worksheetVariantsFor } from '@/lib/plannerVariants';
 import AccommodationPicker from './AccommodationPicker';
 
-export default function WorksheetRefiner({ workOrder, subject, onConfirm }) {
+export default function WorksheetRefiner({ workOrder, subject, onConfirm, classDefaultAccommodations = [] }) {
   const groups = worksheetVariantsFor(subject);
   const [variant, setVariant] = useState(workOrder.variant || groups[0].items[0].id);
   const [questionCount, setQuestionCount] = useState(workOrder.config?.question_count || workOrder.question_count || 10);
   const [includeAnswerKey, setIncludeAnswerKey] = useState(workOrder.config?.include_answer_key ?? true);
-  const [accommodations, setAccommodations] = useState(workOrder.accommodations || []);
+  const [accommodations, setAccommodations] = useState(
+    // A work order carries its own accommodations once the teacher
+    // confirms it. Before that, fall back to the class-level default
+    // (e.g. "ELL-Beginner on every lesson") so teachers don't have to
+    // tick the same boxes on every work order.
+    (workOrder.accommodations && workOrder.accommodations.length > 0)
+      ? workOrder.accommodations
+      : classDefaultAccommodations,
+  );
 
   function handleConfirm() {
     onConfirm({

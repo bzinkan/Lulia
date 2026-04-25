@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 import psycopg2
+from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
@@ -19,13 +20,9 @@ router = APIRouter(prefix="/interactive", tags=["Interactive"])
 
 
 def get_db():
-    conn = psycopg2.connect(
-        host=os.environ.get("DB_HOST", "db"),
-        port=int(os.environ.get("DB_PORT", 5432)),
-        dbname=os.environ.get("DB_NAME", "lulia"),
-        user=os.environ.get("DB_USER", "lulia"),
-        password=os.environ.get("DB_PASSWORD", "devpassword"),
-    )
+    # Borrowed from the shared pool (tools/db.py). `conn.close()` below
+    # releases the connection back rather than tearing the socket down.
+    conn = _pool_get_connection()
     try:
         yield conn
     finally:
@@ -168,6 +165,118 @@ async def delete_activity(activity_id: UUID, conn=Depends(get_db)):
     conn.commit()
     cur.close()
     return {"status": "deleted"}
+
+
+@router.get("/{activity_id}/data")
+async def get_activity_data(activity_id: UUID, conn=Depends(get_db)):
+    """
+    Return the editable data payload for a structured activity.
+    Only structured templates (crossword/word_search/flashcards/timeline/
+    number_line) have a `data` field — artifact-mode activities return an
+    empty body with mode='artifact' so the client can route to Refine instead.
+    """
+    import json
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        "SELECT interactive_template_id, content_json FROM interactive_activities WHERE activity_id = %s",
+        (str(activity_id),),
+    )
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return JSONResponse({"error": "Activity not found"}, status_code=404)
+    content = row["content_json"] or {}
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except Exception:
+            content = {}
+    mode = content.get("mode", "artifact")
+    return {
+        "activity_id": str(activity_id),
+        "template_id": row["interactive_template_id"],
+        "mode": mode,
+        "data": content.get("data") if mode == "structured" else None,
+    }
+
+
+class UpdateActivityDataRequest(BaseModel):
+    data: dict
+
+
+@router.put("/{activity_id}/data")
+async def update_activity_data(activity_id: UUID, req: UpdateActivityDataRequest,
+                                conn=Depends(get_db)):
+    """
+    Replace the data payload for a structured activity, rebuild the HTML,
+    re-upload to MinIO, and persist. Only works for templates that have a
+    hand-written builder — artifact activities must use the Refine flow.
+    """
+    import json
+    import boto3
+    from psycopg2.extras import Json
+    from src.lms_agents.tools.structured_common import get_builder
+
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        "SELECT interactive_template_id, content_json, access_url FROM interactive_activities WHERE activity_id = %s",
+        (str(activity_id),),
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        return JSONResponse({"error": "Activity not found"}, status_code=404)
+    template_id = row["interactive_template_id"]
+    content = row["content_json"] or {}
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except Exception:
+            content = {}
+    if content.get("mode") != "structured":
+        cur.close()
+        return JSONResponse(
+            {"error": "This activity was generated in artifact mode — use the Refine endpoint instead."},
+            status_code=400,
+        )
+    try:
+        builder = get_builder(template_id)
+    except ValueError as e:
+        cur.close()
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+    try:
+        html = builder(req.data)
+    except Exception as e:
+        cur.close()
+        return JSONResponse({"error": f"Failed to rebuild HTML: {e}"}, status_code=400)
+
+    # Re-upload to MinIO at the same key (access_url stays stable)
+    try:
+        s3 = boto3.client(
+            "s3", endpoint_url=os.environ.get("S3_ENDPOINT"),
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY"),
+            aws_secret_access_key=os.environ.get("S3_SECRET_KEY"),
+        )
+        bucket = os.environ.get("S3_BUCKET_ACTIVITIES", "lulia-activities")
+        key = f"activities/{activity_id}/index.html"
+        s3.put_object(Bucket=bucket, Key=key, Body=html.encode("utf-8"),
+                      ContentType="text/html; charset=utf-8")
+    except Exception as e:
+        cur.close()
+        return JSONResponse({"error": f"Upload failed: {e}"}, status_code=500)
+
+    new_content = dict(content)
+    new_content["data"] = req.data
+    cur.close()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE interactive_activities SET content_json = %s WHERE activity_id = %s",
+        (Json(new_content), str(activity_id)),
+    )
+    conn.commit()
+    cur.close()
+    return {"status": "updated", "activity_id": str(activity_id), "access_url": row["access_url"]}
 
 
 # ---------------------------------------------------------------------------

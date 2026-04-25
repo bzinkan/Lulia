@@ -2,13 +2,9 @@
 import { useEffect, useState } from 'react';
 import { Play, Upload, Clock, Tag, Filter, ExternalLink, Loader2, Video, Film, Clapperboard } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { useClassContext } from '@/components/ClassContext';
 import VideoUploadModal from '@/components/VideoUploadModal';
 import StandardsPickerModal from '@/components/StandardsPickerModal';
-
-const TEACHER_ID = '00000000-0000-0000-0000-000000000001'; // TODO: replace with auth context
-
-// TODO: source from auth context. For now, toggle via URL flag ?admin=1 when testing Lulia-signature uploads.
-const IS_ADMIN = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('admin') === '1';
 
 const KIND_TABS = [
   { value: '',                 label: 'All',              icon: Video },
@@ -54,6 +50,13 @@ const LANE_BADGE = {
 
 
 export default function VideoLibraryPage() {
+  const { teacherId, activeClass } = useClassContext();
+  // Admin flag sourced from class metadata when available, with a dev URL-param
+  // escape hatch (?admin=1) preserved for local testing of Lulia-signature uploads.
+  const isAdmin =
+    !!activeClass?.is_admin ||
+    (typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('admin') === '1');
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [videoKind, setVideoKind] = useState(''); // '', 'short_clip', 'explainer_video'
@@ -69,7 +72,7 @@ export default function VideoLibraryPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        teacher_id: TEACHER_ID,
+        teacher_id: teacherId,
         limit: '48',
       });
       if (videoKind) params.set('video_kind', videoKind);
@@ -193,8 +196,8 @@ export default function VideoLibraryPage() {
 
       {showUpload && (
         <VideoUploadModal
-          teacherId={TEACHER_ID}
-          isAdmin={IS_ADMIN}
+          teacherId={teacherId}
+          isAdmin={isAdmin}
           onUploaded={() => { setShowUpload(false); load(); }}
           onClose={() => setShowUpload(false)} />
       )}

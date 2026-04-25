@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 import psycopg2
+from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import RealDictCursor
 
 from src.lms_agents.crews.analytics_crew import (
@@ -17,13 +18,9 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
 def get_db():
-    conn = psycopg2.connect(
-        host=os.environ.get("DB_HOST", "db"),
-        port=int(os.environ.get("DB_PORT", 5432)),
-        dbname=os.environ.get("DB_NAME", "lulia"),
-        user=os.environ.get("DB_USER", "lulia"),
-        password=os.environ.get("DB_PASSWORD", "devpassword"),
-    )
+    # Borrowed from the shared pool (tools/db.py). `conn.close()` below
+    # releases the connection back rather than tearing the socket down.
+    conn = _pool_get_connection()
     try:
         yield conn
     finally:

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle, Film, AlertTriangle } from 'lucide-react';
 import AccommodationPicker from './AccommodationPicker';
 import { apiFetch } from '@/lib/api';
+import { useClassContext } from '@/components/ClassContext';
 
 /**
  * Short Clip refiner for Planner work orders.
@@ -12,14 +13,22 @@ import { apiFetch } from '@/lib/api';
  * order; the actual Veo generation + credit charge happens during
  * approve_plan() on the backend so the teacher isn't double-charged.
  */
-export default function VideoRefiner({ workOrder, dayTitle, onConfirm }) {
+export default function VideoRefiner({ workOrder, dayTitle, onConfirm, classDefaultAccommodations = [] }) {
   const initialTopic = workOrder.config?.topic || workOrder.title || dayTitle || '';
   const initialSec = workOrder.config?.duration_sec || 30;
-  const teacherId = '00000000-0000-0000-0000-000000000001';
+  const { teacherId } = useClassContext();
 
   const [topic, setTopic] = useState(initialTopic);
   const [duration, setDuration] = useState(initialSec);
-  const [accommodations, setAccommodations] = useState(workOrder.accommodations || []);
+  const [accommodations, setAccommodations] = useState(
+    // A work order carries its own accommodations once the teacher
+    // confirms it. Before that, fall back to the class-level default
+    // (e.g. "ELL-Beginner on every lesson") so teachers don't have to
+    // tick the same boxes on every work order.
+    (workOrder.accommodations && workOrder.accommodations.length > 0)
+      ? workOrder.accommodations
+      : classDefaultAccommodations,
+  );
   const [cost, setCost] = useState(null);
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Loader2, CheckCircle, AlertTriangle, X, Upload } from 'lucide-react';
 import { apiFetch, apiUpload } from '@/lib/api';
+import { useClassContext } from '@/components/ClassContext';
 
 const UPLOAD_TYPES = [
   {
@@ -41,6 +42,7 @@ const STATUS_STYLES = {
 };
 
 export default function ContentLibrary() {
+  const { teacherId, activeClassId, activeClass } = useClassContext();
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(null);        // which type is uploading
@@ -124,14 +126,19 @@ export default function ContentLibrary() {
     formData.append('file', file);
 
     if (type.id === 'curriculum') {
-      formData.append('class_id', '00000000-0000-0000-0000-000000000010');
-      formData.append('subject', 'Math');
-      formData.append('grade_level', '4');
-      formData.append('teacher_id', '00000000-0000-0000-0000-000000000001');
+      if (!activeClassId) {
+        setError('Select a class before uploading a curriculum.');
+        setUploading(null);
+        return;
+      }
+      formData.append('class_id', activeClassId);
+      formData.append('subject', activeClass?.subject || '');
+      formData.append('grade_level', activeClass?.grade_level || '');
+      formData.append('teacher_id', teacherId);
     } else if (type.id === 'materials') {
-      formData.append('teacher_id', '00000000-0000-0000-0000-000000000001');
-      formData.append('subject', 'Math');
-      formData.append('grade_level', '4');
+      formData.append('teacher_id', teacherId);
+      formData.append('subject', activeClass?.subject || '');
+      formData.append('grade_level', activeClass?.grade_level || '');
     }
 
     try {

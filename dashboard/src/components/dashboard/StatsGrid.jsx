@@ -3,12 +3,60 @@
 import Image from 'next/image';
 import { useCounterAnimation } from '@/lib/useCounterAnimation';
 
-const stats = [
-  { label: 'Total Students', value: 127, change: '+8 this month', icon: 'star.png', accent: 'var(--coral)' },
-  { label: 'Assignments',    value: 48,  change: '+12 graded today', icon: 'document.png', accent: 'var(--sage)' },
-  { label: 'Average Mastery', value: 82, change: '+6% this week', icon: 'mastery.png', accent: 'var(--mustard)', suffix: '%' },
-  { label: 'Hours Saved',    value: 34,  change: 'This semester', icon: 'clock.png', accent: 'var(--teal)' },
-];
+/**
+ * Compose the 4 stat cards from the dashboard payload.
+ *
+ * Why we build the array inside the component (instead of static top-level):
+ * the numbers come from props, and we want the counter animation to animate
+ * from 0 → `value` only once per render. A `useCounterAnimation` keyed on a
+ * live prop would also let us gracefully swap in real numbers as the
+ * network request completes.
+ *
+ * `change` is intentionally short and decorative — if the backend doesn't
+ * have a delta we hide the sub-line rather than showing a misleading one.
+ */
+function buildStats(data) {
+  const stats = data?.stats || {};
+  const mastery = data?.mastery || {};
+  return [
+    {
+      label: 'Total Students',
+      value: stats.total_students ?? 0,
+      change: '',  // no reliable "new this month" signal yet
+      icon: 'star.png',
+      accent: 'var(--coral)',
+    },
+    {
+      label: 'Assignments',
+      value: stats.assignments_week ?? 0,
+      change: 'This week',
+      icon: 'document.png',
+      accent: 'var(--sage)',
+    },
+    {
+      label: 'Average Mastery',
+      value: Math.round(stats.class_average_pct ?? 0),
+      change: formatDelta(mastery.week_delta_pct),
+      icon: 'mastery.png',
+      accent: 'var(--mustard)',
+      suffix: '%',
+    },
+    {
+      label: 'Credits Left',
+      value: stats.credits_remaining ?? 0,
+      change: '',
+      icon: 'clock.png',
+      accent: 'var(--teal)',
+    },
+  ];
+}
+
+function formatDelta(delta) {
+  if (delta === undefined || delta === null) return '';
+  if (delta === 0) return 'Flat vs last week';
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta}% this week`;
+}
 
 function StatCard({ stat }) {
   const { ref, displayValue } = useCounterAnimation(stat.value, 1400, stat.suffix || '');
@@ -25,7 +73,6 @@ function StatCard({ stat }) {
         overflow: 'hidden',
       }}
     >
-      {/* Accent bar on hover (via CSS) */}
       <div
         className="absolute top-0 left-0 right-0 h-[3px] opacity-0 transition-opacity"
         style={{ background: stat.accent }}
@@ -45,18 +92,26 @@ function StatCard({ stat }) {
       <div className="font-serif text-[28px] leading-none mb-1" style={{ color: 'var(--text-dark)' }}>
         {displayValue}
       </div>
-      <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-light)' }}>
-        <span
-          className="w-[6px] h-[6px] rounded-full"
-          style={{ background: stat.accent }}
-        />
-        {stat.change}
+      <div
+        className="flex items-center gap-1.5 text-[11px] min-h-[16px]"
+        style={{ color: 'var(--text-light)' }}
+      >
+        {stat.change && (
+          <>
+            <span
+              className="w-[6px] h-[6px] rounded-full"
+              style={{ background: stat.accent }}
+            />
+            {stat.change}
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-export default function StatsGrid() {
+export default function StatsGrid({ data }) {
+  const stats = buildStats(data);
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
       {stats.map(stat => (

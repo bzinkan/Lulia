@@ -2,9 +2,11 @@
 import os
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 import psycopg2
+from src.lms_agents.tools.db import get_connection as _pool_get_connection
+from src.lms_agents.tools.rate_limit import limiter
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
@@ -14,13 +16,9 @@ router = APIRouter(prefix="/assignments", tags=["Assignments"])
 
 
 def get_db():
-    conn = psycopg2.connect(
-        host=os.environ.get("DB_HOST", "db"),
-        port=int(os.environ.get("DB_PORT", 5432)),
-        dbname=os.environ.get("DB_NAME", "lulia"),
-        user=os.environ.get("DB_USER", "lulia"),
-        password=os.environ.get("DB_PASSWORD", "devpassword"),
-    )
+    # Borrowed from the shared pool (tools/db.py). `conn.close()` below
+    # releases the connection back rather than tearing the socket down.
+    conn = _pool_get_connection()
     try:
         yield conn
     finally:
@@ -44,7 +42,12 @@ class WorkOrder(BaseModel):
 
 
 @router.post("/generate")
-async def generate_assignment(work_order: WorkOrder):
+# Each full generate call fans out 5 agent turns across Claude/Gemini/Bedrock,
+# so a single abusive client could rack up serious LLM cost. Cap per-IP. A
+# real teacher hitting 30/min is already implausible; this is an anti-abuse
+# gate, not a product constraint.
+@limiter.limit("30/minute")
+async def generate_assignment(request: Request, work_order: WorkOrder):
     """
     Generate an assignment using the 5-agent crew chain.
 

@@ -8,25 +8,22 @@ import logging
 from uuid import UUID
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 import psycopg2
 import psycopg2.extras
 import os
+
+from src.lms_agents.tools.db import get_connection as _pool_get_connection
+from src.lms_agents.tools.rate_limit import limiter
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["Standards"])
 
 
 def get_db():
-    """Yield a database connection."""
-    conn = psycopg2.connect(
-        host=os.environ.get("DB_HOST", "db"),
-        port=int(os.environ.get("DB_PORT", 5432)),
-        dbname=os.environ.get("DB_NAME", "lulia"),
-        user=os.environ.get("DB_USER", "lulia"),
-        password=os.environ.get("DB_PASSWORD", "devpassword"),
-    )
+    """Yield a pooled database connection (see tools/db.py)."""
+    conn = _pool_get_connection()
     try:
         yield conn
     finally:
@@ -137,7 +134,12 @@ async def query_standards(
 
 
 @router.get("/standards/match")
+# Debounced on the client but called as the teacher types — still cheap in
+# the hot path (stage 1) but stage 2 calls Haiku. 120/min absorbs normal
+# typing bursts and keeps a loop from running away.
+@limiter.limit("120/minute")
 async def match_standards(
+    request: Request,
     topic: str = Query(..., min_length=2, description="Free-text topic to match"),
     subject: Optional[str] = Query(None),
     grade: Optional[str] = Query(None),
@@ -307,7 +309,10 @@ class SuggestStandardsRequest(BaseModel):
 
 
 @router.post("/standards/suggest")
-async def suggest_standards(req: SuggestStandardsRequest, conn=Depends(get_db)):
+# Always hits Haiku — no local fallback — so cap more aggressively than
+# /match. 30/min is a comfortable headroom for interactive use.
+@limiter.limit("30/minute")
+async def suggest_standards(request: Request, req: SuggestStandardsRequest, conn=Depends(get_db)):
     """
     AI-powered standards suggestion. Accepts either:
     - A text description of what the teacher is teaching

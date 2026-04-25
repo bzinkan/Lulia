@@ -209,7 +209,12 @@ export default function InpaintEditor({ imageUrl, teacherId, onComplete, onClose
       fd.append('image', imageBlob, 'source.png');
       fd.append('mask', maskBlob, 'mask.png');
       fd.append('prompt', prompt.trim());
-      fd.append('teacher_id', teacherId || '00000000-0000-0000-0000-000000000001');
+      if (!teacherId) {
+        setSubmitError('Missing teacher context — cannot save to library.');
+        setSubmitting(false);
+        return;
+      }
+      fd.append('teacher_id', teacherId);
       fd.append('save_to_library', 'true');
 
       const data = await apiUpload('/api/v1/images/inpaint', fd);

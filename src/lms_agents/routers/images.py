@@ -8,6 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import JSONResponse
 import psycopg2
+from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
@@ -21,13 +22,9 @@ def _public_endpoint():
 
 
 def get_db():
-    conn = psycopg2.connect(
-        host=os.environ.get("DB_HOST", "db"),
-        port=int(os.environ.get("DB_PORT", 5432)),
-        dbname=os.environ.get("DB_NAME", "lulia"),
-        user=os.environ.get("DB_USER", "lulia"),
-        password=os.environ.get("DB_PASSWORD", "devpassword"),
-    )
+    # Borrowed from the shared pool (tools/db.py). `conn.close()` below
+    # releases the connection back rather than tearing the socket down.
+    conn = _pool_get_connection()
     try:
         yield conn
     finally:
@@ -87,6 +84,20 @@ async def upload_image(
         (image_id, teacher_id, file.filename, storage_url, thumbnail_url, len(content), w, h),
     )
     conn.commit(); cur.close()
+
+    # Fire-and-forget vision caption so this image is searchable at
+    # generation time. Non-fatal: the row is already persisted — if Gemini
+    # is slow or unavailable, description stays NULL and a backfill job
+    # can fill it in later.
+    import threading
+    def _caption():
+        try:
+            from src.lms_agents.tools.image_captioner import caption_teacher_image
+            caption_teacher_image(image_id)
+        except Exception as e:
+            log.warning(f"[Images] Caption thread failed for {image_id}: {e}")
+    threading.Thread(target=_caption, daemon=True).start()
+
     return {"image_id": image_id, "storage_url": storage_url, "thumbnail_url": thumbnail_url}
 
 

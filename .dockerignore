@@ -1,0 +1,68 @@
+# ---------------------------------------------------------------------------
+# .dockerignore — what does NOT go into the `docker build` context.
+#
+# Without this file, the 17 GB of OER content in data/content/ gets read
+# from disk by the Docker daemon on every build (it's ignored in the
+# Dockerfile via a selective COPY, but Docker still slurps the context).
+# This file cuts the context from GBs to MBs.
+# ---------------------------------------------------------------------------
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Local data — content is 17 GB of OER material, fonts/images only used
+# locally. Anything the API needs at runtime is in the DB or S3.
+data/content
+data/video_library
+data/state_standards
+
+# Host-only reference material (bind-mounted, never in the image).
+refs
+
+# Local dev envs + virtualenvs
+.env
+.env.*
+!.env.example
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# IDE / editor
+.idea
+.vscode
+*.swp
+
+# Test + build artifacts
+.pytest_cache
+.coverage
+htmlcov
+*.egg-info
+build
+dist
+
+# Dashboard lives in a separate image; the API container doesn't need it
+dashboard
+dashboard/node_modules
+dashboard/.next
+dashboard/out
+
+# Infrastructure + docs — not needed in the runtime image
+docs
+*.md
+!README.md
+CLAUDE.md
+CHANGELOG.md
+
+# Docker / compose files — avoid shipping the build definition into itself
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Misc
+.DS_Store
+Thumbs.db

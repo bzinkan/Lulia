@@ -53,7 +53,7 @@ function formatDate(d) {
 }
 
 export default function PlannerPage() {
-  const { activeClassId, classes } = useClassContext();
+  const { activeClassId, classes, teacherId } = useClassContext();
   const activeClass = classes.find(c => c.class_id === activeClassId);
 
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
@@ -117,8 +117,8 @@ export default function PlannerPage() {
       const data = await apiFetch('/api/v1/plans/suggest', {
         method: 'POST',
         body: JSON.stringify({
-          class_id: activeClassId || '00000000-0000-0000-0000-000000000010',
-          teacher_id: '00000000-0000-0000-0000-000000000001',
+          class_id: activeClassId,
+          teacher_id: teacherId,
           duration_type: duration === 'custom' ? 'week' : duration,
           selected_days: duration === 'day' ? [selectedDays[0] || 'mon'] : selectedDays,
           week_start_date: formatDate(weekStart),
@@ -223,7 +223,7 @@ export default function PlannerPage() {
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('teacher_id', '00000000-0000-0000-0000-000000000001');
+    formData.append('teacher_id', teacherId);
     try {
       const result = await apiUpload('/api/v1/upload/school-calendar', formData);
       alert(`School calendar uploaded: ${result.stored} non-school days extracted.`);
@@ -704,7 +704,7 @@ export default function PlannerPage() {
         <StandardsPickerModal
           subject={activeClass?.subject || ''}
           gradeLevel={activeClass?.grade_level || ''}
-          stateCode="OH"  // TODO: get from teacher profile
+          stateCode={activeClass?.state_code || ''}
           initialSelected={selectedStandards}
           onConfirm={(codes) => {
             setSelectedStandards(codes);
@@ -720,6 +720,7 @@ export default function PlannerPage() {
         <RefineDayModal
           day={plan.daily_plans[editingDay]}
           subject={activeClass?.subject || ''}
+          classDefaultAccommodations={activeClass?.default_accommodations || []}
           onSave={(updated) => handleSaveEdit(editingDay, updated)}
           onClose={() => setEditingDay(null)}
         />

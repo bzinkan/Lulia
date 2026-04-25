@@ -8,12 +8,20 @@ function blankQ() {
   return { stem: '', type: 'mcq', choices: ['', '', '', ''], points: 1 };
 }
 
-export default function FormsRefiner({ workOrder, onConfirm }) {
+export default function FormsRefiner({ workOrder, onConfirm, classDefaultAccommodations = [] }) {
   const [questions, setQuestions] = useState(
     workOrder.config?.questions?.length ? workOrder.config.questions : Array.from({ length: 5 }, blankQ)
   );
   const [shuffle, setShuffle] = useState(workOrder.config?.shuffle ?? true);
-  const [accommodations, setAccommodations] = useState(workOrder.accommodations || []);
+  const [accommodations, setAccommodations] = useState(
+    // A work order carries its own accommodations once the teacher
+    // confirms it. Before that, fall back to the class-level default
+    // (e.g. "ELL-Beginner on every lesson") so teachers don't have to
+    // tick the same boxes on every work order.
+    (workOrder.accommodations && workOrder.accommodations.length > 0)
+      ? workOrder.accommodations
+      : classDefaultAccommodations,
+  );
 
   function update(i, patch) {
     const next = [...questions]; next[i] = { ...next[i], ...patch }; setQuestions(next);

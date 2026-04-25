@@ -3,6 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Override the Dockerfile's non-root USER for local dev: the source tree
+    # is bind-mounted from the host, and --reload needs write access to the
+    # __pycache__ directories it creates. Prod (ECS task def) does NOT set
+    # `user` and runs as the image's non-root `appuser` (UID 10001).
+    user: "0:0"
     ports:
       - "8000:8000"
     env_file: .env.development

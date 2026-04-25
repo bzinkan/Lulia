@@ -2,23 +2,29 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, Users, BookOpen, AlertTriangle, CheckCircle, TrendingUp, FileText } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
-
-const CLASS_ID = '00000000-0000-0000-0000-000000000010';
+import { useClassContext } from '@/components/ClassContext';
 
 export default function AnalyticsPage() {
+  const { activeClassId } = useClassContext();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reportHtml, setReportHtml] = useState(null);
 
   useEffect(() => {
-    apiFetch(`/api/v1/analytics/class/${CLASS_ID}`)
+    if (!activeClassId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    apiFetch(`/api/v1/analytics/class/${activeClassId}`)
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeClassId]);
 
   async function generateReport() {
-    const res = await apiFetch(`/api/v1/analytics/reports/generate?class_id=${CLASS_ID}&report_type=class`, { method: 'POST' });
+    if (!activeClassId) return;
+    const res = await apiFetch(`/api/v1/analytics/reports/generate?class_id=${activeClassId}&report_type=class`, { method: 'POST' });
     setReportHtml(res.report_html);
   }
 

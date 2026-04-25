@@ -138,7 +138,11 @@ def grade_scan_submission(
     responses = ocr_result.get("responses", {})
     confidence = ocr_result.get("confidence", {})
     flagged = ocr_result.get("flagged", [])
-    detected_name = ocr_result.get("student_name") or student_name
+    # PII policy: OCR never extracts names (CLAUDE.md #10). student_name is always the
+    # teacher-supplied value from the roster picker. Legacy ocr_result.get("student_name")
+    # preserved defensively in case older callers still return it; it will be None in all
+    # current paths.
+    detected_name = student_name or ocr_result.get("student_name")
 
     # Grade each question
     grades_list = _grade_responses(responses, questions, ak_items, confidence)

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, ChevronDown } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { useClassContext } from '@/components/ClassContext';
 
 const TEMPLATES = [
   { id: 'worksheet', label: 'Worksheet', group: 'Standard' },
@@ -41,6 +42,7 @@ const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '1
 
 export default function NewAssignment() {
   const router = useRouter();
+  const { teacherId, activeClassId } = useClassContext();
   const [form, setForm] = useState({
     subject: 'Mathematics',
     grade_level: '4',
@@ -91,8 +93,8 @@ export default function NewAssignment() {
         body: JSON.stringify({
           ...form,
           work_order_id: `WO-${Date.now()}`,
-          class_id: '00000000-0000-0000-0000-000000000010',
-          teacher_id: '00000000-0000-0000-0000-000000000001',
+          class_id: activeClassId,
+          teacher_id: teacherId,
         }),
       });
       setResult(data);

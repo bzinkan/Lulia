@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 import psycopg2
+from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
@@ -26,13 +27,9 @@ _SUGGEST_CACHE_TTL = 60  # seconds
 
 
 def get_db():
-    conn = psycopg2.connect(
-        host=os.environ.get("DB_HOST", "db"),
-        port=int(os.environ.get("DB_PORT", 5432)),
-        dbname=os.environ.get("DB_NAME", "lulia"),
-        user=os.environ.get("DB_USER", "lulia"),
-        password=os.environ.get("DB_PASSWORD", "devpassword"),
-    )
+    # Borrowed from the shared pool (tools/db.py). `conn.close()` below
+    # releases the connection back rather than tearing the socket down.
+    conn = _pool_get_connection()
     try:
         yield conn
     finally:
@@ -89,6 +86,14 @@ class GenerateFromPromptRequest(BaseModel):
     teacher_id: str = "00000000-0000-0000-0000-000000000001"
     class_id: str = "00000000-0000-0000-0000-000000000010"
     auto_confirm: bool = False
+    # Optional explicit inputs that bypass Haiku's prompt-parse. When the UI
+    # already knows these (tile pick, selected standards, topic text), pass
+    # them directly so the user's intent can't be misinterpreted.
+    template_id: str | None = None
+    topic: str | None = None
+    standards: list[str] | None = None
+    subject: str | None = None
+    grade: str | None = None
 
 
 @router.post("/parse-intent")
@@ -187,16 +192,31 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
         "flash_cards_interactive": "vocab_cards",  # term/definition pairs
         "click_to_reveal":      "vocab_cards",     # same
     }
-    target_interactive = params.get("output_template_id", "multiple_choice_quiz") if req.output_type == "interactive" else None
+    # Explicit UI inputs win over Haiku's prompt parse. The dashboard knows
+    # which tile the teacher clicked and which standards are attached — there's
+    # no reason to round-trip those through prose + LLM parsing.
+    target_interactive = (
+        (req.template_id or "").strip()
+        or params.get("output_template_id", "multiple_choice_quiz")
+    ) if req.output_type == "interactive" else None
     base_template = (
         INTERACTIVE_TO_WORKSHEET.get(target_interactive, "worksheet")
         if req.output_type == "interactive" else "worksheet"
     )
 
-    # Pull the teacher's topic back out of the Haiku parse — without this the
-    # Content Agent was generating content shaped purely by RAG exemplars
-    # and ignoring the teacher's actual subject matter.
-    teacher_topic = (params.get("topic") or "").strip() or req.prompt.strip()
+    explicit_topic = (req.topic or "").strip()
+    parsed_topic = (params.get("topic") or "").strip()
+    # Standards also act as a topic fallback — "5.ESS.1" alone is enough to
+    # direct Gemini at Earth/Space Science content even without a topic text.
+    explicit_standards = req.standards or params.get("standards") or []
+    standards_hint = ", ".join(explicit_standards) if explicit_standards else ""
+
+    teacher_topic = (
+        explicit_topic
+        or parsed_topic
+        or standards_hint
+        or req.prompt.strip()
+    )
 
     work_order = {
         "work_order_id": f"PROMPT-{os.urandom(4).hex()}",
@@ -219,9 +239,35 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
         "has_kb_coverage": True,
     }
 
-    # Skip Format Agent (worksheet HTML rendering) for output types that build
-    # their own HTML — interactive activities and games only consume the
-    # question JSON. Saves 15-30s + Gemini tokens per generation.
+    # Interactive activities: Gemini artifact mode. Gemini 2.5 Pro emits a
+    # complete self-contained HTML activity — model picks the best UI for
+    # the topic, and can embed teacher-uploaded images from the library
+    # when semantically relevant. No fixed templates, no Sonnet crew, no
+    # RAG exemplar drift.
+    if req.output_type == "interactive":
+        from src.lms_agents.tools.gemini_interactive_generator import generate_interactive_artifact
+        try:
+            result = generate_interactive_artifact(
+                topic=teacher_topic,
+                template_id=target_interactive or "multiple_choice_quiz",
+                grade=(req.grade or str(params.get("grade", "4"))),
+                subject=(req.subject or params.get("subject", "General")),
+                teacher_id=req.teacher_id,
+                class_id=req.class_id,
+                question_count=params.get("question_count", 10),
+                standards=explicit_standards,
+            )
+        except Exception as e:
+            log.exception("Gemini artifact generation failed")
+            return JSONResponse({"error": f"Generation failed: {str(e)}"}, status_code=500)
+        return {
+            "assignment_id": result.get("assignment_id"),
+            "interactive": {k: v for k, v in result.items() if k != "assignment_id"},
+            "parsed_intent": params,
+        }
+
+    # Non-interactive outputs (game, video, worksheet) keep the full Sonnet
+    # crew — they benefit from the brief + standards + RAG grounding.
     skip_format = req.output_type in ("interactive", "game")
     try:
         assignment_result = run_assignment_crew(work_order, skip_format=skip_format)
@@ -232,16 +278,10 @@ async def generate_from_prompt(req: GenerateFromPromptRequest):
     if not assignment_id:
         return JSONResponse({"error": "Assignment generation failed"}, status_code=500)
 
-    # Step 3: Create the output (interactive, game, or video)
+    # Step 3: Create the output (game, or video)
     output_result = {"assignment_id": assignment_id, "assignment": assignment_result}
 
-    if req.output_type == "interactive":
-        from src.lms_agents.tools.interactive_generator import generate_interactive_activity
-        template_id = params.get("output_template_id", "multiple_choice_quiz")
-        result = generate_interactive_activity(assignment_id, req.teacher_id, template_id)
-        output_result["interactive"] = result
-
-    elif req.output_type == "game":
+    if req.output_type == "game":
         from src.lms_agents.tools.game_session_manager import create_game_session
         shell_id = params.get("output_template_id", "classic_quiz")
         result = create_game_session(req.teacher_id, assignment_id, shell_id)
@@ -310,13 +350,7 @@ async def topic_suggestions(req: TopicSuggestionsRequest):
     class_intel_summary = None
     if req.class_id:
         try:
-            conn = psycopg2.connect(
-                host=os.environ.get("DB_HOST", "db"),
-                port=int(os.environ.get("DB_PORT", 5432)),
-                dbname=os.environ.get("DB_NAME", "lulia"),
-                user=os.environ.get("DB_USER", "lulia"),
-                password=os.environ.get("DB_PASSWORD", "devpassword"),
-            )
+            conn = _pool_get_connection()
             cur = conn.cursor(cursor_factory=RealDictCursor)
             cur.execute(
                 """SELECT c.grade_level, c.subject, t.state_code

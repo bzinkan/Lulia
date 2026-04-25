@@ -62,6 +62,60 @@ def _strip_bracketed_visual_refs(text: str) -> str:
     ).replace("  ", " ").strip()
 
 
+def _synthesize_hotspot_diagram(content: dict) -> dict:
+    """
+    Fallback for hotspot_labeling activities where the Content Agent didn't
+    emit a top-level `diagram_visual` (or it was stripped during assignment
+    persistence). Derives one from the questions: `parts` = deduped answers,
+    `subject` = title (stripped of the ':'-suffix, so "Plant Cell Organelles:
+    Structure and Function" → "plant cell organelles"). Runs only when the
+    caller sets content['_template_id'] == 'hotspot_labeling'.
+    """
+    if content.get("diagram_visual"):
+        return content
+    if content.get("_template_id") != "hotspot_labeling":
+        return content
+    questions = content.get("questions") or []
+    answers = []
+    seen = set()
+    for q in questions:
+        if not isinstance(q, dict):
+            continue
+        ans = str(q.get("answer", "")).strip()
+        # Reject answers that don't look like diagram part labels —
+        # real labels are short nouns (e.g. "nucleus", "cell wall"), not
+        # percentages, measurements, or prose. Require: ≤25 chars, ≤3
+        # words, and contains at least one alphabetic character.
+        if not ans or len(ans) > 25 or len(ans.split()) > 3:
+            continue
+        if not any(ch.isalpha() for ch in ans):
+            continue
+        key = ans.lower()
+        if key not in seen:
+            seen.add(key)
+            answers.append(ans)
+    # Need at least 3 distinct label-shaped answers — otherwise the
+    # Content Agent likely produced reading-comprehension / numeric
+    # answers and this isn't really a label-the-parts activity.
+    if len(answers) < 3:
+        log.info(
+            f"[Interactive] Skipping diagram synthesis — only {len(answers)} "
+            f"label-shaped answers (need 3+)"
+        )
+        return content
+    title = str(content.get("title", "") or "").strip()
+    subject = title.split(":")[0].strip() if title else ""
+    subject = subject or "labeled diagram"
+    out = dict(content)
+    out["diagram_visual"] = {
+        "type": "hotspot_diagram",
+        "subject": subject,
+        "parts": answers,
+    }
+    log.info(f"[Interactive] Synthesized diagram_visual (subject='{subject}', parts={answers})")
+    return out
+
+
 def _ensure_hotspot_diagram(content: dict) -> dict:
     """
     If the content carries a top-level `diagram_visual` with type=hotspot_diagram
@@ -117,6 +171,11 @@ def _clean_content_for_activity(content: dict) -> dict:
     """
     from src.lms_agents.tools.visual_renderer import render_visual
 
+    # If the template is hotspot_labeling and the Content Agent didn't emit
+    # diagram_visual (or it got dropped at persistence), synthesize one from
+    # the question answers before image generation runs.
+    content = _synthesize_hotspot_diagram(content)
+
     # Generate hotspot diagram + coords if needed (once per unique subject+parts)
     content = _ensure_hotspot_diagram(content)
 
@@ -150,7 +209,12 @@ def _build_activity_html(template_id: str, content: dict, activity_id: str, api_
     """
     from src.lms_agents.tools.visual_renderer import get_visual_css
 
+    # Tag the content with its template so the synthesis fallback knows what
+    # shape to fill in. The tag is stripped below before JSON-serializing.
+    content = dict(content)
+    content["_template_id"] = template_id
     content = _clean_content_for_activity(content)
+    content.pop("_template_id", None)
     title = content.get("title", "Activity")
     questions = content.get("questions", [])
     instructions = content.get("instructions", "")
@@ -201,6 +265,31 @@ h2 {{ font-family: 'DM Serif Display', serif; color: #78350F; font-size: 16px; m
 .score-label {{ font-size: 14px; color: #78716C; }}
 .badge {{ display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #FFF7ED; color: #9A3412; border: 1px solid #FDBA74; margin: 2px; }}
 .logo {{ text-align: center; font-size: 11px; color: #A8A29E; margin-top: 16px; }}
+/* Hotspot SVG + sidebar layout */
+.hs-layout {{ display: flex; gap: 16px; align-items: stretch; }}
+.hs-svg-wrap {{ flex: 1 1 auto; min-width: 0; background: #FEFBF5; border-radius: 10px; padding: 8px; border: 1px solid #F5DEC3; }}
+.hs-sidebar {{ flex: 0 0 220px; display: flex; flex-direction: column; gap: 10px; }}
+.hs-info-panel {{ background: white; border: 1px solid #E7E5E4; border-radius: 10px; padding: 12px; min-height: 80px; }}
+.hs-info-dot {{ display: inline-block; width: 12px; height: 12px; border-radius: 999px; margin-right: 8px; vertical-align: middle; }}
+.hs-info-label {{ display: inline-block; font-weight: 700; font-size: 14px; color: #1C1917; vertical-align: middle; }}
+.hs-info-desc {{ margin-top: 8px; font-size: 12px; color: #57534E; line-height: 1.4; }}
+.hs-info-empty {{ font-size: 12px; color: #A8A29E; }}
+.hs-list-header {{ display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: #78716C; text-transform: uppercase; letter-spacing: 0.04em; padding: 0 4px; }}
+.hs-hint-btn {{ background: none; border: 1px solid #E7E5E4; border-radius: 999px; padding: 2px 10px; font-size: 11px; color: #78350F; cursor: pointer; font-family: 'DM Sans'; }}
+.hs-hint-btn:hover {{ background: #FFF7ED; }}
+.hs-part-list {{ display: flex; flex-direction: column; gap: 4px; background: white; border-radius: 10px; padding: 6px; border: 1px solid #E7E5E4; max-height: 260px; overflow-y: auto; }}
+.hs-part-item {{ display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: background 0.15s; }}
+.hs-part-item:hover {{ background: #FFF7ED; }}
+.hs-part-item.done {{ opacity: 0.6; background: #DCFCE7; }}
+.hs-part-dot {{ width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto; }}
+.hs-part-label {{ flex: 1 1 auto; color: #1C1917; }}
+.hs-part-check {{ color: #16A34A; font-weight: 700; }}
+.hs-flash {{ position: relative; margin: 12px auto 0; padding: 8px 18px; border-radius: 999px; color: white; font-size: 14px; font-weight: 700; text-align: center; max-width: 200px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }}
+@media (max-width: 640px) {{
+  .hs-layout {{ flex-direction: column; }}
+  .hs-sidebar {{ flex: 1 1 auto; }}
+  .hs-part-list {{ max-height: 180px; }}
+}}
 .drag-item {{ padding: 10px 16px; background: white; border: 2px solid #E7E5E4; border-radius: 10px; margin: 4px; cursor: grab; font-size: 13px; display: inline-block; }}
 .drag-item:active {{ cursor: grabbing; }}
 .drop-zone {{ min-height: 60px; border: 2px dashed #FDBA74; border-radius: 12px; padding: 8px; margin-bottom: 8px; }}
@@ -330,7 +419,7 @@ function App() {{
   if (template === 'number_line') {{
     return <PlayNumberLine data={{data}} name={{name}} onComplete={{finishWithScore}} />;
   }}
-  if (template === 'hotspot_labeling' && data.diagram_visual?.image_url) {{
+  if (template === 'hotspot_labeling' && data.diagram_svg?.parts?.length) {{
     return <PlayHotspotLabeling data={{data}} name={{name}} onComplete={{finishWithScore}} />;
   }}
 
@@ -618,75 +707,68 @@ function PlayNumberLine({{ data, name, onComplete }}) {{
   );
 }}
 
-// ── Hotspot Labeling renderer — click on image to identify parts ──────
-// Content shape:
-//   {{ diagram_visual: {{type: "hotspot_diagram", image_url, image_width,
-//                       image_height, hotspots: [{{label, x, y, w, h}}]}},
-//      questions: [{{question_text: "Click the nucleus", answer: "nucleus"}}] }}
-// Student clicks on the image. We check whether the click falls inside
-// any hotspot's bounding box. Match that hotspot's label against the
-// current question's answer.
+// ── Hotspot Labeling renderer — inline SVG with clickable labeled groups ─
+// Content shape (new SVG-based):
+//   {{ diagram_svg: {{
+//        viewBox: "0 0 800 600",
+//        background: "<svg markup for decorative non-click shapes>",
+//        parts: [{{id, label, description, color, shape}}],
+//     }},
+//     questions: [{{question_text: "Click the control center", answer_id: "nucleus"}}] }}
+// Each part's `shape` is a single SVG element (ellipse/circle/rect/path).
+// We wrap it in a <g> with onClick — the group catches bubbled clicks from
+// the inner shape, so hit regions are pixel-perfect by definition (no vision
+// annotation required).
 function PlayHotspotLabeling({{ data, name, onComplete }}) {{
-  const dv = data.diagram_visual || {{}};
-  const hotspots = dv.hotspots || [];
-  const W = dv.image_width || 1024;
-  const H = dv.image_height || 1024;
+  const dv = data.diagram_svg || {{}};
+  const parts = dv.parts || [];
+  const viewBox = dv.viewBox || '0 0 800 600';
+  const background = dv.background || '';
   const questions = data.questions || [];
+  const partById = React.useMemo(() => {{
+    const m = {{}};
+    for (const p of parts) m[p.id] = p;
+    return m;
+  }}, [parts]);
 
   const [current, setCurrent] = useState(0);
-  const [results, setResults] = useState({{}}); // {{qNum: 'correct' | 'wrong'}}
-  const [feedback, setFeedback] = useState(null); // {{kind, hotspotLabel}}
-  const imgRef = React.useRef(null);
-
-  function clickedLabelAt(clientX, clientY) {{
-    if (!imgRef.current) return null;
-    const rect = imgRef.current.getBoundingClientRect();
-    // Normalize click to image pixel space
-    const px = ((clientX - rect.left) / rect.width) * W;
-    const py = ((clientY - rect.top) / rect.height) * H;
-    // Find nearest hotspot whose bounding box contains the click (or very close)
-    for (const h of hotspots) {{
-      const x0 = h.x - h.w / 2;
-      const y0 = h.y - h.h / 2;
-      if (px >= x0 && px <= x0 + h.w && py >= y0 && py <= y0 + h.h) {{
-        return h.label;
-      }}
-    }}
-    return null;
-  }}
-
-  function handleImageClick(e) {{
-    const q = questions[current];
-    if (!q || results[q.question_number]) return;
-    const label = clickedLabelAt(e.clientX, e.clientY);
-    const target = (q.answer || '').toLowerCase().trim();
-    if (label && label.toLowerCase().trim() === target) {{
-      setResults(r => ({{ ...r, [q.question_number]: 'correct' }}));
-      setFeedback({{ kind: 'correct', hotspotLabel: label }});
-      setTimeout(() => {{
-        setFeedback(null);
-        if (current < questions.length - 1) setCurrent(c => c + 1);
-        else {{
-          const correct = Object.values({{ ...results, [q.question_number]: 'correct' }})
-            .filter(v => v === 'correct').length;
-          onComplete({{
-            correct, total: questions.length,
-            percentage: Math.round((correct / Math.max(questions.length, 1)) * 100),
-            responses: {{ ...results, [q.question_number]: 'correct' }},
-          }});
-        }}
-      }}, 700);
-    }} else {{
-      setFeedback({{ kind: 'wrong', hotspotLabel: label || '(no part)' }});
-      setTimeout(() => setFeedback(null), 900);
-    }}
-  }}
+  const [results, setResults] = useState({{}}); // {{qNum: 'correct'}}
+  const [flash, setFlash] = useState(null); // {{kind, partId}}
+  const [hoverId, setHoverId] = useState(null);
+  const [showHints, setShowHints] = useState(false); // toggle sidebar labels
 
   const q = questions[current];
-  const progress = ((current + (results[q?.question_number] === 'correct' ? 1 : 0)) / Math.max(questions.length, 1)) * 100;
+  const answered = q && results[q.question_number];
+
+  function handlePartClick(partId) {{
+    if (!q || answered) return;
+    const correct = partId === q.answer_id;
+    setFlash({{ kind: correct ? 'correct' : 'wrong', partId }});
+    if (correct) {{
+      setResults(r => ({{ ...r, [q.question_number]: 'correct' }}));
+      setTimeout(() => {{
+        setFlash(null);
+        if (current < questions.length - 1) setCurrent(c => c + 1);
+        else {{
+          const done = {{ ...results, [q.question_number]: 'correct' }};
+          const correctCount = Object.values(done).filter(v => v === 'correct').length;
+          onComplete({{
+            correct: correctCount, total: questions.length,
+            percentage: Math.round((correctCount / Math.max(questions.length, 1)) * 100),
+            responses: done,
+          }});
+        }}
+      }}, 800);
+    }} else {{
+      setTimeout(() => setFlash(null), 700);
+    }}
+  }}
+
+  const progress = ((current + (answered ? 1 : 0)) / Math.max(questions.length, 1)) * 100;
+  const selectedPart = flash ? partById[flash.partId] : (hoverId ? partById[hoverId] : null);
 
   return (
-    <div className="app">
+    <div className="app" style={{{{maxWidth: 960}}}}>
       <div className="progress"><div className="progress-bar" style={{{{width: progress + '%'}}}} /></div>
       <div style={{{{display: 'flex', justifyContent: 'space-between', marginBottom: 8}}}}>
         <span style={{{{fontSize: 12, color: '#A8A29E'}}}}>Question {{current + 1}} of {{questions.length}}</span>
@@ -694,26 +776,80 @@ function PlayHotspotLabeling({{ data, name, onComplete }}) {{
       </div>
       <div className="question-card">
         <h2>{{q?.question_text || 'Click the labeled part'}}</h2>
-        <p style={{{{fontSize: 13, color: '#78716C', marginBottom: 10}}}}>
-          Tap the part on the diagram below.
-        </p>
-        <div style={{{{position: 'relative', display: 'block'}}}}>
-          <img ref={{imgRef}} src={{dv.image_url}} alt="diagram"
-               onClick={{handleImageClick}}
-               style={{{{width: '100%', display: 'block', borderRadius: 8, cursor: 'crosshair', userSelect: 'none'}}}} />
-          {{/* Flash an indicator on correct/wrong */}}
-          {{feedback && (
-            <div style={{{{
-              position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
-              padding: '6px 14px', borderRadius: 999,
-              background: feedback.kind === 'correct' ? '#22C55E' : '#EF4444',
-              color: 'white', fontSize: 13, fontWeight: 700,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            }}}}>
-              {{feedback.kind === 'correct' ? '✓ Correct!' : 'Try again'}}
+
+        <div className="hs-layout">
+          {{/* SVG diagram — left side */}}
+          <div className="hs-svg-wrap">
+            <svg viewBox={{viewBox}} width="100%" style={{{{display: 'block', userSelect: 'none'}}}}>
+              {{background && (
+                <g dangerouslySetInnerHTML={{{{ __html: background }}}} />
+              )}}
+              {{parts.map(p => {{
+                const isFlashCorrect = flash && flash.kind === 'correct' && flash.partId === p.id;
+                const isFlashWrong = flash && flash.kind === 'wrong' && flash.partId === p.id;
+                const isHover = hoverId === p.id && !answered;
+                const fill = isFlashCorrect ? '#22C55E' : (isFlashWrong ? '#EF4444' : p.color);
+                const opacity = answered && results[q?.question_number] === 'correct' && q?.answer_id === p.id ? 0.9 : (isHover ? 0.85 : 0.75);
+                return (
+                  <g key={{p.id}}
+                     onClick={{() => handlePartClick(p.id)}}
+                     onMouseEnter={{() => setHoverId(p.id)}}
+                     onMouseLeave={{() => setHoverId(null)}}
+                     style={{{{ cursor: 'pointer', transition: 'opacity 0.2s' }}}}>
+                    <g dangerouslySetInnerHTML={{{{ __html: p.shape.replace(/fill\s*=\s*"[^"]*"/gi, '').replace(/<(\w+)/, `<$1 fill="${{fill}}" stroke="${{isHover || isFlashCorrect ? '#1C1917' : 'rgba(0,0,0,0.35)'}}" strokeWidth="${{isHover || isFlashCorrect ? 3 : 1.5}}" opacity="${{opacity}}"`) }}}} />
+                  </g>
+                );
+              }})}}
+            </svg>
+          </div>
+
+          {{/* Sidebar — right side */}}
+          <div className="hs-sidebar">
+            <div className="hs-info-panel">
+              {{selectedPart ? (
+                <>
+                  <div className="hs-info-dot" style={{{{background: selectedPart.color}}}} />
+                  <div className="hs-info-label">{{selectedPart.label}}</div>
+                  {{showHints && selectedPart.description && (
+                    <div className="hs-info-desc">{{selectedPart.description}}</div>
+                  )}}
+                </>
+              ) : (
+                <div className="hs-info-empty">Hover or click a part to see details.</div>
+              )}}
             </div>
-          )}}
+            <div className="hs-list-header">
+              <span>Parts</span>
+              <button className="hs-hint-btn" onClick={{() => setShowHints(h => !h)}}>
+                {{showHints ? 'Hide labels' : 'Show labels'}}
+              </button>
+            </div>
+            <div className="hs-part-list">
+              {{parts.map(p => {{
+                const done = q?.answer_id === p.id && results[q.question_number] === 'correct';
+                return (
+                  <div key={{p.id}} className={{'hs-part-item' + (done ? ' done' : '')}}
+                       onMouseEnter={{() => setHoverId(p.id)}}
+                       onMouseLeave={{() => setHoverId(null)}}
+                       onClick={{() => handlePartClick(p.id)}}>
+                    <span className="hs-part-dot" style={{{{background: p.color}}}} />
+                    <span className="hs-part-label">
+                      {{showHints ? p.label : '•••'}}
+                    </span>
+                    {{done && <span className="hs-part-check">✓</span>}}
+                  </div>
+                );
+              }})}}
+            </div>
+          </div>
         </div>
+
+        {{/* Flash banner */}}
+        {{flash && (
+          <div className="hs-flash" style={{{{background: flash.kind === 'correct' ? '#22C55E' : '#EF4444'}}}}>
+            {{flash.kind === 'correct' ? '✓ Correct!' : 'Try again'}}
+          </div>
+        )}}
       </div>
       <div className="logo">Powered by Lulia AI</div>
     </div>
@@ -734,31 +870,40 @@ def generate_interactive_activity(
     max_attempts: int = 3,
     show_answers_after: bool = True,
     time_limit: int | None = None,
+    content_override: dict | None = None,
 ) -> dict:
     """
     Generate and deploy an interactive activity.
     Returns activity_id, access_code, and access_url.
+
+    When content_override is provided, skip the DB assignment lookup and use
+    the supplied content directly. Used by the Gemini interactive generator
+    which produces content with diagram_visual in one shot — the assignments
+    table has no column for diagram_visual so round-tripping loses it.
     """
     log.info(f"[Interactive] Generating {interactive_template_id} for assignment {assignment_id}")
 
-    # Get assignment content
-    conn = get_connection()
-    from psycopg2.extras import RealDictCursor
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT * FROM assignments WHERE assignment_id = %s", (assignment_id,))
-    assignment = cur.fetchone()
-    cur.close()
-    conn.close()
+    if content_override:
+        content = content_override
+    else:
+        # Get assignment content
+        conn = get_connection()
+        from psycopg2.extras import RealDictCursor
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT * FROM assignments WHERE assignment_id = %s", (assignment_id,))
+        assignment = cur.fetchone()
+        cur.close()
+        conn.close()
 
-    if not assignment:
-        return {"error": "Assignment not found"}
+        if not assignment:
+            return {"error": "Assignment not found"}
 
-    content = {
-        "title": assignment["title"],
-        "instructions": "",
-        "questions": assignment["questions"] if isinstance(assignment["questions"], list) else [],
-        "standards": assignment.get("standards_ids", []),
-    }
+        content = {
+            "title": assignment["title"],
+            "instructions": "",
+            "questions": assignment["questions"] if isinstance(assignment["questions"], list) else [],
+            "standards": assignment.get("standards_ids", []),
+        }
 
     activity_id = str(uuid4())
     access_code = _generate_access_code()

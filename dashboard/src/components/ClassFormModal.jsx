@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import { ACCOMMODATION_OPTIONS } from '@/lib/plannerVariants';
 
 const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 const SUBJECTS = ['Mathematics', 'Science', 'English Language Arts', 'Social Studies', 'History', 'Art', 'Music', 'PE', 'World Languages', 'CTE / Electives', 'Other'];
@@ -12,6 +13,10 @@ export default function ClassFormModal({ existingClass, onSubmit, onClose }) {
   const [customSubject, setCustomSubject] = useState('');
   const [period, setPeriod] = useState('');
   const [schoolYear, setSchoolYear] = useState('2026-2027');
+  // Class-level accommodation defaults — preselected for every new work
+  // order in the planner refiner. Creating a brand-new class skips this
+  // section; teachers set it later via Edit Class.
+  const [defaultAccommodations, setDefaultAccommodations] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -30,6 +35,11 @@ export default function ClassFormModal({ existingClass, onSubmit, onClose }) {
       }
       setPeriod(existingClass.period || '');
       setSchoolYear(existingClass.school_year || '2026-2027');
+      setDefaultAccommodations(
+        Array.isArray(existingClass.default_accommodations)
+          ? existingClass.default_accommodations
+          : []
+      );
     }
   }, [existingClass]);
 
@@ -47,13 +57,18 @@ export default function ClassFormModal({ existingClass, onSubmit, onClose }) {
     setError(null);
     try {
       const finalSubject = subject === 'Other' ? customSubject : subject;
-      await onSubmit({
+      const payload = {
         name: name.trim(),
         grade_level: gradeLevel,
         subject: finalSubject,
         period: period.trim() || null,
         school_year: schoolYear,
-      });
+      };
+      // Only send defaults on edit; the create endpoint doesn't accept the
+      // field, and teachers can configure accommodations once the class
+      // exists. Omitting it on create avoids a silent 400 from the backend.
+      if (isEdit) payload.default_accommodations = defaultAccommodations;
+      await onSubmit(payload);
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to save');
@@ -130,6 +145,49 @@ export default function ClassFormModal({ existingClass, onSubmit, onClose }) {
                 style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid #E7E5E4', fontSize: 13, fontFamily: "'DM Sans'", outline: 'none' }} />
             </div>
           </div>
+
+          {/* Accommodation defaults — only in edit mode. Creating a class
+              skips this; teachers usually set it after they know their
+              roster. Pre-selections flow into every planner refiner so
+              class-wide accommodations don't need to be re-ticked per day. */}
+          {isEdit && (
+            <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid #E7E5E4' }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#78350F', marginBottom: 6 }}>
+                Default Accommodations <span style={{ fontWeight: 400, color: '#A8A29E' }}>(applied to every new lesson)</span>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {ACCOMMODATION_OPTIONS.map(opt => {
+                  const checked = defaultAccommodations.includes(opt.id);
+                  return (
+                    <label
+                      key={opt.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '6px 8px', borderRadius: 8, cursor: 'pointer',
+                        background: checked ? '#FFF7ED' : 'transparent',
+                        border: `1px solid ${checked ? opt.color : '#E7E5E4'}`,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setDefaultAccommodations(prev =>
+                            prev.includes(opt.id)
+                              ? prev.filter(v => v !== opt.id)
+                              : [...prev, opt.id]
+                          );
+                        }}
+                        style={{ accentColor: opt.color }}
+                      />
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: opt.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#1C1917' }}>{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Error */}
           {error && <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 12, padding: '8px 12px', background: '#FEF2F2', borderRadius: 8 }}>{error}</div>}

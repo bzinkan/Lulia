@@ -2,10 +2,10 @@
 Hotspot Diagram Generator — builds AI-generated labeled diagrams with
 coordinate annotations for hotspot_labeling interactive activities.
 
-Two-step pipeline:
-  1. Leonardo.ai generates the diagram from a structured prompt
+Two-step pipeline (Gemini end-to-end):
+  1. Gemini 2.5 Flash Image generates the diagram from a structured prompt
      (e.g. 'educational diagram of a plant cell, labeled parts visible').
-  2. Claude Sonnet 4 (vision) looks at the generated image and returns
+  2. Gemini 2.5 Pro (vision) looks at the generated image and returns
      pixel-coordinate bounding boxes for each named part.
 
 Output:
@@ -121,44 +121,22 @@ def generate_hotspot_diagram(subject: str, parts: list[str]) -> dict:
         log.info(f"[HotspotDiagram] Cache hit for '{subject}' ({ck})")
         return cached
 
-    # Step 1: Generate image via Leonardo
-    from src.lms_agents.tools.leonardo_client import generate_images
+    # Step 1: Generate image via Gemini 2.5 Flash Image
     labels_text = ", ".join(parts)
     prompt = (
         f"Clean educational diagram of a {subject}, science textbook style, "
         f"clearly labeled parts visible: {labels_text}. Each labeled part is "
         f"distinct and identifiable. Neutral white background, professional "
-        f"scientific illustration, flat colors, no photorealism."
+        f"scientific illustration, flat colors, no photorealism, no watermark."
     )
-    negative = "blurry, realistic photograph, cluttered, hand-drawn sketch, cartoon, watermark, extra text"
-    gen = generate_images(
-        prompt=prompt,
-        count=1,
-        width=1024,
-        height=1024,
-        negative_prompt=negative,
-    )
-    if not gen.get("success") or not gen.get("images"):
-        err = gen.get("error", "Leonardo returned no image")
-        log.error(f"[HotspotDiagram] Leonardo failed: {err}")
-        return {"error": f"Image generation failed: {err}"}
+    image_bytes = _generate_image_gemini(prompt)
+    if not image_bytes:
+        return {"error": "Image generation failed: Gemini returned no image"}
 
-    leonardo_url = gen["images"][0]
-
-    # Step 2: Download image bytes + re-host on MinIO so CORS + long-term
-    # availability aren't tied to Leonardo's CDN.
-    try:
-        import httpx
-        with httpx.Client(timeout=30.0) as c:
-            r = c.get(leonardo_url)
-            r.raise_for_status()
-            image_bytes = r.content
-    except Exception as e:
-        log.error(f"[HotspotDiagram] Failed to download generated image: {e}")
-        return {"error": f"Download failed: {e}"}
-
+    # Step 2: Upload to MinIO so browsers can fetch it.
     image_id = uuid4().hex
     key = f"hotspots/{image_id}.png"
+    image_url = ""
     try:
         import boto3
         s3 = boto3.client(
@@ -171,10 +149,10 @@ def generate_hotspot_diagram(subject: str, parts: list[str]) -> dict:
         endpoint = os.environ.get("S3_PUBLIC_ENDPOINT") or os.environ.get("S3_ENDPOINT", "http://localhost:9000")
         image_url = f"{endpoint}/{bucket}/{key}"
     except Exception as e:
-        log.warning(f"[HotspotDiagram] MinIO upload failed, using Leonardo URL: {e}")
-        image_url = leonardo_url
+        log.error(f"[HotspotDiagram] MinIO upload failed: {e}")
+        return {"error": f"Upload failed: {e}"}
 
-    # Step 3: Ask Claude Sonnet vision for the pixel coordinates of each part
+    # Step 3: Ask Gemini 2.5 Pro (vision) for the pixel coordinates of each part
     hotspots = _extract_hotspot_coords(image_bytes, parts)
 
     result = {
@@ -189,22 +167,50 @@ def generate_hotspot_diagram(subject: str, parts: list[str]) -> dict:
     return result
 
 
+def _gemini_client():
+    """Return a configured google.genai Client using GOOGLE_GEMINI_API_KEY."""
+    from google import genai
+    api_key = os.environ.get("GOOGLE_GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GOOGLE_GEMINI_API_KEY not set")
+    return genai.Client(api_key=api_key)
+
+
+def _generate_image_gemini(prompt: str) -> Optional[bytes]:
+    """
+    Generate an image via Gemini 2.5 Flash Image. Returns the raw bytes of
+    the first inline image part, or None if the model returned only text.
+    """
+    try:
+        client = _gemini_client()
+        resp = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=[prompt],
+        )
+        for part in (resp.candidates[0].content.parts if resp.candidates else []):
+            inline = getattr(part, "inline_data", None)
+            if inline and inline.data:
+                return inline.data
+        log.error("[HotspotDiagram] Gemini image gen returned no inline image parts")
+        return None
+    except Exception as e:
+        log.error(f"[HotspotDiagram] Gemini image gen failed: {e}")
+        return None
+
+
 def _extract_hotspot_coords(image_bytes: bytes, parts: list[str]) -> list[dict]:
     """
-    Ask Claude Sonnet (vision) for pixel coordinates of each named part.
+    Ask Gemini 2.5 Pro (vision) for pixel coordinates of each named part.
     Returns [{label, x, y, w, h}, ...] — empty list on any failure.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        log.warning("[HotspotDiagram] No ANTHROPIC_API_KEY — returning empty hotspots")
+    try:
+        from google.genai import types
+        client = _gemini_client()
+    except Exception as e:
+        log.warning(f"[HotspotDiagram] Gemini vision unavailable: {e}")
         return []
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=api_key)
-
-    image_b64 = base64.b64encode(image_bytes).decode()
-    # Detect media type from the image bytes' magic signature — Leonardo
-    # typically returns JPEG even when we ask for PNG.
+    # Detect media type from the image bytes' magic signature.
     if image_bytes.startswith(b"\x89PNG"):
         media_type = "image/png"
     elif image_bytes.startswith(b"\xff\xd8\xff"):
@@ -214,9 +220,9 @@ def _extract_hotspot_coords(image_bytes: bytes, parts: list[str]) -> list[dict]:
     elif image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
         media_type = "image/webp"
     else:
-        media_type = "image/jpeg"
-    parts_list = "\n".join(f"  - {p}" for p in parts)
+        media_type = "image/png"
 
+    parts_list = "\n".join(f"  - {p}" for p in parts)
     prompt_text = (
         f"You are annotating a labeled educational diagram so students can "
         f"click on each part. The image is 1024x1024 pixels. For each part "
@@ -233,21 +239,17 @@ def _extract_hotspot_coords(image_bytes: bytes, parts: list[str]) -> list[dict]:
     )
 
     try:
-        resp = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1024,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {"type": "base64", "media_type": media_type, "data": image_b64},
-                    },
-                    {"type": "text", "text": prompt_text},
-                ],
-            }],
+        resp = client.models.generate_content(
+            model="gemini-2.5-pro",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=media_type),
+                prompt_text,
+            ],
         )
-        text = (resp.content[0].text or "").strip()
+        text = (resp.text or "").strip()
+        # Strip markdown fences if Gemini wrapped its JSON
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"```\s*$", "", text)
         match = re.search(r"\{[\s\S]*\}", text)
         if not match:
             log.warning(f"[HotspotDiagram] Vision returned no JSON: {text[:200]}")

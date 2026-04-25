@@ -288,25 +288,36 @@ def run_content_agent(
         history = query_history(teacher_id, standards_codes, freshness_months=6, output_template_id=template_id)
         history_exclusion = build_exclusion_prompt(history)
 
-    # RAG search if KB coverage available
+    # RAG search if KB coverage available.
+    # When the teacher gave an authoritative topic, query the KB by TOPIC
+    # (not subject+grade). Broad subject+grade queries were dragging content
+    # off-topic — e.g. "plant cell organelles" + has_kb_coverage=true would
+    # return random 5th-grade science chunks about ecosystems/forests, and
+    # the Content Agent would follow the larger text blob instead of the
+    # topic block. Topic-scoped queries stay on-topic or return nothing.
     kb_context = ""
     if work_order.get("has_kb_coverage"):
         standards_codes = [s["code"] for s in curriculum_output.get("standards", [])]
-        query = f"{subject} grade {grade} {' '.join(standards_codes)}"
+        query = topic if topic else f"{subject} grade {grade} {' '.join(standards_codes)}"
         results = search_kb(query=query, subject=subject, grade=grade, top_k=5)
         if results:
             kb_context = "\n\nRELEVANT CURRICULUM MATERIALS FROM KNOWLEDGE BASE:\n"
             for r in results:
                 kb_context += f"\n--- Source: {r['source_name']}, Page {r.get('page_number', '?')} ---\n"
                 kb_context += f"{r['content']}\n"
-            log.info(f"[Content Agent] RAG KB returned {len(results)} relevant chunks")
+            log.info(f"[Content Agent] RAG KB returned {len(results)} relevant chunks (query='{query[:60]}')")
 
     # Inject textbook grounding from pre-fetched chunks (tagged with [TEXTBOOK])
-    # These are the teacher's uploaded textbook chapters — authoritative content source
-    textbook_chunks = [c for c in (work_order.get("_kb_chunks_injected") or []) if c.get("_is_textbook")]
-    if not textbook_chunks and pedagogy_brief:
-        # Check if the director attached any textbook chunks
-        textbook_chunks = [c for c in (pedagogy_brief.get("_kb_chunks") or []) if c.get("_is_textbook")]
+    # These are the teacher's uploaded textbook chapters — authoritative content
+    # source. SKIPPED when an authoritative topic is set, since those chunks
+    # are pre-fetched by subject+grade (not topic) and will drag content off
+    # the teacher's intended subject matter.
+    textbook_chunks = []
+    if not topic:
+        textbook_chunks = [c for c in (work_order.get("_kb_chunks_injected") or []) if c.get("_is_textbook")]
+        if not textbook_chunks and pedagogy_brief:
+            # Check if the director attached any textbook chunks
+            textbook_chunks = [c for c in (pedagogy_brief.get("_kb_chunks") or []) if c.get("_is_textbook")]
 
     if textbook_chunks:
         kb_context += "\n\nTEACHER'S TEXTBOOK (AUTHORITATIVE CONTENT SOURCE — use this vocabulary, "
@@ -1020,6 +1031,14 @@ def run_assignment_crew(work_order: dict, skip_format: bool = False) -> dict:
     log.info(f"  Template: {work_order.get('output_template_id')}  (skip_format={skip_format})")
     log.info(f"  Subject: {work_order.get('subject')}, Grade: {work_order.get('grade_level')}")
 
+    # Interactive activities get a shorter, simpler pipeline. Their shape is
+    # fully determined by the interactive template (hotspot/matching/etc.), so
+    # the Pedagogy Director's brief (assessment modes, scaffolds, template
+    # swaps) frequently contradicts the template and forces QA retries. Auto-
+    # grading via JS also makes subjective QA less load-bearing.
+    is_interactive = bool(work_order.get("interactive_template_id"))
+    max_qa_retries = 0 if is_interactive else QA_MAX_RETRIES
+
     client = _get_client()
 
     # Step 1: Curriculum Agent — retrieve aligned standards
@@ -1075,17 +1094,21 @@ def run_assignment_crew(work_order: dict, skip_format: bool = False) -> dict:
     except Exception as e:
         log.warning(f"[AssignmentCrew] Curriculum context lookup failed (non-fatal): {e}")
 
-    pedagogy_brief = generate_brief(
-        work_order=work_order,
-        curriculum_output=curriculum_output,
-        kb_chunks=kb_chunks,
-        class_intel_prompt=class_intel_prompt,
-        reference_exemplars=reference_exemplars,
-        curriculum_context=curriculum_context,
-        client=client,
-    )
-    if pedagogy_brief is None:
-        log.info("[AssignmentCrew] No pedagogy brief generated — running un-constrained")
+    if is_interactive:
+        log.info("[AssignmentCrew] Interactive activity — skipping Pedagogy Director")
+        pedagogy_brief = None
+    else:
+        pedagogy_brief = generate_brief(
+            work_order=work_order,
+            curriculum_output=curriculum_output,
+            kb_chunks=kb_chunks,
+            class_intel_prompt=class_intel_prompt,
+            reference_exemplars=reference_exemplars,
+            curriculum_context=curriculum_context,
+            client=client,
+        )
+        if pedagogy_brief is None:
+            log.info("[AssignmentCrew] No pedagogy brief generated — running un-constrained")
 
     # QA loop: Content → Rubric → QA (with retries)
     content_output = None
@@ -1093,7 +1116,7 @@ def run_assignment_crew(work_order: dict, skip_format: bool = False) -> dict:
     qa_output = None
     revision_notes = None
 
-    for attempt in range(1, QA_MAX_RETRIES + 2):  # 1 initial + 2 retries
+    for attempt in range(1, max_qa_retries + 2):  # 1 initial + up to N retries
         log.info(f"--- Generation attempt {attempt} ---")
 
         # Step 3: Content Agent (constrained by brief + teacher style)
@@ -1116,7 +1139,7 @@ def run_assignment_crew(work_order: dict, skip_format: bool = False) -> dict:
         else:
             revision_notes = qa_output.get("revision_notes", "Please fix the identified issues.")
             log.info(f"[QA Agent] REJECTED on attempt {attempt}: {revision_notes[:100]}...")
-            if attempt > QA_MAX_RETRIES:
+            if attempt > max_qa_retries:
                 log.warning("[QA Agent] Max retries reached — proceeding with best attempt")
 
     # Agent 5: Format — pass the pedagogy brief so the renderer (Gemini or

@@ -4,11 +4,19 @@ import { CheckCircle } from 'lucide-react';
 import { GAME_FORMATS, DIFFICULTY_LEVELS } from '@/lib/plannerVariants';
 import AccommodationPicker from './AccommodationPicker';
 
-export default function GameRefiner({ workOrder, onConfirm }) {
+export default function GameRefiner({ workOrder, onConfirm, classDefaultAccommodations = [] }) {
   const [format, setFormat] = useState(workOrder.config?.format || 'jeopardy');
   const [duration, setDuration] = useState(workOrder.config?.duration_minutes || 15);
   const [difficulty, setDifficulty] = useState(workOrder.config?.difficulty || 'medium');
-  const [accommodations, setAccommodations] = useState(workOrder.accommodations || []);
+  const [accommodations, setAccommodations] = useState(
+    // A work order carries its own accommodations once the teacher
+    // confirms it. Before that, fall back to the class-level default
+    // (e.g. "ELL-Beginner on every lesson") so teachers don't have to
+    // tick the same boxes on every work order.
+    (workOrder.accommodations && workOrder.accommodations.length > 0)
+      ? workOrder.accommodations
+      : classDefaultAccommodations,
+  );
 
   function handleConfirm() {
     onConfirm({

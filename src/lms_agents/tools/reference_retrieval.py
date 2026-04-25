@@ -192,6 +192,11 @@ def find_reference_exemplars(
     conn = get_connection()
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        # See rag_search.search_kb for why the vector scan gets a hard cap.
+        # Reference retrieval adds JSONB filters on reference_metadata, which
+        # the planner occasionally gets creative with — a 5s wall keeps a
+        # bad plan from stalling an assignment generate.
+        cur.execute("SET LOCAL statement_timeout = '5s'")
         cur.execute(sql, all_params)
         rows = cur.fetchall()
         cur.close()
