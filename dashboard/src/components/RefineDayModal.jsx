@@ -6,7 +6,6 @@ import WorksheetRefiner from './refiners/WorksheetRefiner';
 import SlidesRefiner from './refiners/SlidesRefiner';
 import FormsRefiner from './refiners/FormsRefiner';
 import InteractiveRefiner from './refiners/InteractiveRefiner';
-import GameRefiner from './refiners/GameRefiner';
 import VideoRefiner from './refiners/VideoRefiner';
 import QuizRefiner from './refiners/QuizRefiner';
 
@@ -15,7 +14,6 @@ const REFINERS = {
   slides: SlidesRefiner,
   forms: FormsRefiner,
   interactive: InteractiveRefiner,
-  game: GameRefiner,
   video: VideoRefiner,
   quiz: QuizRefiner,
 };
@@ -25,7 +23,6 @@ const CATEGORY_LABELS = {
   slides: 'Google Slides',
   forms: 'Google Form',
   interactive: 'Interactive Activity',
-  game: 'Live Game',
   video: 'Video',
   quiz: 'Assessment / Quiz',
 };

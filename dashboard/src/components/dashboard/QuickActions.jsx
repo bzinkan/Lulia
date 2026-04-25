@@ -4,10 +4,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 const actions = [
-  { label: 'AI Generate',      icon: 'ai.png',        href: '/assignments/new', accent: 'var(--coral)' },
-  { label: 'Create Worksheet', icon: 'document.png',  href: '/assignments/new', accent: 'var(--sage)' },
-  { label: 'Start Live Game',  icon: 'gamepad.png',   href: '/games',           accent: 'var(--teal)' },
-  { label: 'Record Video',     icon: 'clipboard.png', href: '/videos',          accent: 'var(--mustard)' },
+  { label: 'AI Generate',      icon: 'ai.png',          href: '/assignments/new', accent: 'var(--coral)' },
+  { label: 'Create Worksheet', icon: 'document.png',    href: '/assignments/new', accent: 'var(--sage)' },
+  { label: 'Interactive',      icon: 'interactive.png', href: '/interactive',     accent: 'var(--teal)' },
+  { label: 'Record Video',     icon: 'clipboard.png',   href: '/videos',          accent: 'var(--mustard)' },
 ];
 
 export default function QuickActions() {

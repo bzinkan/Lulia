@@ -8,6 +8,8 @@ Lulia sells to **individual teachers** who pay out of pocket — the same audien
 
 **Current status**: Phases 1–27 complete. All features built and running locally via Docker Compose. Pre-production — ready for AWS deployment and beta testing.
 
+> **Shelved feature: Live Games / Arcade (2026-04-20).** The Arcade tab, the 16 game shells, and all `/games` / `/play` / `/join` UI have been removed from the dashboard for the initial launch. Backend remains intact: `routers/games.py`, `websocket/game_server.py`, `tools/game_session_manager.py`, the `arcade_*` and `game_*` tables, the `/api/v1/games/*` endpoints, and the `game` work-order type all stay. Re-enabling is a frontend-only effort: restore the Arcade nav entry in `Sidebar.jsx`, the Quick Action tile, the Planner material type + `GAME_FORMATS`, the `GameRefiner`, the `outputType === 'game'` branch in `GenerationTabs.jsx`, and the `/games` / `/play/[pin]` / `/join` pages plus `components/games/`. Don't add new code paths that depend on the games UI being present.
+
 ## Architecture Reference
 The complete architecture document is at `docs/architecture-v3.3.docx`. Read the relevant skills in `.claude/skills/` before starting any work — they contain patterns, code examples, and key decisions.
 

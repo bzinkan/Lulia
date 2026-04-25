@@ -53,12 +53,6 @@ export const SLIDES_LAYOUTS = [
   { id: 'warmup_to_close', label: 'Warm-up → Close' },
 ];
 
-export const GAME_FORMATS = [
-  { id: 'jeopardy', label: 'Jeopardy' },
-  { id: 'kahoot_style', label: 'Kahoot-style' },
-  { id: 'team_quest', label: 'Team Quest' },
-];
-
 export const DIFFICULTY_LEVELS = [
   { id: 'easy', label: 'Easy' },
   { id: 'medium', label: 'Medium' },
@@ -87,7 +81,6 @@ export function categoryForTemplate(templateId) {
   if (t.includes('slides') || t.includes('gemini_slides')) return 'slides';
   if (t.includes('forms') || t.includes('quiz_form')) return 'forms';
   if (t.includes('interactive') || t.includes('activity')) return 'interactive';
-  if (t.includes('game')) return 'game';
   if (t.includes('video')) return 'video';
   if (t.includes('quiz') || t.includes('test') || t.includes('assessment')) return 'quiz';
   return 'worksheet';

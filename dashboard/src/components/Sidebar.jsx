@@ -13,7 +13,6 @@ const navItems = [
   { label: 'Calendar',    icon: 'calendar.png',   href: '/calendar' },
   { label: 'Interactive', icon: 'interactive.png', href: '/interactive' },
   { label: 'Video Library', icon: 'video-camera.png', href: '/videos/library' },
-  { label: 'Arcade',      icon: 'arcade.png',     href: '/games' },
   { label: 'Analytics',   icon: 'chart.png',      href: '/analytics' },
   { label: 'Grades',      icon: 'check.png',      href: '/grades' },
   { label: 'Settings',    icon: 'settings.png',   href: '/settings' },
@@ -23,8 +22,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  // Don't show sidebar on admin or join pages
-  if (pathname?.startsWith('/admin') || pathname === '/join') return null;
+  // Don't show sidebar on admin pages
+  if (pathname?.startsWith('/admin')) return null;
 
   return (
     <>

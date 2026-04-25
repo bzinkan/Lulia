@@ -27,8 +27,7 @@ const DAYS = [
 
 const MATERIAL_TYPES = [
   { id: 'worksheet', label: 'Worksheet', icon: 'document.png' },
-  { id: 'interactive', label: 'Interactive Activity', icon: 'gamepad.png' },
-  { id: 'game', label: 'Live Game', icon: 'gamepad.png' },
+  { id: 'interactive', label: 'Interactive Activity', icon: 'interactive.png' },
   { id: 'quiz_test', label: 'Assessment / Quiz', icon: 'check.png' },
   { id: 'slides', label: 'Google Slides', icon: 'clipboard.png' },
   { id: 'video', label: 'Video', icon: 'video-camera.png' },

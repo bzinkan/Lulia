@@ -12,7 +12,7 @@ const GRADES = ['K','1','2','3','4','5','6','7','8','9','10','11','12'];
  * Reusable four-tab generation component — Retro Earth palette.
  *
  * Props:
- *   outputType: "interactive" | "game" | "video" | "slides"
+ *   outputType: "interactive" | "video" | "slides"
  *   templates: [{id, name}] — available output templates
  *   onResult: (result) => void — called when generation completes
  *   templateLabel: string — label for template selector
@@ -72,7 +72,6 @@ export default function GenerationTabs({
 
   const placeholders = {
     interactive: 'Create a drag-and-drop activity about the water cycle for 5th grade...',
-    game: 'Make a Jeopardy game about fractions for 4th grade math...',
     video: 'Generate a 3-minute video lesson about equivalent fractions...',
     slides: 'A 10-slide introduction to photosynthesis for 6th grade...',
   };
@@ -134,11 +133,6 @@ export default function GenerationTabs({
         result = await apiFetch('/api/v1/interactive/generate', {
           method: 'POST',
           body: JSON.stringify({ assignment_id: selectedAssignment.assignment_id, interactive_template_id: effectiveExistingTemplate }),
-        });
-      } else if (outputType === 'game') {
-        result = await apiFetch('/api/v1/games/create', {
-          method: 'POST',
-          body: JSON.stringify({ assignment_id: selectedAssignment.assignment_id, game_shell_id: effectiveExistingTemplate }),
         });
       } else if (outputType === 'video') {
         result = await apiFetch('/api/v1/videos/generate', {
