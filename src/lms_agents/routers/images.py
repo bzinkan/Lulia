@@ -12,6 +12,34 @@ from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
+from src.lms_agents.tools.auth import require_teacher
+
+# Upload guards (Phase 28)
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB hard cap
+ALLOWED_IMAGE_MIMES = {
+    "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+}
+ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+
+
+def _sniff_mime(head: bytes) -> str | None:
+    """Detect MIME from the leading bytes — safer than trusting the
+    client-supplied content-type header. Returns the canonical image/*
+    MIME or None if unrecognized."""
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    sample = head[:1024].lstrip().lower()
+    if (sample.startswith(b"<?xml") or sample.startswith(b"<svg")) and b"<svg" in head[:1024].lower():
+        return "image/svg+xml"
+    return None
+
+
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/images", tags=["Images"])
 
@@ -42,32 +70,66 @@ def _get_s3():
 @router.post("/upload")
 async def upload_image(
     file: UploadFile = File(...),
-    teacher_id: str = Form("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
-    """Upload an image to the teacher's library."""
+    """Upload an image to the authenticated teacher's library.
+
+    Hardening:
+      - 10 MB hard cap (rejected before any disk write).
+      - Extension allowlist enforced first (cheap reject for obvious junk).
+      - MIME sniffed from the leading bytes — the client's `content-type`
+        header is treated as untrusted and only used as a tiebreaker.
+      - Filename is normalized to a safe slug (no path traversal).
+    """
+    import os.path, re as _re
+
+    # Filename + extension allowlist (cheapest checks first)
+    raw_name = (file.filename or "upload").strip()
+    ext = os.path.splitext(raw_name)[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTS:
+        return JSONResponse(
+            {"error": f"Unsupported file type '{ext}'. Allowed: {sorted(ALLOWED_IMAGE_EXTS)}"},
+            status_code=400,
+        )
+    safe_name = _re.sub(r"[^A-Za-z0-9._-]", "_", os.path.basename(raw_name))[:120] or f"upload{ext}"
+
     content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
+    if len(content) > MAX_UPLOAD_BYTES:
         return JSONResponse({"error": "File too large (max 10MB)"}, status_code=400)
+    if len(content) < 8:
+        return JSONResponse({"error": "Empty or truncated file"}, status_code=400)
+
+    sniffed = _sniff_mime(content[:64])
+    if sniffed not in ALLOWED_IMAGE_MIMES:
+        return JSONResponse(
+            {"error": "File contents do not match an allowed image format. "
+                      "(MIME sniff failed — header content-type is not trusted.)"},
+            status_code=400,
+        )
 
     image_id = str(uuid4())
-    key = f"images/{teacher_id}/{image_id}/{file.filename}"
-    thumb_key = f"images/{teacher_id}/{image_id}/thumb_{file.filename}"
+    key = f"images/{teacher_id}/{image_id}/{safe_name}"
+    thumb_key = f"images/{teacher_id}/{image_id}/thumb_{safe_name}"
 
     try:
         s3 = _get_s3()
-        s3.put_object(Bucket="lulia-uploads", Key=key, Body=content, ContentType=file.content_type or "image/png")
-        # Generate thumbnail using Pillow
-        try:
-            from PIL import Image
-            import io
-            img = Image.open(io.BytesIO(content))
-            w, h = img.size
-            img.thumbnail((256, 256))
-            buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            s3.put_object(Bucket="lulia-uploads", Key=thumb_key, Body=buf.getvalue(), ContentType="image/png")
-        except Exception:
+        s3.put_object(Bucket="lulia-uploads", Key=key, Body=content, ContentType=sniffed)
+        # Generate thumbnail using Pillow (skip for SVG)
+        if sniffed != "image/svg+xml":
+            try:
+                from PIL import Image
+                import io
+                img = Image.open(io.BytesIO(content))
+                w, h = img.size
+                img.thumbnail((256, 256))
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                s3.put_object(Bucket="lulia-uploads", Key=thumb_key, Body=buf.getvalue(), ContentType="image/png")
+            except Exception:
+                thumb_key = key
+                w, h = 0, 0
+        else:
             thumb_key = key
             w, h = 0, 0
     except Exception as e:
@@ -81,7 +143,7 @@ async def upload_image(
     cur.execute(
         """INSERT INTO teacher_images (image_id, teacher_id, filename, storage_url, thumbnail_url, source, file_size, width, height)
            VALUES (%s, %s::uuid, %s, %s, %s, 'upload', %s, %s, %s)""",
-        (image_id, teacher_id, file.filename, storage_url, thumbnail_url, len(content), w, h),
+        (image_id, teacher_id, safe_name, storage_url, thumbnail_url, len(content), w, h),
     )
     conn.commit(); cur.close()
 

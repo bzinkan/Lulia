@@ -13,7 +13,7 @@ pgvector==0.3.*
 alembic==1.14.*
 
 # Utilities
-pydantic==2.10.*
+pydantic[email]==2.10.*
 python-dotenv==1.0.*
 pyyaml==6.0.*
 httpx==0.28.*
@@ -45,6 +45,11 @@ google-genai>=1.0
 # Auth + Encryption
 python-jose[cryptography]==3.3.*
 cryptography==44.*
+passlib[bcrypt]==1.7.*
+# bcrypt 5.x changed default behavior to raise on >72-byte passwords;
+# passlib 1.7.x doesn't handle that. Pin <5 until passlib 2 ships.
+bcrypt>=4,<5
+python-magic==0.4.*
 
 # === Phase 11: Live Game Mode ===
 

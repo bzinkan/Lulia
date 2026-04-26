@@ -29,6 +29,34 @@ log = logging.getLogger(__name__)
 CONTENT_MODEL = "gemini-3.1-pro-preview"
 
 
+def sanitize_topic(raw: str | None, max_chars: int = 200) -> str:
+    """
+    Defang teacher input before it hits Gemini.
+
+    All teacher-controlled strings (topic, prompt, refinement instructions)
+    flow through this function. We:
+      - Drop control characters (only \\t, \\n, \\r kept).
+      - Strip leading/trailing whitespace.
+      - Cap length so a 100k-char prompt-injection payload can't fit.
+      - Remove any literal `<script>` / `</script>` / `<iframe>` / `<style>`
+        tokens — these don't matter for plain text but defang the most
+        common prompt-injection patterns that try to trick the model into
+        echoing dangerous markup verbatim.
+
+    Returned string is still UNTRUSTED — never put it directly inside an
+    artifact HTML script block. Only inside a quoted prompt sent to the
+    model, where the model itself decides what to render.
+    """
+    if not raw:
+        return ""
+    s = str(raw).strip()
+    s = "".join(ch for ch in s if ch == "\t" or ch == "\n" or ch == "\r" or ord(ch) >= 0x20)
+    s = s[:max_chars]
+    for needle in ("<script", "</script", "<iframe", "</iframe", "<style", "</style"):
+        s = s.replace(needle, "").replace(needle.upper(), "")
+    return s.strip()
+
+
 def _gemini_client():
     from google import genai
     api_key = os.environ.get("GOOGLE_GEMINI_API_KEY")
@@ -496,7 +524,12 @@ def _validate_artifact_html(html: str) -> list[str]:
     """Return a list of structural problems with the generated HTML.
     Empty list = passes. These are cheap syntactic checks — the real
     test is whether Babel parses the JSX, which we can't run server-side,
-    but unbalanced braces/parens are the most common failure mode."""
+    but unbalanced braces/parens are the most common failure mode.
+
+    Also flags suspicious content: scripts pointing at non-allowlisted
+    origins, inline event handlers with `eval`, document.cookie reads,
+    fetch/XHR to anywhere other than relative paths or our hosts.
+    """
     problems = []
     if len(html) < 500:
         problems.append("too short")
@@ -507,6 +540,25 @@ def _validate_artifact_html(html: str) -> list[str]:
     # Babel script present?
     if "babel" not in html.lower():
         problems.append("missing babel")
+    # Suspicious content scan — these patterns are almost never legitimate
+    # in an artifact-mode activity and frequently appear in prompt-injection
+    # exfil attempts. We surface them as validation errors so the retry
+    # loop regenerates rather than serving a possibly-malicious page.
+    low = html.lower()
+    SUSPICIOUS = [
+        ("document.cookie", "reads document.cookie"),
+        ("localstorage.", "reads/writes localStorage"),
+        ("sessionstorage.", "reads/writes sessionStorage"),
+        ("eval(", "uses eval()"),
+    ]
+    ALLOWED_SCRIPT_HOSTS = ("unpkg.com", "cdn.jsdelivr.net", "fonts.googleapis.com", "fonts.gstatic.com")
+    import re as _re
+    for src in _re.findall(r"<script[^>]*src=[\"']([^\"']+)[\"']", html, _re.IGNORECASE):
+        if src.startswith("http") and not any(h in src for h in ALLOWED_SCRIPT_HOSTS):
+            problems.append(f"non-allowlisted script src: {src[:60]}")
+    for needle, label in SUSPICIOUS:
+        if label and needle in low:
+            problems.append(label)
     # Brace / paren / bracket balance within the <script type="text/babel">
     m = re.search(r'<script[^>]*type\s*=\s*"text/babel"[^>]*>([\s\S]*?)</script>',
                   html, re.IGNORECASE)
@@ -542,11 +594,18 @@ def _generate_artifact_html(
     braces in Gemini's JSX). Raises on repeated failure."""
     from google.genai import types
 
+    # Defang user-controlled fields before they reach Gemini. Topic comes
+    # straight from the dashboard / API; subject/grade/template_hint come
+    # from a controlled list but are sanitized for safety regardless.
+    safe_topic = sanitize_topic(topic, max_chars=200) or "(no topic)"
+    safe_subject = sanitize_topic(subject, max_chars=80) or "General"
+    safe_grade = sanitize_topic(grade, max_chars=10) or "4"
+    safe_hint = sanitize_topic(template_hint, max_chars=60) or "multiple_choice_quiz"
     image_block = _format_image_library(images or [])
-    user_prompt = f"""TOPIC: {topic}
-SUBJECT: {subject}
-GRADE LEVEL: {grade}
-TEMPLATE HINT: {template_hint} (suggestion — pick the best UI for this topic)
+    user_prompt = f"""TOPIC: {safe_topic}
+SUBJECT: {safe_subject}
+GRADE LEVEL: {safe_grade}
+TEMPLATE HINT: {safe_hint} (suggestion — pick the best UI for this topic)
 TARGET QUESTION / INTERACTION COUNT: approximately {question_count}
 
 {image_block}

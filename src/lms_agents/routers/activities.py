@@ -15,6 +15,7 @@ from src.lms_agents.tools.interactive_generator import (
     refine_activity, REFINE_INSTRUCTIONS,
     INTERACTIVE_TEMPLATES,
 )
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 router = APIRouter(prefix="/interactive", tags=["Interactive"])
 
@@ -134,31 +135,43 @@ async def activity_analytics(activity_id: UUID, conn=Depends(get_db)):
 
 @router.get("")
 async def list_activities(
-    teacher_id: Optional[str] = Query(None),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
-    """List all interactive activities."""
+    """List the authenticated teacher's interactive activities."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    if teacher_id:
-        cur.execute(
-            """SELECT ia.*, (SELECT COUNT(*) FROM interactive_submissions WHERE activity_id = ia.activity_id) as submission_count
-               FROM interactive_activities ia WHERE ia.teacher_id = %s::uuid
-               ORDER BY ia.created_at DESC LIMIT 50""",
-            (teacher_id,),
-        )
-    else:
-        cur.execute(
-            """SELECT ia.*, (SELECT COUNT(*) FROM interactive_submissions WHERE activity_id = ia.activity_id) as submission_count
-               FROM interactive_activities ia ORDER BY ia.created_at DESC LIMIT 50""",
-        )
+    cur.execute(
+        """SELECT ia.*,
+                  (SELECT COUNT(*) FROM interactive_submissions
+                   WHERE activity_id = ia.activity_id) as submission_count
+           FROM interactive_activities ia
+           WHERE ia.teacher_id = %s::uuid
+           ORDER BY ia.created_at DESC LIMIT 50""",
+        (teacher_id,),
+    )
     rows = [dict(r) for r in cur.fetchall()]
     cur.close()
     return {"activities": rows}
 
 
 @router.delete("/{activity_id}")
-async def delete_activity(activity_id: UUID, conn=Depends(get_db)):
-    """Delete an interactive activity."""
+async def delete_activity(
+    activity_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
+    """Delete the caller's own interactive activity. 403 if not the owner."""
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        "SELECT teacher_id FROM interactive_activities WHERE activity_id = %s",
+        (str(activity_id),),
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        return JSONResponse({"error": "Activity not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
+    cur.close()
     cur = conn.cursor()
     cur.execute("DELETE FROM interactive_submissions WHERE activity_id = %s", (str(activity_id),))
     cur.execute("DELETE FROM interactive_activities WHERE activity_id = %s", (str(activity_id),))
@@ -168,23 +181,28 @@ async def delete_activity(activity_id: UUID, conn=Depends(get_db)):
 
 
 @router.get("/{activity_id}/data")
-async def get_activity_data(activity_id: UUID, conn=Depends(get_db)):
+async def get_activity_data(
+    activity_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
-    Return the editable data payload for a structured activity.
-    Only structured templates (crossword/word_search/flashcards/timeline/
-    number_line) have a `data` field — artifact-mode activities return an
-    empty body with mode='artifact' so the client can route to Refine instead.
+    Return the editable data payload for a structured activity owned by
+    the caller. Only structured templates (crossword/word_search/flashcards/
+    timeline/number_line/fill_in_blank) have a `data` field — artifact-mode
+    activities return mode='artifact' so the client can route to Refine instead.
     """
     import json
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
-        "SELECT interactive_template_id, content_json FROM interactive_activities WHERE activity_id = %s",
+        "SELECT teacher_id, interactive_template_id, content_json FROM interactive_activities WHERE activity_id = %s",
         (str(activity_id),),
     )
     row = cur.fetchone()
     cur.close()
     if not row:
         return JSONResponse({"error": "Activity not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     content = row["content_json"] or {}
     if isinstance(content, str):
         try:
@@ -205,12 +223,17 @@ class UpdateActivityDataRequest(BaseModel):
 
 
 @router.put("/{activity_id}/data")
-async def update_activity_data(activity_id: UUID, req: UpdateActivityDataRequest,
-                                conn=Depends(get_db)):
+async def update_activity_data(
+    activity_id: UUID,
+    req: UpdateActivityDataRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
-    Replace the data payload for a structured activity, rebuild the HTML,
-    re-upload to MinIO, and persist. Only works for templates that have a
-    hand-written builder — artifact activities must use the Refine flow.
+    Replace the data payload for a structured activity owned by the caller,
+    rebuild the HTML, re-upload to MinIO, and persist. Only works for
+    templates that have a hand-written builder — artifact activities must
+    use the Refine flow.
     """
     import json
     import boto3
@@ -219,13 +242,14 @@ async def update_activity_data(activity_id: UUID, req: UpdateActivityDataRequest
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
-        "SELECT interactive_template_id, content_json, access_url FROM interactive_activities WHERE activity_id = %s",
+        "SELECT teacher_id, interactive_template_id, content_json, access_url FROM interactive_activities WHERE activity_id = %s",
         (str(activity_id),),
     )
     row = cur.fetchone()
     if not row:
         cur.close()
         return JSONResponse({"error": "Activity not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     template_id = row["interactive_template_id"]
     content = row["content_json"] or {}
     if isinstance(content, str):

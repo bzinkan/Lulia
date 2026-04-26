@@ -1,231 +1,156 @@
-# Lulia
+# Lulia Lesson Lab
 
-**AI-Powered Learning Management System**
+**AI-powered LMS for individual K-12 teachers.** Upload your curriculum, approve a weekly plan, and Lulia generates everything — lesson plans, worksheets, interactive activities, videos, and grading — all standards-aligned, never repeated.
 
-Lulia is an AI teaching partner that replaces the need for Teachers Pay Teachers. Teachers upload their curriculum, approve a weekly plan, and Lulia generates everything — lesson plans, worksheets, task cards, interactive activities, live games, videos, and more — all standards-aligned, TpT-quality, and never repeated.
+> Pre-production. Phases 1–28 complete. Running locally via Docker Compose; ready for AWS deployment.
 
-## Architecture
+---
 
-- **16 AI Agents** across 5 crews orchestrated by CrewAI
-- **3 LLM Providers**: Claude (reasoning), Gemini (Google Slides + Imagen), AWS Bedrock (embedding)
-- **20+ TpT-Quality Templates** with 7 design themes
-- **8 Pre-Built Game Shells** + ~15 Claude-generated interactive activity types
-- **Three-Tier Standards**: Custom > State (50 + DC) > National (Common Core, NGSS, C3)
-- **Generation History**: System never repeats content
-- **IEP/504/ELL/Gifted Accommodations**: 3 layers with dignity-preserving design
+## What it does
 
-## Tech Stack
+| Surface | What it produces |
+|---|---|
+| **Planner** | A weekly plan from your curriculum + state standards. Per-day refinement before generation. |
+| **Print & Go** | One-shot worksheet generator with live standards auto-match. |
+| **Interactive activities** | Six structured engines (crossword, word search, flashcards, timeline, number line, fill-in-blank) where Gemini emits data only — engine code is human-authored, so no LLM-written JS can crash at runtime. Plus an **artifact mode** where Gemini-2.5-Pro writes a full HTML file for ad-hoc topics (MCQ, drag-drop, hotspot, etc.) with a validator + retry guard. |
+| **Video Library** | Curated catalog of teacher uploads, YouTube embeds (Standard YT License), and public-domain MP4s — not on-demand compute. Generated videos are the fallback when no library match exists. |
+| **Grading** | Claude vision OCR + 5 grading methods + mastery tracking, surfaced in the unified Grades tab. |
+| **Calendar / Curriculum / Analytics** | Living curriculum tracking, school-calendar overlay, class-mastery and standards-coverage views. |
+| **Image Library** | Teacher uploads + Wikimedia Commons fallback, semantically searchable via Gemini-vision captioning on upload. |
+
+> ⚠ **Live Games / Arcade is shelved** for the initial launch (Phase 28). The 16 game shells, the `/games` / `/play` / `/join` UI, and the Arcade tab are removed from the dashboard. The backend (`routers/games.py`, `websocket/game_server.py`, `tools/game_session_manager.py`, the `/api/v1/games/*` endpoints, the `arcade_*` and `game_*` tables) stays intact — re-enabling is a frontend-only effort.
+
+## Tech stack
 
 | Component | Technology |
-|-----------|-----------|
-| AI Orchestration | CrewAI |
-| Primary LLM | Claude API (Anthropic) |
-| Google Formats + Video | Gemini API (Google) + Imagen |
-| Text Embedding | AWS Bedrock (Titan V2) |
-| Backend API | FastAPI (Python) |
-| Database | PostgreSQL 16 + pgvector |
-| Dashboard | Next.js |
-| Worker | APScheduler |
-| Video | Gemini Imagen + TTS + ffmpeg |
-| Interactive Hosting | S3 + CloudFront |
-| Live Games | WebSocket (FastAPI) |
-| Dev Environment | Docker Desktop (MinIO) |
-| Production | AWS (ECS/Fargate, RDS, S3, SQS, SES, Bedrock) |
+|---|---|
+| Orchestration | 5 agent crews (Assignment, Planning, Grading, Analytics, Video) — direct Anthropic SDK chain, no CrewAI dependency |
+| LLM providers | Claude (reasoning, content, vision OCR), Gemini 2.5 Pro (interactive content + artifact HTML + image captioning), Gemini 2.5 Flash Image (diagrams), AWS Bedrock Titan v2 (embedding) |
+| Backend | FastAPI (Python 3.12+), 30+ routers, shared psycopg2 connection pool |
+| Auth | bcrypt + JWT (HS256). `Depends(require_teacher)` on protected routes; `DEV_AUTH_BYPASS=1` keeps the legacy `?teacher_id=…` query/form/json fallback working in dev. |
+| Database | PostgreSQL 16 + pgvector + pg_trgm (40+ tables; alembic migrations from a stamped baseline) |
+| Dashboard | Next.js 14 App Router, Retro Earth design system (DM Serif Display + Nunito, coral/sage/teal/mustard palette, 3D Pillow nav icons) |
+| Real-time | FastAPI WebSocket (game backend, currently dormant); Redis for game session state |
+| Storage | MinIO in dev, S3 in prod — 6 buckets (`lulia-uploads`, `-generated`, `-scans`, `-templates`, `-activities`, video library) |
+| Workflows | Inngest dev container (8288) — durable plan-approval, video upload processing |
+| Rate limiting | slowapi (in-memory in dev, Redis-backed in prod via `RATE_LIMIT_STORAGE_URI`) |
+| Payments | Stripe subscriptions + credit packs, atomic charging via `SELECT FOR UPDATE` |
+| Production | AWS ECS/Fargate, RDS, S3, SQS, SES, Bedrock, CloudFront |
 
-## Quick Start (Development)
+## Quick start (development)
 
 ```bash
-# Clone the repo
-git clone https://github.com/yourusername/lulia.git
-cd lulia
+# 1. Clone + env
+git clone https://github.com/bzinkan/Lulia.git
+cd Lulia
+cp .env.example .env.development           # then edit with your API keys
 
-# Copy environment file
-cp .env.example .env.development
-# Edit .env.development with your API keys
+# 2. Required env vars to fill in:
+#    ANTHROPIC_API_KEY      — Claude (content + grading + vision)
+#    GOOGLE_GEMINI_API_KEY  — Gemini (interactive + image captioning)
+#    JWT_SECRET             — 48+ char random string for auth tokens
+#    AWS_*                  — only if you want Bedrock embedding locally
+#    STRIPE_*               — only if testing billing
+# Everything else has a sensible local default.
 
-# Start all services
-docker-compose up
+# 3. Start the stack
+docker compose up -d
 
-# Dashboard: http://localhost:3000
-# API: http://localhost:8000
-# API Docs: http://localhost:8000/docs
-# MinIO Console: http://localhost:9001
+# 4. Seed demo data + run the test suite
+docker compose exec api python scripts/seed_demo_data.py
+docker compose exec api pytest tests/ -v
 ```
 
-## Project Structure
+URLs after `docker compose up`:
+
+| Service | URL |
+|---|---|
+| Dashboard | http://localhost:3001 |
+| API | http://localhost:8000 |
+| API docs (OpenAPI) | http://localhost:8000/docs |
+| MinIO console | http://localhost:9001 (`minioadmin` / `minioadmin`) |
+| Inngest dev | http://localhost:8288 |
+| Postgres | localhost:5433 (lulia/lulia/devpassword) |
+
+## Project structure
 
 ```
-lulia/
-├── src/lms_agents/
-│   ├── config/                  # Agent and task YAML definitions
-│   │   ├── agents.yaml
-│   │   └── tasks.yaml
-│   ├── crews/                   # 5 crew files
-│   │   ├── planning_crew.py
-│   │   ├── assignment_crew.py
-│   │   ├── scan_grade_crew.py
-│   │   ├── analytics_crew.py
-│   │   └── standards_crew.py
-│   ├── tools/                   # Agent tools
-│   │   ├── rag_search.py
-│   │   ├── bedrock_embedding.py
-│   │   ├── knowledge_ingestion.py
-│   │   ├── generation_history.py
-│   │   ├── preview_renderer.py
-│   │   ├── calendar_output.py
-│   │   ├── accommodation_engine.py
-│   │   ├── sharing.py
-│   │   ├── standards_db.py
-│   │   ├── standards_importer.py
-│   │   ├── curriculum_importer.py
-│   │   ├── google_classroom.py
-│   │   ├── google_drive.py
-│   │   ├── google_calendar.py
-│   │   ├── gemini_slides.py
-│   │   ├── gemini_imagen.py
-│   │   ├── video_pipeline.py
-│   │   ├── lesson_plan_renderer.py
-│   │   ├── template_renderer.py
-│   │   ├── interactive_builder.py
-│   │   ├── puzzle_generators.py
-│   │   ├── curriculum_calendar.py
-│   │   ├── ocr_processor.py
-│   │   ├── pdf_generator.py
-│   │   ├── qr_handler.py
-│   │   ├── file_storage.py
-│   │   └── credit_manager.py
-│   ├── worker/                  # Background worker
-│   │   ├── scheduler.py
-│   │   ├── plan_dispatcher.py
-│   │   ├── template_renderer.py
-│   │   ├── video_renderer.py
-│   │   ├── scan_watcher.py
-│   │   ├── classroom_sync.py
-│   │   ├── calendar_sync.py
-│   │   ├── history_store.py
-│   │   └── notification_handler.py
-│   ├── templates/               # Output Template Library (20+)
-│   │   ├── worksheet/
-│   │   ├── task_cards/
-│   │   ├── flashcards/
-│   │   ├── bingo/
-│   │   ├── word_search/
-│   │   ├── crossword/
-│   │   ├── escape_room/
-│   │   ├── reading_comprehension/
-│   │   ├── writing_prompts/
-│   │   ├── graphic_organizer/
-│   │   ├── anchor_chart/
-│   │   ├── quiz_test/
-│   │   ├── exit_ticket/
-│   │   ├── study_guide/
-│   │   ├── sub_plans/
-│   │   ├── morning_work/
-│   │   ├── homework_packet/
-│   │   ├── vocab_cards/
-│   │   ├── board_game/
-│   │   ├── scavenger_hunt/
-│   │   ├── parent_newsletter/
-│   │   ├── lab_activity/
-│   │   ├── lab_report/
-│   │   └── shared_themes/       # 7 design themes
-│   │       ├── modern_clean.css
-│   │       ├── playful_primary.css
-│   │       ├── bold_bright.css
-│   │       ├── nature_earth.css
-│   │       ├── galaxy_space.css
-│   │       ├── seasonal.css
-│   │       └── custom.css
-│   ├── game_shells/             # 8 pre-built game shells
-│   │   ├── gold_rush/
-│   │   ├── tower_defense/
-│   │   ├── racing/
-│   │   ├── battle_royale/
-│   │   ├── factory_tycoon/
-│   │   ├── space_explorer/
-│   │   ├── monster_battle/
-│   │   └── classic_quiz_race/
-│   ├── models/                  # SQLAlchemy models
-│   │   ├── __init__.py
-│   │   ├── base.py
-│   │   ├── teacher.py
-│   │   ├── classes.py
-│   │   ├── standards.py
-│   │   ├── knowledge.py
-│   │   ├── plans.py
-│   │   ├── assignments.py
-│   │   ├── interactive.py
-│   │   ├── grading.py
-│   │   ├── credits.py
-│   │   ├── accommodations.py
-│   │   └── generation_history.py
-│   ├── routers/                 # FastAPI route handlers
-│   │   ├── __init__.py
-│   │   ├── plans.py
-│   │   ├── upload.py
-│   │   ├── assignments.py
-│   │   ├── activities.py
-│   │   ├── grading.py
-│   │   ├── analytics.py
-│   │   ├── classroom.py
-│   │   ├── calendar.py
-│   │   ├── credits.py
-│   │   ├── accommodations.py
-│   │   ├── sharing.py
-│   │   ├── settings.py
-│   │   ├── chat.py
-│   │   └── auth.py
-│   └── main.py                  # FastAPI app entry point
-├── dashboard/                   # Next.js frontend (Bolt.new)
-├── data/
-│   └── state_standards/         # Pre-loaded 50 states + DC
-├── game_shells/                 # React game shell source
-├── docs/
-│   └── architecture-v3.3.docx  # Architecture document
-├── scripts/
-│   ├── seed_standards.py        # Load state standards into DB
-│   ├── seed_templates.py        # Initialize template library
-│   └── migrate.py               # Database migrations
-├── .claude/
-│   └── skills/                  # 9 Claude Code skills
-│       ├── crewai-lms/
-│       ├── fastapi-lms/
-│       ├── rag-pipeline/
-│       ├── google-classroom-lms/
-│       ├── standards-system/
-│       ├── lesson-plan-system/
-│       ├── video-pipeline/
-│       ├── interactive-system/
-│       └── lms-master/
-├── .github/
-│   └── workflows/
-│       └── deploy.yml           # CI/CD pipeline
-├── docker-compose.yml           # Local development
-├── Dockerfile                   # API + Worker image
-├── .env.example                 # Template for environment variables
-├── .gitignore
-├── requirements.txt
-└── README.md
+src/lms_agents/
+├── config/             Agent YAML, pricing, course components, 20 pedagogy packs
+├── crews/              5 agent crews (assignment, planning, grading, analytics, video)
+├── inngest/            Durable workflow definitions
+├── routers/            30+ FastAPI route handlers
+├── tools/              25+ shared tools — RAG, embedding, TTS, Stripe, auth, image library, structured templates
+├── templates/          22 worksheet templates + 5 puzzle generators + shared themes
+├── websocket/          Game server (kept; UI shelved)
+└── main.py             FastAPI app entry point
+
+dashboard/
+├── src/app/            20+ Next.js App Router pages (login, dashboard home, planner, calendar, interactive, videos, grades, …)
+├── src/components/     Shared React components (StandardsPickerModal, EditActivityModal, …)
+└── src/lib/            API client (Bearer auth attached automatically), domain helpers
+
+scripts/                 DB init, standards import, seed data, alembic baseline, content ingestion CLIs
+tests/                   pytest critical-path + tenant-isolation + html-security tests
+docs/                    DEVELOPMENT.md, STRIPE_SETUP.md, PRE_AWS_CHECKLIST.md, CHANGELOG.md
+data/content/            Local OER content (gitignored, S3 in prod)
 ```
 
-## Build Phases
+## Auth model
 
-| Phase | Weeks | Milestone |
-|-------|-------|-----------|
-| 1 | 1-5 | Docker, PostgreSQL+pgvector, Standards system |
-| 2 | 6-12 | RAG KB, Upload lanes, Assignment Crew, Dashboard **(MVP)** |
-| 3 | 13-19 | Template Library (20+), Generation History |
-| 4 | 20-25 | Scan & Grade, Worker, Analytics |
-| 5 | 26-33 | Classroom, Lesson Plans, Calendar |
-| 6 | 34-38 | Video Pipeline (Imagen), Accommodations |
-| 7 | 39-43 | Interactive System (React + WebSocket) |
-| 8 | 44-48 | Chat, Onboarding, Sharing, Credits, Polish |
+- **Registration** → `POST /api/v1/auth/register {email, password, name}` → returns JWT.
+- **Login** → `POST /api/v1/auth/login {email, password}` → returns JWT.
+- **Current user** → `GET /api/v1/auth/me` with `Authorization: Bearer <token>`.
+- **Dashboard** stores the token in `localStorage` (`lulia.auth.token`) and `apiFetch` attaches it on every request. A 401 from any protected route auto-clears the token and routes to `/login`.
+- **Tenant isolation** — every CRUD endpoint that returns or mutates a tenant resource uses `Depends(require_teacher)` plus `assert_owner_or_403` on the row's `teacher_id`. Tested in `tests/test_tenant_isolation.py`.
+- **Dev bypass** — set `DEV_AUTH_BYPASS=1` (default in `.env.example`) to allow legacy `?teacher_id=<uuid>` queries when no Authorization header is present. **Set `DEV_AUTH_BYPASS=0` in staging/prod.**
+
+## Three-tier standards
+
+1. **Custom** (teacher-specific) — uploaded pacing guides parsed by Haiku
+2. **State** — all 50 states + DC, ~1.21M standards loaded from Common Standards Project, embedded via Bedrock Titan v2 in pgvector with HNSW index
+3. **National** — Common Core loaded; NGSS + C3 pending
+
+Active framework joins use `is_active=true` so a single chunk gets codes from every state simultaneously. Retrieve by code + grade band via `tools/standards_retrieval`.
+
+## Generation pipelines
+
+- **Worksheet / lesson plan / quiz / video** — full Sonnet crew (Curriculum → Pedagogy Director → Content → Rubric → QA → Format).
+- **Interactive activities** — Gemini-only fast path:
+  - **Structured templates** (crossword, word_search, flashcards, timeline, number_line, fill_in_blank) — Gemini emits a small JSON of words/cards/events/sentences; the React engine is in `src/lms_agents/tools/structured_*.py`. Word-bank toggle on crossword + fill-in-blank for younger / scaffolded use.
+  - **Artifact mode** — Gemini 2.5 Pro emits a complete self-contained HTML file when no structured template fits. Validated for balanced JSX braces + suspicious patterns (external scripts, document.cookie, eval) + 1-shot retry on failure.
+- **Hotspot diagrams** — Gemini 2.5 Flash Image generates the diagram, Gemini 2.5 Pro vision annotates pixel-perfect click regions; a curated SVG path is preferred for canonical anatomy where the model knows the structure cold.
+
+## Common operations
+
+```bash
+# Run a specific test file
+docker compose exec api pytest tests/test_tenant_isolation.py -v
+
+# Apply a migration manually
+docker compose exec api python scripts/migrate_teacher_password_hash.py
+
+# Generate a structured crossword end-to-end
+docker compose exec api python -c "
+from src.lms_agents.tools.structured_crossword import generate_crossword_activity
+print(generate_crossword_activity(
+    topic='Plant cell organelles', grade='5', subject='Science',
+    teacher_id='00000000-0000-0000-0000-000000000001',
+    class_id='00000000-0000-0000-0000-000000000010',
+    standards=[], question_count=8))"
+
+# Check what's in the knowledge base
+docker compose exec api python scripts/ingest.py status
+```
 
 ## Documentation
 
-- [Architecture Document (v3.3)](docs/architecture-v3.3.docx) — 1,841 paragraphs, 34 sections
-- [Skills Guide](docs/skills-guide.md) — How to use the 9 Claude Code skills
+- [`CLAUDE.md`](CLAUDE.md) — Architectural decisions, build phases, "do not change" rules
+- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — local setup, project structure, adding templates/pages
+- [`docs/STRIPE_SETUP.md`](docs/STRIPE_SETUP.md) — Stripe products, webhook setup, test cards
+- [`docs/PRE_AWS_CHECKLIST.md`](docs/PRE_AWS_CHECKLIST.md) — pre-deployment verification (now also tracked as a release-gate label on PRs)
+- [`CHANGELOG.md`](CHANGELOG.md) — every phase documented
 
 ## License
 
-Proprietary — All rights reserved.
+All rights reserved. Pre-launch / private.

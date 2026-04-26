@@ -47,6 +47,16 @@ data/content/
 # Scratch mockups / design previews (not production code)
 Lulia Lesson Lab-v2/
 
+# Google Fonts download dirs at repo root — use the CDN, don't bundle the
+# binaries. (Dashboard pulls Google Fonts via @import in globals.css.)
+/Caveat/
+/Nunito/
+/DM_Serif_Display/
+/DM_Sans*/
+
+# Personal / non-code docs at repo root
+/Brisk_vs_Lulia_Competitive_Analysis.docx
+
 # Uploaded files (these live in MinIO/S3)
 uploads/
 scans/

@@ -15,6 +15,8 @@ from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
+from src.lms_agents.tools.auth import require_teacher
+
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
 log = logging.getLogger(__name__)
@@ -150,11 +152,19 @@ async def parse_intent(req: ParseIntentRequest):
 
 
 @router.post("/generate-from-prompt")
-async def generate_from_prompt(req: GenerateFromPromptRequest):
+async def generate_from_prompt(
+    req: GenerateFromPromptRequest,
+    authenticated_teacher_id: str = Depends(require_teacher),
+):
     """
     Two-step generation: parse intent → generate assignment → create output.
-    Returns the final generated item (interactive activity, game session, or video).
+    Returns the final generated item (interactive activity or video).
+
+    The authenticated teacher always owns the resulting resources — any
+    `teacher_id` in the request body is ignored.
     """
+    # Authenticated teacher owns the output, regardless of any body field.
+    req.teacher_id = authenticated_teacher_id
     # Step 1: Parse intent
     intent_req = ParseIntentRequest(prompt=req.prompt, output_type=req.output_type)
     from starlette.testclient import TestClient
