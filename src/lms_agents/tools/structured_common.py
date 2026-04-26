@@ -59,6 +59,106 @@ def get_builder(template_id: str):
     raise ValueError(f"Unknown structured template: {template_id}")
 
 
+def fetch_grounding_context(
+    topic: str,
+    grade: str,
+    subject: str,
+    standards: list[str] | None = None,
+    teacher_id: str | None = None,
+    rag_top_k: int = 4,
+    textbook_top_k: int = 2,
+    excerpt_chars: int = 800,
+) -> str:
+    """
+    Build a single ground-the-prompt block for structured-interactive
+    generation. Pulls two sources:
+
+      1. Textbook grounding — `find_reference_exemplars()` against the
+         teacher's archive + reference lanes (their uploaded textbooks
+         and reference samples). These are the AUTHORITATIVE content
+         source — vocabulary and explanations win over the model prior.
+
+      2. Topical RAG — `search_kb()` for general topical chunks that
+         aren't tagged as reference_text. Looser match, broader source
+         set, used as supporting context.
+
+    Returns a string ready to interpolate into a Gemini prompt.
+    Empty string if nothing relevant is found (graceful — generation
+    still proceeds on Gemini's prior, same as before).
+    """
+    parts: list[str] = []
+    seen_source_ids: set[str] = set()
+
+    # ---- 1) Textbook grounding ----
+    try:
+        from src.lms_agents.tools.reference_retrieval import find_reference_exemplars
+        textbooks = find_reference_exemplars(
+            topic_query=topic,
+            grade=str(grade or ""),
+            subject=subject,
+            artifact_type="reference_text",
+            lanes=["teacher_archive", "teacher_reference"],
+            teacher_id=teacher_id,
+            top_k=textbook_top_k,
+            include_excerpt=True,
+            excerpt_max_chars=excerpt_chars,
+        ) or []
+    except Exception as e:
+        log.warning(f"[Grounding] textbook lookup failed (non-fatal): {e}")
+        textbooks = []
+
+    if textbooks:
+        parts.append(
+            "=== TEACHER'S TEXTBOOK / REFERENCE MATERIAL (AUTHORITATIVE) ===\n"
+            "Use the vocabulary, examples, and phrasing below as the primary\n"
+            "source of truth for this activity. These are the teacher's own\n"
+            "uploaded materials — match the grade-level voice and term choice."
+        )
+        for tb in textbooks:
+            seen_source_ids.add(str(tb.get("source_id")))
+            name = (tb.get("source_name") or "").strip()
+            excerpt = (tb.get("excerpt") or "").strip()
+            if not excerpt:
+                continue
+            parts.append(f"\n[{name or 'Reference'}]\n{excerpt}")
+        parts.append("=== END TEXTBOOK ===\n")
+
+    # ---- 2) Topical RAG (skip chunks already pulled as textbooks) ----
+    try:
+        from src.lms_agents.tools.rag_search import search_kb
+        rag_hits = search_kb(query=topic, subject=subject, grade=grade, top_k=rag_top_k) or []
+    except Exception as e:
+        log.warning(f"[Grounding] RAG search failed (non-fatal): {e}")
+        rag_hits = []
+
+    rag_hits = [r for r in rag_hits if str(r.get("source_id")) not in seen_source_ids]
+
+    if rag_hits:
+        parts.append(
+            "=== TOPICAL CONTEXT (supporting) ===\n"
+            "Background context retrieved from the broader knowledge base.\n"
+            "Use as supporting evidence; the textbook block above wins on\n"
+            "any conflict."
+        )
+        for h in rag_hits[:rag_top_k]:
+            name = (h.get("source_name") or "").strip()
+            content = (h.get("content") or "").strip()
+            if not content:
+                continue
+            # Keep each chunk short so the prompt doesn't blow past max_input
+            snippet = content[:excerpt_chars]
+            parts.append(f"\n[{name or 'Source'}]\n{snippet}")
+        parts.append("=== END CONTEXT ===\n")
+
+    if not parts:
+        return ""
+    log.info(
+        f"[Grounding] {len(textbooks)} textbook chunks + {len(rag_hits)} "
+        f"RAG hits for topic='{topic[:40]}'"
+    )
+    return "\n".join(parts) + "\n"
+
+
 def call_gemini_json(prompt: str) -> dict:
     """Call Gemini for JSON output. Strips markdown fences, extracts the
     outermost JSON object. Raises ValueError if the response is unusable."""

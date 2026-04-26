@@ -14,21 +14,28 @@ import re
 from src.lms_agents.tools.structured_common import (
     call_gemini_json,
     deploy_structured_activity,
+    fetch_grounding_context,
 )
 
 log = logging.getLogger(__name__)
 
 
 def _generate_words(topic: str, grade: str, subject: str,
-                    standards: list[str] | None, target_count: int) -> dict:
+                    standards: list[str] | None, target_count: int,
+                    teacher_id: str | None = None) -> dict:
     standards_line = f"\nAligned standards: {', '.join(standards)}" if standards else ""
+    grounding = fetch_grounding_context(
+        topic=topic, grade=grade, subject=subject,
+        standards=standards, teacher_id=teacher_id,
+    )
     prompt = f"""You are designing a K-12 word-search puzzle.
 
 TOPIC: {topic}
 SUBJECT: {subject}
 GRADE LEVEL: {grade}{standards_line}
 
-Produce between 8 and {target_count} words. Each word must be a single UPPERCASE word, A-Z only, 3-10 letters, directly related to the topic, grade-{grade} appropriate.
+{grounding}
+Produce between 8 and {target_count} words. Each word must be a single UPPERCASE word, A-Z only, 3-10 letters, directly related to the topic, grade-{grade} appropriate. Prefer terms that appear in the teacher's textbook material above when relevant.
 
 Output ONLY JSON, no markdown fences:
 {{
@@ -291,7 +298,7 @@ def generate_wordsearch_activity(
     question_count: int = 12,
 ) -> dict:
     log.info(f"[WordSearch] topic='{topic[:60]}' grade={grade} subject={subject} count={question_count}")
-    data = _generate_words(topic, grade, subject, standards, question_count)
+    data = _generate_words(topic, grade, subject, standards, question_count, teacher_id=teacher_id)
     html = _build_html(data)
     return deploy_structured_activity(
         html=html,

@@ -11,20 +11,27 @@ import logging
 from src.lms_agents.tools.structured_common import (
     call_gemini_json,
     deploy_structured_activity,
+    fetch_grounding_context,
 )
 
 log = logging.getLogger(__name__)
 
 
 def _generate_cards(topic: str, grade: str, subject: str,
-                    standards: list[str] | None, target_count: int) -> dict:
+                    standards: list[str] | None, target_count: int,
+                    teacher_id: str | None = None) -> dict:
     standards_line = f"\nAligned standards: {', '.join(standards)}" if standards else ""
+    grounding = fetch_grounding_context(
+        topic=topic, grade=grade, subject=subject,
+        standards=standards, teacher_id=teacher_id,
+    )
     prompt = f"""Create flashcard content for a K-12 study activity.
 
 TOPIC: {topic}
 SUBJECT: {subject}
 GRADE LEVEL: {grade}{standards_line}
 
+{grounding}
 Produce {target_count} flashcards. Each card has a `front` (prompt / term / question) and a `back` (definition / answer / explanation).
 
 RULES:
@@ -211,7 +218,7 @@ def generate_flashcards_activity(
     question_count: int = 10,
 ) -> dict:
     log.info(f"[Flashcards] topic='{topic[:60]}' grade={grade} subject={subject} count={question_count}")
-    data = _generate_cards(topic, grade, subject, standards, question_count)
+    data = _generate_cards(topic, grade, subject, standards, question_count, teacher_id=teacher_id)
     html = _build_html(data)
     return deploy_structured_activity(
         html=html,

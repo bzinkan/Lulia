@@ -11,20 +11,27 @@ import logging
 from src.lms_agents.tools.structured_common import (
     call_gemini_json,
     deploy_structured_activity,
+    fetch_grounding_context,
 )
 
 log = logging.getLogger(__name__)
 
 
 def _generate_questions(topic: str, grade: str, subject: str,
-                        standards: list[str] | None, target_count: int) -> dict:
+                        standards: list[str] | None, target_count: int,
+                        teacher_id: str | None = None) -> dict:
     standards_line = f"\nAligned standards: {', '.join(standards)}" if standards else ""
+    grounding = fetch_grounding_context(
+        topic=topic, grade=grade, subject=subject,
+        standards=standards, teacher_id=teacher_id,
+    )
     prompt = f"""You are designing a K-12 number-line placement activity.
 
 TOPIC: {topic}
 SUBJECT: {subject}
 GRADE LEVEL: {grade}{standards_line}
 
+{grounding}
 Choose a suitable numeric range (`min`, `max`) and tick interval for the line based on the topic and grade. Then produce {target_count} short questions. For each question, the student will tap a location on the line to answer.
 
 RULES:
@@ -266,7 +273,7 @@ def generate_number_line_activity(
     question_count: int = 8,
 ) -> dict:
     log.info(f"[NumberLine] topic='{topic[:60]}' grade={grade} subject={subject} count={question_count}")
-    data = _generate_questions(topic, grade, subject, standards, question_count)
+    data = _generate_questions(topic, grade, subject, standards, question_count, teacher_id=teacher_id)
     html = _build_html(data)
     return deploy_structured_activity(
         html=html,

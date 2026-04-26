@@ -35,11 +35,17 @@ def _generate_words(
     subject: str,
     standards: list[str] | None = None,
     target_count: int = 10,
+    teacher_id: str | None = None,
 ) -> dict:
     """Ask Gemini for crossword-ready words + clues. Returns
     {title: str, words: [{answer: str, clue: str}]}."""
     standards_line = (
         f"\nAligned standards: {', '.join(standards)}" if standards else ""
+    )
+    from src.lms_agents.tools.structured_common import fetch_grounding_context
+    grounding = fetch_grounding_context(
+        topic=topic, grade=grade, subject=subject,
+        standards=standards, teacher_id=teacher_id,
     )
     prompt = f"""You are designing a K-12 crossword puzzle.
 
@@ -47,6 +53,7 @@ TOPIC: {topic}
 SUBJECT: {subject}
 GRADE LEVEL: {grade}{standards_line}
 
+{grounding}
 Produce between 8 and {target_count} words, each with a short classroom clue.
 
 RULES FOR EACH WORD:
@@ -685,6 +692,7 @@ def generate_crossword_activity(
     data = _generate_words(
         topic=topic, grade=grade, subject=subject,
         standards=standards, target_count=question_count,
+        teacher_id=teacher_id,
     )
     html = _build_crossword_html(data)
     return _deploy_activity(
