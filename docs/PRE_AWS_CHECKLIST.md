@@ -23,8 +23,8 @@ Before deploying Lulia to AWS (ECS/Fargate, RDS, S3, CloudFront), verify all of 
 
 ## Interactive & Games
 - [ ] Interactive activities deploy to MinIO and load in browser
-- [ ] Live games: create → join → play → score (WebSocket)
-- [ ] Redis stores game state correctly
+- [ ] Live games backend smoke test only if Arcade is re-enabled; Arcade UI is shelved for launch
+- [ ] Redis game state check only if Arcade is re-enabled
 
 ## Admin
 - [ ] Admin login works
@@ -60,7 +60,7 @@ Before deploying Lulia to AWS (ECS/Fargate, RDS, S3, CloudFront), verify all of 
 - [ ] `docker compose exec api python scripts/migrate_short_clips.py`
       (creates `short_clips` table for Veo-generated clips)
 
-### Google Cloud / Vertex AI (for Veo 3 Fast short-clip generation)
+### Google Cloud / Vertex AI (only if short clips remain in the launch plan)
 - [ ] Enable **Vertex AI API** on the GCP project used for production
 - [ ] Create a service account with role `Vertex AI User`
 - [ ] Download the service-account JSON key, mount it on the ECS task at `/secrets/gcp-sa.json`
@@ -70,7 +70,7 @@ Before deploying Lulia to AWS (ECS/Fargate, RDS, S3, CloudFront), verify all of 
   - `GOOGLE_APPLICATION_CREDENTIALS=/secrets/gcp-sa.json`
   - `VEO_MODEL_ID=veo-3.0-fast-generate-preview` (or latest Fast model ID)
 - [ ] Add `google-genai` to `requirements.txt` and rebuild the Docker image
-- [ ] Verify: POST `/api/v1/clips/generate` with a small test prompt produces a real clip URI
+- [ ] If short clips are enabled, verify POST `/api/v1/clips/generate` with a small test prompt produces a real clip URI
 - [ ] Note: Vertex AI service account is **backend-only auth** — unrelated to the user-facing Google OAuth flow used for Classroom/Slides/Forms
 
 ### Stripe — new credit pack prices (tier-aligned)
@@ -89,11 +89,11 @@ Pack prices now mirror subscription tiers so per-credit rate is consistent.
 - [ ] In the Stripe webhook handler (`stripe_webhooks.py`), verify that **credit-pack purchases call `grant_credits(..., bucket="purchased")`** — purchased credits never expire; they must not land in the monthly-reset bucket
 - [ ] Verify: test pack purchase in Stripe test mode → check `teachers.credits_purchased` increments, `teachers.credit_balance` untouched
 
-### Live Games — multi-instance WebSocket readiness
+### Live Games — optional multi-instance WebSocket readiness
 
-The game WebSocket now uses **Redis pub/sub** for broadcast so connections
-sharded across multiple Fargate tasks still see the same events. ALB +
-CloudFront must be configured for WebSocket passthrough and stickiness.
+Arcade UI is shelved for the initial launch, but the backend is intentionally
+kept. Treat this section as a non-launch-gating readiness checklist unless
+games are explicitly re-enabled.
 
 - [ ] Set ECS env var `NEXT_PUBLIC_WS_URL=wss://school-pilot.net` on the
       dashboard container (or whatever the production hostname is)
@@ -114,13 +114,14 @@ CloudFront must be configured for WebSocket passthrough and stickiness.
       delivery via the same code path (Redis publish still works).
 
 ### End-to-end verification
-- [ ] Generate a 30-sec clip from `/clips` page — charges 90 credits, monthly-first spend order in `credit_transactions_v2.metadata`
-- [ ] Tier gate: Free/Basic account hitting `POST /clips/generate` returns 402 with upgrade prompt
+- [ ] Confirm final video direction before treating clip/video generation as launch-gating; current strategy is undecided
+- [ ] If short clips are enabled, generate a 30-sec clip from `/clips` page — charges 90 credits, monthly-first spend order in `credit_transactions_v2.metadata`
+- [ ] If short clips are enabled, Free/Basic account hitting `POST /clips/generate` returns 402 with upgrade prompt
 - [ ] Monthly credit reset cron does NOT reset `credits_purchased`
-- [ ] Planner refiner "Short Clip" option saves `output_template_id: 'short_clip'` on work order; approve_plan routes to Veo (not the old slides pipeline)
-- [ ] On Veo failure, credits auto-refund to the `purchased` bucket
-- [ ] `/videos` URL redirects to `/clips` (for bookmarks)
-- [ ] Live Games multi-instance test: run 2+ Fargate tasks. Teacher on
+- [ ] If short clips are enabled, Planner refiner "Short Clip" option saves `output_template_id: 'short_clip'` on work order; approve_plan routes to Veo
+- [ ] If short clips are enabled, on Veo failure, credits auto-refund to the `purchased` bucket
+- [ ] Video Library, generated-video fallback, upload processing, and short-clip routes are all preserved until product direction is confirmed
+- [ ] If Arcade is re-enabled, run Live Games multi-instance test: run 2+ Fargate tasks. Teacher on
       laptop, 2 students on separate phones/tabs with different IPs. All
       3 sockets should receive `new_question` simultaneously. If a student
       misses an event, suspect ALB stickiness or Redis pub/sub config.

@@ -165,8 +165,8 @@ async def upload_image(
 
 @router.get("")
 async def list_images(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
     search: str = Query(None),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List teacher's saved images."""
@@ -187,10 +187,20 @@ async def list_images(
 
 
 @router.delete("/{image_id}")
-async def delete_image(image_id: str, conn=Depends(get_db)):
+async def delete_image(
+    image_id: str,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Delete an image from the library."""
     cur = conn.cursor()
-    cur.execute("DELETE FROM teacher_images WHERE image_id = %s", (image_id,))
+    cur.execute(
+        "DELETE FROM teacher_images WHERE image_id = %s AND teacher_id = %s::uuid",
+        (image_id, teacher_id),
+    )
+    if cur.rowcount == 0:
+        cur.close()
+        return JSONResponse({"error": "Image not found"}, status_code=404)
     conn.commit(); cur.close()
     return {"status": "deleted"}
 
@@ -391,8 +401,13 @@ class GenerateImageRequest(BaseModel):
 
 
 @router.post("/generate")
-async def generate_image_endpoint(req: GenerateImageRequest, conn=Depends(get_db)):
+async def generate_image_endpoint(
+    req: GenerateImageRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Generate an educational image using DALL-E 3."""
+    req.teacher_id = teacher_id
     openai_key = os.environ.get("OPENAI_API_KEY")
     if not openai_key:
         return JSONResponse({"error": "OPENAI_API_KEY not set"}, status_code=503)
@@ -476,8 +491,8 @@ async def inpaint_image(
     image: UploadFile = File(..., description="Original image to edit (PNG/JPG)"),
     mask: UploadFile = File(..., description="Mask PNG (white = change this region, black = keep)"),
     prompt: str = Form(..., description="Describe what to put in the masked area"),
-    teacher_id: str = Form("00000000-0000-0000-0000-000000000001"),
     save_to_library: bool = Form(True),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """

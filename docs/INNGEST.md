@@ -24,8 +24,8 @@ Teacher action (HTTP)
 |-------|---------|---------|-------------|---------|
 | `smoke-test` | `test/smoke.requested` | 3 | — | Verify stack works |
 | `plan-approval` | `plan/approval.requested` | 2 | — | Lesson plan material generation |
-| `clip-generation` | `clip/generation.requested` | 2 | 3 (Vertex) | Veo 3 Fast video clips |
-| `video-generation` | `video/generation.requested` | 1 | 5 (Sonnet) | Full video pipeline |
+| `clip-generation` | `clip/generation.requested` | 2 | 3 (Vertex) | Retained Veo short-clip path; launch usage undecided |
+| `video-generation` | `video/generation.requested` | 1 | 5 (Sonnet) | Retained generated-video pipeline/fallback |
 | `cron-stale-games-cleanup` | Daily 2am UTC | 3 | — | Purge orphaned Redis game keys |
 | `cron-webhooks-purge` | 1st of month 4am UTC | 3 | — | Clean 90-day-old webhook dedup records |
 | `cron-analytics-rollup` | Weekly Sunday 3am UTC | 3 | — | Credit + game usage aggregation |

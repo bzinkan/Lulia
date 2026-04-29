@@ -121,9 +121,20 @@ def test_interactive_templates():
 # --- Phase 11: Game Shells ---
 
 def test_game_shells():
-    """All 8 game shells are registered."""
+    """Original game shells are still registered even while Arcade UI is shelved."""
     from src.lms_agents.tools.game_session_manager import GAME_SHELLS
-    assert len(GAME_SHELLS) == 8
+    expected_core_shells = {
+        "quiz_race",
+        "jeopardy",
+        "bingo_blitz",
+        "millionaire",
+        "battle_royale",
+        "team_tug_of_war",
+        "memory_match",
+        "speed_rush",
+    }
+    assert expected_core_shells.issubset(GAME_SHELLS)
+    assert len(GAME_SHELLS) >= len(expected_core_shells)
 
 
 # --- Phase 11.5: Lulings ---

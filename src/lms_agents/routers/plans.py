@@ -13,6 +13,7 @@ from psycopg2.extras import Json, RealDictCursor
 from pydantic import BaseModel
 
 from src.lms_agents.crews.planning_crew import run_planner, approve_plan
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +57,10 @@ class ModifyPlanRequest(BaseModel):
 
 
 @router.post("/suggest")
-async def suggest_plan(req: SuggestPlanRequest):
+async def suggest_plan(
+    req: SuggestPlanRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """
     Trigger the Lesson Planner to generate a plan.
     Returns the plan for preview before approval.
@@ -67,6 +71,20 @@ async def suggest_plan(req: SuggestPlanRequest):
             week_start = date.fromisoformat(req.week_start_date)
         except ValueError:
             return JSONResponse({"error": "Invalid date format"}, status_code=400)
+
+    req.teacher_id = teacher_id
+    conn_check = get_db_conn()
+    cur_check = conn_check.cursor()
+    cur_check.execute(
+        "SELECT teacher_id FROM classes WHERE class_id = %s::uuid",
+        (req.class_id,),
+    )
+    cls = cur_check.fetchone()
+    cur_check.close()
+    conn_check.close()
+    if not cls:
+        return JSONResponse({"error": "Class not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, cls[0])
 
     result = run_planner(
         class_id=req.class_id,
@@ -88,7 +106,11 @@ class ApproveRequest(BaseModel):
 
 
 @router.put("/{plan_id}/approve")
-async def approve(plan_id: UUID, req: ApproveRequest = ApproveRequest()):
+async def approve(
+    plan_id: UUID,
+    req: ApproveRequest = ApproveRequest(),
+    teacher_id: str = Depends(require_teacher),
+):
     """
     Approve the plan — kicks off material generation in the background.
 
@@ -103,6 +125,15 @@ async def approve(plan_id: UUID, req: ApproveRequest = ApproveRequest()):
     from src.lms_agents.inngest.client import inngest_client
 
     plan_id_str = str(plan_id)
+    conn_check = get_db_conn()
+    cur_check = conn_check.cursor(cursor_factory=RealDictCursor)
+    cur_check.execute("SELECT teacher_id FROM lesson_plans WHERE plan_id = %s", (plan_id_str,))
+    row = cur_check.fetchone()
+    cur_check.close()
+    conn_check.close()
+    if not row:
+        return JSONResponse({"error": "Plan not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
 
     # Update status to generating immediately
     conn_pre = get_db_conn()
@@ -131,7 +162,12 @@ async def approve(plan_id: UUID, req: ApproveRequest = ApproveRequest()):
 
 
 @router.put("/{plan_id}/modify")
-async def modify_plan(plan_id: UUID, req: ModifyPlanRequest, conn=Depends(get_db)):
+async def modify_plan(
+    plan_id: UUID,
+    req: ModifyPlanRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Update specific days/work_orders in a plan."""
     cur = conn.cursor()
     if req.daily_plans:
@@ -139,29 +175,43 @@ async def modify_plan(plan_id: UUID, req: ModifyPlanRequest, conn=Depends(get_db
             """UPDATE lesson_plans
                SET plan_data = jsonb_set(plan_data, '{daily_plans}', %s),
                    status = 'suggested'
-               WHERE plan_id = %s""",
-            (Json(req.daily_plans), str(plan_id)),
+               WHERE plan_id = %s AND teacher_id = %s::uuid""",
+            (Json(req.daily_plans), str(plan_id), teacher_id),
         )
+        if cur.rowcount == 0:
+            cur.close()
+            return JSONResponse({"error": "Plan not found"}, status_code=404)
     conn.commit()
     cur.close()
     return {"plan_id": str(plan_id), "status": "modified"}
 
 
 @router.put("/{plan_id}/start-over")
-async def start_over(plan_id: UUID, conn=Depends(get_db)):
+async def start_over(
+    plan_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Discard plan and re-suggest."""
     cur = conn.cursor()
     cur.execute(
-        "UPDATE lesson_plans SET status = 'discarded' WHERE plan_id = %s",
-        (str(plan_id),),
+        "UPDATE lesson_plans SET status = 'discarded' WHERE plan_id = %s AND teacher_id = %s::uuid",
+        (str(plan_id), teacher_id),
     )
+    if cur.rowcount == 0:
+        cur.close()
+        return JSONResponse({"error": "Plan not found"}, status_code=404)
     conn.commit()
     cur.close()
     return {"plan_id": str(plan_id), "status": "discarded"}
 
 
 @router.get("/{plan_id}")
-async def get_plan(plan_id: UUID, conn=Depends(get_db)):
+async def get_plan(
+    plan_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Get plan details with status."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
@@ -174,12 +224,14 @@ async def get_plan(plan_id: UUID, conn=Depends(get_db)):
     cur.close()
     if not row:
         return JSONResponse({"error": "Plan not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     return dict(row)
 
 
 @router.get("")
 async def list_plans(
     class_id: Optional[str] = Query(None),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List plans for a class."""
@@ -187,14 +239,15 @@ async def list_plans(
     if class_id:
         cur.execute(
             """SELECT plan_id, class_id, duration_type, week_start_date, status, created_at
-               FROM lesson_plans WHERE class_id = %s::uuid
+               FROM lesson_plans WHERE class_id = %s::uuid AND teacher_id = %s::uuid
                ORDER BY created_at DESC LIMIT 20""",
-            (class_id,),
+            (class_id, teacher_id),
         )
     else:
         cur.execute(
             """SELECT plan_id, class_id, duration_type, week_start_date, status, created_at
-               FROM lesson_plans ORDER BY created_at DESC LIMIT 20""",
+               FROM lesson_plans WHERE teacher_id = %s::uuid ORDER BY created_at DESC LIMIT 20""",
+            (teacher_id,),
         )
     rows = [dict(r) for r in cur.fetchall()]
     cur.close()

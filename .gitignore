@@ -39,6 +39,7 @@ Thumbs.db
 postgres_data/
 minio_data/
 data/content/
+local_artifacts/
 
 # Temp files from video rendering
 /tmp/video/

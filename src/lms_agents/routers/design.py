@@ -9,7 +9,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 import anthropic
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, Response
 import psycopg2
 from src.lms_agents.tools.db import get_connection as _pool_get_connection
@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from src.lms_agents.tools.ai_fill_engine import ai_fill_template, render_custom_template
 from src.lms_agents.tools.rag_search import search_kb
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +42,28 @@ def get_db():
         conn.close()
 
 
+def _assert_template_owner(template_id: UUID, teacher_id: str, conn) -> None:
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT teacher_id FROM custom_templates WHERE template_id = %s", (str(template_id),))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Template not found")
+    assert_owner_or_403(teacher_id, row["teacher_id"])
+
+
+def _assert_class_owner(class_id: str | None, teacher_id: str, conn) -> None:
+    if not class_id:
+        return
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (class_id,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Class not found")
+    assert_owner_or_403(teacher_id, row[0])
+
+
 class CreateTemplateRequest(BaseModel):
     teacher_id: str = "00000000-0000-0000-0000-000000000001"
     name: str
@@ -60,8 +83,13 @@ class AIFillRequest(BaseModel):
 
 
 @router.post("/templates")
-async def create_template(req: CreateTemplateRequest, conn=Depends(get_db)):
+async def create_template(
+    req: CreateTemplateRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Create a new custom template."""
+    req.teacher_id = teacher_id
     cur = conn.cursor()
     template_id = str(uuid4())
     cur.execute(
@@ -78,7 +106,7 @@ async def create_template(req: CreateTemplateRequest, conn=Depends(get_db)):
 
 @router.get("/templates")
 async def list_templates(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List teacher's custom templates."""
@@ -96,7 +124,11 @@ async def list_templates(
 
 
 @router.get("/templates/{template_id}")
-async def get_template(template_id: UUID, conn=Depends(get_db)):
+async def get_template(
+    template_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Get template canvas for editing."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM custom_templates WHERE template_id = %s", (str(template_id),))
@@ -104,12 +136,19 @@ async def get_template(template_id: UUID, conn=Depends(get_db)):
     cur.close()
     if not row:
         return JSONResponse({"error": "Template not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     return dict(row)
 
 
 @router.put("/templates/{template_id}")
-async def update_template(template_id: UUID, req: CreateTemplateRequest, conn=Depends(get_db)):
+async def update_template(
+    template_id: UUID,
+    req: CreateTemplateRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Update template canvas."""
+    _assert_template_owner(template_id, teacher_id, conn)
     cur = conn.cursor()
     cur.execute(
         """UPDATE custom_templates
@@ -125,8 +164,13 @@ async def update_template(template_id: UUID, req: CreateTemplateRequest, conn=De
 
 
 @router.delete("/templates/{template_id}")
-async def delete_template(template_id: UUID, conn=Depends(get_db)):
+async def delete_template(
+    template_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Delete a custom template."""
+    _assert_template_owner(template_id, teacher_id, conn)
     cur = conn.cursor()
     cur.execute("DELETE FROM custom_templates WHERE template_id = %s", (str(template_id),))
     conn.commit()
@@ -135,7 +179,11 @@ async def delete_template(template_id: UUID, conn=Depends(get_db)):
 
 
 @router.post("/templates/{template_id}/duplicate")
-async def duplicate_template(template_id: UUID, conn=Depends(get_db)):
+async def duplicate_template(
+    template_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Copy a template."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM custom_templates WHERE template_id = %s", (str(template_id),))
@@ -143,6 +191,7 @@ async def duplicate_template(template_id: UUID, conn=Depends(get_db)):
     if not orig:
         cur.close()
         return JSONResponse({"error": "Template not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, orig["teacher_id"])
 
     new_id = str(uuid4())
     cur2 = conn.cursor()
@@ -160,7 +209,12 @@ async def duplicate_template(template_id: UUID, conn=Depends(get_db)):
 
 
 @router.post("/templates/{template_id}/ai-fill")
-async def fill_template(template_id: UUID, req: AIFillRequest, conn=Depends(get_db)):
+async def fill_template(
+    template_id: UUID,
+    req: AIFillRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Fill template with AI-generated content."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT canvas_json, design_theme FROM custom_templates WHERE template_id = %s", (str(template_id),))
@@ -168,6 +222,7 @@ async def fill_template(template_id: UUID, req: AIFillRequest, conn=Depends(get_
     cur.close()
     if not row:
         return JSONResponse({"error": "Template not found"}, status_code=404)
+    _assert_template_owner(template_id, teacher_id, conn)
 
     filled = ai_fill_template(
         canvas_json=row["canvas_json"],
@@ -195,7 +250,11 @@ async def fill_template(template_id: UUID, req: AIFillRequest, conn=Depends(get_
 
 
 @router.post("/templates/{template_id}/preview")
-async def preview_template(template_id: UUID, conn=Depends(get_db)):
+async def preview_template(
+    template_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Render template preview without saving."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT canvas_json, design_theme FROM custom_templates WHERE template_id = %s", (str(template_id),))
@@ -203,6 +262,7 @@ async def preview_template(template_id: UUID, conn=Depends(get_db)):
     cur.close()
     if not row:
         return JSONResponse({"error": "Template not found"}, status_code=404)
+    _assert_template_owner(template_id, teacher_id, conn)
 
     html = render_custom_template(row["canvas_json"], row.get("design_theme", "modern_clean"))
     return {"preview_html": html}
@@ -355,7 +415,11 @@ def _suggest_standards_for_topic(
 
 
 @router.post("/generate-content")
-async def generate_content(req: GenerateContentRequest, conn=Depends(get_db)):
+async def generate_content(
+    req: GenerateContentRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Generate structured worksheet / activity content using RAG + Claude Sonnet.
 
@@ -364,6 +428,8 @@ async def generate_content(req: GenerateContentRequest, conn=Depends(get_db)):
     3. Call Claude Sonnet for structured content generation
     4. Return content + metadata
     """
+    req.teacher_id = teacher_id
+    _assert_class_owner(req.class_id, teacher_id, conn)
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return JSONResponse(
@@ -487,13 +553,17 @@ Return ONLY the JSON object, no markdown fences."""
 
 
 @router.post("/export-pdf")
-async def export_pdf(req: ExportPDFRequest):
+async def export_pdf(
+    req: ExportPDFRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """
     Render generated content via Carbone PDF, with HTML fallback.
 
     - Primary: Carbone.io professional PDF → returns PDF binary
     - Fallback: render_custom_template() HTML if Carbone is unavailable
     """
+    req.teacher_id = teacher_id
     # Try Carbone first
     try:
         from src.lms_agents.tools.carbone_renderer import render_worksheet
@@ -521,13 +591,17 @@ async def export_pdf(req: ExportPDFRequest):
 
 
 @router.post("/download-pdf")
-async def download_pdf(req: ExportPDFRequest):
+async def download_pdf(
+    req: ExportPDFRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """
     Returns raw PDF bytes for direct browser download.
 
     Uses Carbone.io for professional output. Falls back to HTML
     wrapped in a JSON response if Carbone is unavailable.
     """
+    req.teacher_id = teacher_id
     try:
         from src.lms_agents.tools.carbone_renderer import render_worksheet
 
@@ -605,7 +679,10 @@ def _content_to_canvas(content: dict) -> dict:
 
 
 @router.post("/export-google")
-async def export_google(req: ExportGoogleRequest):
+async def export_google(
+    req: ExportGoogleRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """
     Export generated content to Google Docs or Slides.
 
@@ -616,6 +693,7 @@ async def export_google(req: ExportGoogleRequest):
     """
     from src.lms_agents.tools.google_auth import get_credentials
 
+    req.teacher_id = teacher_id
     credentials = get_credentials(req.teacher_id)
     if not credentials:
         return JSONResponse(

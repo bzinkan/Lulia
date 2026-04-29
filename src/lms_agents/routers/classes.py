@@ -10,6 +10,8 @@ from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import Json, RealDictCursor
 from pydantic import BaseModel
 
+from src.lms_agents.tools.auth import require_teacher
+
 router = APIRouter(prefix="/classes", tags=["Classes"])
 
 
@@ -49,7 +51,11 @@ class UpdateClassRequest(BaseModel):
 # --- Endpoints ---
 
 @router.post("/")
-async def create_class(req: CreateClassRequest, conn=Depends(get_db)):
+async def create_class(
+    req: CreateClassRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Create a new class for a teacher."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     class_id = str(uuid4())
@@ -58,7 +64,7 @@ async def create_class(req: CreateClassRequest, conn=Depends(get_db)):
            (class_id, teacher_id, name, grade_level, subject, period, school_year)
            VALUES (%s, %s::uuid, %s, %s, %s, %s, %s)
            RETURNING *""",
-        (class_id, req.teacher_id, req.name, req.grade_level,
+        (class_id, teacher_id, req.name, req.grade_level,
          req.subject, req.period, req.school_year),
     )
     row = dict(cur.fetchone())
@@ -69,8 +75,8 @@ async def create_class(req: CreateClassRequest, conn=Depends(get_db)):
 
 @router.get("/")
 async def list_classes(
-    teacher_id: str = Query(...),
     include_archived: bool = Query(False),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List teacher's classes with content counts."""
@@ -93,7 +99,11 @@ async def list_classes(
 
 
 @router.get("/{class_id}")
-async def get_class(class_id: str, conn=Depends(get_db)):
+async def get_class(
+    class_id: str,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Get a single class with content counts."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
@@ -103,8 +113,8 @@ async def get_class(class_id: str, conn=Depends(get_db)):
                 (SELECT count(*) FROM videos WHERE class_id = c.class_id) AS video_count
             FROM classes c
             LEFT JOIN teachers t ON c.teacher_id = t.teacher_id
-            WHERE c.class_id = %s::uuid""",
-        (class_id,),
+            WHERE c.class_id = %s::uuid AND c.teacher_id = %s::uuid""",
+        (class_id, teacher_id),
     )
     row = cur.fetchone()
     cur.close()
@@ -114,7 +124,12 @@ async def get_class(class_id: str, conn=Depends(get_db)):
 
 
 @router.put("/{class_id}")
-async def update_class(class_id: str, req: UpdateClassRequest, conn=Depends(get_db)):
+async def update_class(
+    class_id: str,
+    req: UpdateClassRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Update class details or template preferences."""
     sets = []
     params = []
@@ -148,9 +163,9 @@ async def update_class(class_id: str, req: UpdateClassRequest, conn=Depends(get_
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         f"""UPDATE classes SET {', '.join(sets)}
-            WHERE class_id = %s::uuid
+            WHERE class_id = %s::uuid AND teacher_id = %s::uuid
             RETURNING *""",
-        params,
+        params + [teacher_id],
     )
     row = cur.fetchone()
     conn.commit()
@@ -161,13 +176,18 @@ async def update_class(class_id: str, req: UpdateClassRequest, conn=Depends(get_
 
 
 @router.post("/{class_id}/archive")
-async def archive_class(class_id: str, conn=Depends(get_db)):
+async def archive_class(
+    class_id: str,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Soft-archive a class (set archived_at)."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         """UPDATE classes SET archived_at = NOW(), updated_at = NOW()
-           WHERE class_id = %s::uuid RETURNING class_id, archived_at""",
-        (class_id,),
+           WHERE class_id = %s::uuid AND teacher_id = %s::uuid
+           RETURNING class_id, archived_at""",
+        (class_id, teacher_id),
     )
     row = cur.fetchone()
     conn.commit()
@@ -178,13 +198,18 @@ async def archive_class(class_id: str, conn=Depends(get_db)):
 
 
 @router.post("/{class_id}/unarchive")
-async def unarchive_class(class_id: str, conn=Depends(get_db)):
+async def unarchive_class(
+    class_id: str,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Restore an archived class."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         """UPDATE classes SET archived_at = NULL, updated_at = NOW()
-           WHERE class_id = %s::uuid RETURNING class_id, archived_at""",
-        (class_id,),
+           WHERE class_id = %s::uuid AND teacher_id = %s::uuid
+           RETURNING class_id, archived_at""",
+        (class_id, teacher_id),
     )
     row = cur.fetchone()
     conn.commit()

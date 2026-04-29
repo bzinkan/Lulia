@@ -7,7 +7,7 @@ description: "Use this skill as the master reference for the AI-powered LMS proj
 
 ## Vision
 
-AI-powered LMS that replaces Teachers Pay Teachers. Teacher uploads materials, approves plans, everything else is automated. System produces TpT-quality worksheets, task cards, interactive activities, live games, videos with AI illustrations, and formal lesson plans — all standards-aligned, curriculum-grounded, never repeated.
+AI-powered LMS that replaces Teachers Pay Teachers for individual teachers. Teacher uploads materials, approves plans, everything else is automated. System produces TpT-quality worksheets, task cards, interactive activities, optional retained game/video paths, and formal lesson plans — all standards-aligned, curriculum-grounded, never repeated.
 
 ## Tech Stack
 
@@ -15,15 +15,15 @@ AI-powered LMS that replaces Teachers Pay Teachers. Teacher uploads materials, a
 |-----------|-----------|
 | AI Orchestration | CrewAI (Python) |
 | Primary LLM | Claude API (Anthropic) |
-| Google Formats + Imagen | Gemini API (Google) |
+| Google Formats + Media Experiments | Gemini API (Google) |
 | Text Embedding | AWS Bedrock (Titan V2) |
 | Backend API | FastAPI (Python) |
 | Database | PostgreSQL 16 + pgvector |
 | Dashboard | Next.js (Bolt.new) |
 | Worker | APScheduler (Python) |
-| Video | Gemini Imagen + TTS + ffmpeg |
+| Video | Strategy undecided: curated library + retained generation/clip paths |
 | Interactive Hosting | S3 + CloudFront (static React) |
-| Live Games | WebSocket (FastAPI native) |
+| Live Games | Backend retained; Arcade UI shelved for launch |
 | Dev Environment | Docker Desktop (MinIO, local PG) |
 | Prod Environment | AWS (ECS/Fargate, RDS, S3, SQS, SES, CloudFront, Bedrock) |
 | School Integration | Google Classroom, Drive, Calendar, Forms APIs |
@@ -31,12 +31,12 @@ AI-powered LMS that replaces Teachers Pay Teachers. Teacher uploads materials, a
 ## Key Decisions (All Locked In)
 
 1. **RAG over NotebookLM** — no public API. Built-in RAG with pgvector + Bedrock embedding.
-2. **Three LLM providers**: Claude (reasoning), Gemini (Google formats + Imagen), Bedrock (embedding). Zero overlap.
+2. **Three LLM providers**: Claude (reasoning), Gemini (Google formats + interactive/media experiments), Bedrock (embedding). Zero overlap.
 3. **Three-tier standards**: Custom > State (50+DC pre-loaded) > National (fallback).
 4. **Per-procedure standard citations** on every lesson plan phase.
 5. **20+ TpT-quality output templates** with 7 design themes.
-6. **8 pre-built game shells** + ~15 Claude-generated interactive activity types.
-7. **Gemini Imagen for video** illustrations. Veo future-proofed.
+6. **Game backend retained, Arcade UI shelved** for initial launch; do not make games launch-critical unless explicitly directed.
+7. **Video strategy undecided**: preserve curated library, generated-video pipeline, upload processing, and short-clip/Veo code until product direction is chosen.
 8. **Generation History** — system never repeats content. 6-month freshness window.
 9. **IEP/504/ELL/Gifted accommodations** — 3 layers (toggle, profiles, per-student). Same template design (dignity).
 10. **Two paths**: Path 1 (Plan my week) with previews/approval. Path 2 (Quick generate) skips everything.
@@ -64,10 +64,10 @@ AI-powered LMS that replaces Teachers Pay Teachers. Teacher uploads materials, a
 | CrewAI agents, crews, tasks, LLM routing | crewai-lms |
 | API endpoints, events, database, Docker/AWS | fastapi-lms |
 | pgvector, chunking, Bedrock embedding, RAG search | rag-pipeline |
-| Google Classroom, Drive, Calendar, Gemini Slides, Imagen | google-classroom-lms |
+| Google Classroom, Drive, Calendar, Gemini Slides/Forms | google-classroom-lms |
 | Three-tier standards, state loading, crosswalks | standards-system |
 | Lesson plan templates, flexible duration, citations | lesson-plan-system |
-| TTS, Imagen illustrations, ffmpeg, video delivery | video-pipeline |
+| Retained generated-video path, TTS, ffmpeg, upload processing | video-pipeline |
 | React generation, game shells, WebSocket, student access | interactive-system |
 | Overall architecture, decisions, build timeline | lms-master (this) |
 
@@ -84,10 +84,10 @@ AI-powered LMS that replaces Teachers Pay Teachers. Teacher uploads materials, a
 | 7 | 24-25 | Analytics Crew |
 | 8 | 26-27 | Google Classroom + Gemini Slides + Forms + Calendar |
 | 9a-c | 28-33 | Lesson Plan System + Planner + Weekly Planner UI + Calendar Outputs |
-| 10 | 34-36 | Video Pipeline (Imagen) |
+| 10 | 34-36 | Video Pipeline retained (Imagen/TTS/ffmpeg); launch strategy currently undecided |
 | 11 | 37-38 | Accommodation System (IEP/504/ELL/Gifted) |
 | 12 | 39-41 | Interactive Assessment Mode (React, S3, student access, randomization) |
-| 13 | 42-43 | Live Game Mode (WebSocket, 8 game shells, Game PIN) |
+| 13 | 42-43 | Live Game backend (WebSocket, game shells, Game PIN); UI shelved for launch |
 | 14 | 44-45 | Chat Sidebar + Onboarding + Sharing |
 | 15 | 46 | Credit System |
 | 16 | 47-48 | Polish, mobile, testing, deployment |
@@ -108,7 +108,7 @@ Sunday PM:    Teacher: Accept / Modify / Start Over
                 ├── PDF templates (task cards, worksheets) → print queue
                 ├── Google Slides → Classroom
                 ├── Interactive assessment → S3 → Classroom link
-                ├── Video → Imagen + TTS + ffmpeg → YouTube → Classroom
+                ├── Video → library match or retained generated-video fallback, depending on final product direction
                 └── Calendar sync (if enabled)
               ↓
 Monday AM:    Everything ready. Print. Classroom populated. Interactive links live.

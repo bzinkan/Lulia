@@ -1,0 +1,4 @@
+local_artifacts/
+scripts/align_batch_*.jsonl
+scripts/align_sync_part_*.jsonl
+scripts/align_batch_meta.json

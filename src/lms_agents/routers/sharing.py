@@ -10,6 +10,8 @@ import psycopg2
 from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import Json, RealDictCursor
 
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
+
 router = APIRouter(prefix="/share", tags=["Sharing"])
 
 
@@ -32,7 +34,11 @@ def _gen_slug(title: str) -> str:
 
 
 @router.post("/assignment/{assignment_id}")
-async def share_assignment(assignment_id: UUID, conn=Depends(get_db)):
+async def share_assignment(
+    assignment_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Make an assignment public. Returns share URL."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM assignments WHERE assignment_id = %s", (str(assignment_id),))
@@ -40,6 +46,7 @@ async def share_assignment(assignment_id: UUID, conn=Depends(get_db)):
     if not a:
         cur.close()
         return JSONResponse({"error": "Assignment not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, a["teacher_id"])
 
     slug = _gen_slug(a["title"])
     cur2 = conn.cursor()
@@ -53,13 +60,20 @@ async def share_assignment(assignment_id: UUID, conn=Depends(get_db)):
 
 
 @router.delete("/assignment/{assignment_id}")
-async def unshare_assignment(assignment_id: UUID, conn=Depends(get_db)):
+async def unshare_assignment(
+    assignment_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Remove public sharing."""
     cur = conn.cursor()
     cur.execute(
-        "UPDATE assignments SET is_shared = false, share_slug = NULL WHERE assignment_id = %s",
-        (str(assignment_id),),
+        "UPDATE assignments SET is_shared = false, share_slug = NULL WHERE assignment_id = %s AND teacher_id = %s::uuid",
+        (str(assignment_id), teacher_id),
     )
+    if cur.rowcount == 0:
+        cur.close()
+        return JSONResponse({"error": "Assignment not found"}, status_code=404)
     conn.commit(); cur.close()
     return {"status": "unshared"}
 
@@ -87,7 +101,7 @@ async def view_shared(slug: str, conn=Depends(get_db)):
 @router.post("/{slug}/remix")
 async def remix_assignment(
     slug: str,
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Copy a shared assignment to the current teacher's account."""

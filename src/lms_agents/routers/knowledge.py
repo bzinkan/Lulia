@@ -8,6 +8,7 @@ from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import RealDictCursor
 
 from src.lms_agents.tools.rag_search import search_kb
+from src.lms_agents.tools.auth import require_teacher
 
 router = APIRouter(prefix="/knowledge", tags=["Knowledge Base"])
 
@@ -25,11 +26,11 @@ def get_db():
 @router.get("/search")
 async def search_knowledge_base(
     query: str = Query(..., description="Search query text"),
-    teacher_id: Optional[str] = Query(None),
     class_id: Optional[str] = Query(None),
     subject: Optional[str] = Query(None),
     grade: Optional[str] = Query(None),
     top_k: int = Query(5, ge=1, le=20),
+    teacher_id: str = Depends(require_teacher),
 ):
     """
     Semantic search over the Knowledge Base using pgvector.
@@ -49,17 +50,14 @@ async def search_knowledge_base(
 
 @router.get("/sources")
 async def list_sources(
-    teacher_id: Optional[str] = Query(None),
     class_id: Optional[str] = Query(None),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List all knowledge sources with processing status. Optionally filter by class_id."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    conditions = []
-    params = []
-    if teacher_id:
-        conditions.append("teacher_id = %s::uuid")
-        params.append(teacher_id)
+    conditions = ["teacher_id = %s::uuid"]
+    params = [teacher_id]
     if class_id:
         conditions.append("class_id = %s::uuid")
         params.append(class_id)

@@ -10,14 +10,14 @@ description: "Use this skill whenever building, modifying, or debugging CrewAI a
 | Provider | Used For | SDK |
 |----------|---------|-----|
 | Claude (Anthropic) | All content generation, reasoning, coding, React components, planning, chat | anthropic / langchain_anthropic |
-| Gemini (Google) | Google Slides, Google Forms, Imagen illustrations for video | google-generativeai / langchain_google |
+| Gemini (Google) | Google Slides, Google Forms, interactive/media experiments | google-generativeai / langchain_google |
 | AWS Bedrock (Titan) | Text embedding for RAG Knowledge Base | boto3 (same as S3) |
 
 Format Agent routing by output format:
 - `google_slides` / `google_forms` → Gemini Flash
 - `interactive_assessment` / `live_game` → Claude (generates React)
 - `pdf_*` (worksheet, task cards, Bingo, etc.) → Claude Haiku
-- `video` → Claude Opus (script) + Gemini Imagen (illustrations)
+- `video` → retained pipeline; product strategy undecided, so preserve library + generation paths
 
 ## Agent Registry (16 Agents, 5 Crews)
 
@@ -43,7 +43,7 @@ Format Agent routing by output format:
 ## Crew 1: Assignment Generation (Updated Chain)
 
 Standard: Curriculum → Content → Rubric → QA → Format
-Video: Curriculum → Video Script → Rubric → QA → Format (Imagen)
+Video: Curriculum → Video Script → Rubric → QA → retained format path when generation is explicitly used
 Interactive: Curriculum → Content → QA → Format (Claude generates React → S3)
 
 Content Agent checks Generation History before generating. Can produce IEP/504/ELL/Gifted versions.
@@ -93,7 +93,7 @@ for profile in work_order.get("accommodation_versions", []):
 
 ## Key Rules
 
-1. Three providers: Claude (reasoning), Gemini (Google + Imagen), Bedrock (embedding)
+1. Three providers: Claude (reasoning), Gemini (Google formats + interactive/media experiments), Bedrock (embedding)
 2. Format Agent is multi-model — routes by output format
 3. Content Agent ALWAYS checks Generation History before generating
 4. QA Agent verifies no duplicates AND fact-checks against RAG KB

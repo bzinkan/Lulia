@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from src.lms_agents.tools.stripe_client import create_customer, create_checkout_session, create_portal_session, cancel_subscription
 from src.lms_agents.tools.credit_manager import get_balance, estimate_cost
 from src.lms_agents.config.pricing import TIERS, CREDIT_PACKS, get_stripe_price_id
+from src.lms_agents.tools.auth import require_teacher
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
@@ -27,7 +28,10 @@ def get_db():
 
 
 @router.get("/me")
-async def billing_status(teacher_id: str = Query("00000000-0000-0000-0000-000000000001"), conn=Depends(get_db)):
+async def billing_status(
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Current billing status: tier, credits, subscription info."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
@@ -53,7 +57,10 @@ async def billing_status(teacher_id: str = Query("00000000-0000-0000-0000-000000
 
 
 @router.get("/usage")
-async def credit_usage(teacher_id: str = Query("00000000-0000-0000-0000-000000000001"), conn=Depends(get_db)):
+async def credit_usage(
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """This month's credit usage breakdown."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
@@ -71,7 +78,10 @@ async def credit_usage(teacher_id: str = Query("00000000-0000-0000-0000-00000000
 
 
 @router.get("/transactions")
-async def credit_transactions(teacher_id: str = Query("00000000-0000-0000-0000-000000000001"), conn=Depends(get_db)):
+async def credit_transactions(
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Credit transaction history."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
@@ -84,7 +94,10 @@ async def credit_transactions(teacher_id: str = Query("00000000-0000-0000-0000-0
 
 
 @router.get("/invoices")
-async def list_invoices(teacher_id: str = Query("00000000-0000-0000-0000-000000000001"), conn=Depends(get_db)):
+async def list_invoices(
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Invoice history."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
@@ -116,8 +129,13 @@ class CheckoutRequest(BaseModel):
 
 
 @router.post("/checkout/subscription")
-async def checkout_subscription(req: CheckoutRequest, conn=Depends(get_db)):
+async def checkout_subscription(
+    req: CheckoutRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Create Stripe checkout session for subscription."""
+    req.teacher_id = teacher_id
     if not req.tier or req.tier not in TIERS or req.tier == "free":
         return JSONResponse({"error": "Invalid tier"}, status_code=400)
 
@@ -154,8 +172,13 @@ async def checkout_subscription(req: CheckoutRequest, conn=Depends(get_db)):
 
 
 @router.post("/checkout/credits")
-async def checkout_credits(req: CheckoutRequest, conn=Depends(get_db)):
+async def checkout_credits(
+    req: CheckoutRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Create Stripe checkout session for credit pack purchase."""
+    req.teacher_id = teacher_id
     pack = next((p for p in CREDIT_PACKS if p["id"] == req.pack_id), None)
     if not pack:
         return JSONResponse({"error": "Invalid pack"}, status_code=400)
@@ -165,7 +188,10 @@ async def checkout_credits(req: CheckoutRequest, conn=Depends(get_db)):
     teacher = cur.fetchone()
     cur.close()
 
-    customer_id = teacher.get("stripe_customer_id") if teacher else None
+    if not teacher:
+        return JSONResponse({"error": "Teacher not found"}, status_code=404)
+
+    customer_id = teacher.get("stripe_customer_id")
     if not customer_id:
         customer_id = create_customer(teacher["email"], teacher["name"])
         if customer_id:
@@ -188,7 +214,10 @@ async def checkout_credits(req: CheckoutRequest, conn=Depends(get_db)):
 
 
 @router.post("/portal")
-async def customer_portal(teacher_id: str = Query("00000000-0000-0000-0000-000000000001"), conn=Depends(get_db)):
+async def customer_portal(
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Create Stripe customer portal session."""
     cur = conn.cursor()
     cur.execute("SELECT stripe_customer_id FROM teachers WHERE teacher_id = %s", (teacher_id,))
@@ -203,7 +232,10 @@ async def customer_portal(teacher_id: str = Query("00000000-0000-0000-0000-00000
 
 
 @router.post("/cancel")
-async def cancel(teacher_id: str = Query("00000000-0000-0000-0000-000000000001"), conn=Depends(get_db)):
+async def cancel(
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Cancel subscription at period end."""
     cur = conn.cursor()
     cur.execute("SELECT stripe_subscription_id FROM teachers WHERE teacher_id = %s", (teacher_id,))

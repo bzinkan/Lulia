@@ -3,11 +3,13 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/google", tags=["Google Generate"])
 log = logging.getLogger(__name__)
+
+from src.lms_agents.tools.auth import require_teacher
 
 TEACHER_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -30,8 +32,12 @@ class GenerateFormsRequest(BaseModel):
 
 
 @router.post("/slides/generate")
-async def generate_slides(req: GenerateSlidesRequest):
+async def generate_slides(
+    req: GenerateSlidesRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """Generate a Google Slides presentation using Gemini + Slides API."""
+    req.teacher_id = teacher_id
     from src.lms_agents.tools.gemini_slides import generate_slide_content, create_google_slides
 
     try:
@@ -80,8 +86,12 @@ async def generate_slides(req: GenerateSlidesRequest):
 
 
 @router.post("/forms/generate")
-async def generate_form(req: GenerateFormsRequest):
+async def generate_form(
+    req: GenerateFormsRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """Generate a Google Forms quiz using Gemini + Forms API."""
+    req.teacher_id = teacher_id
     from src.lms_agents.tools.google_forms import generate_form_questions, create_quiz_form
 
     try:

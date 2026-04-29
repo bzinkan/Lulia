@@ -11,6 +11,7 @@ from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
 from src.lms_agents.tools.chat_assistant import chat_message
+from src.lms_agents.tools.auth import require_teacher
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -33,10 +34,13 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/message")
-async def send_message(req: ChatRequest):
+async def send_message(
+    req: ChatRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """Send a chat message. Returns Claude's response + tool results."""
     result = chat_message(
-        teacher_id=req.teacher_id,
+        teacher_id=teacher_id,
         message=req.message,
         context=req.context,
         session_id=req.session_id,
@@ -46,7 +50,7 @@ async def send_message(req: ChatRequest):
 
 @router.get("/history")
 async def get_history(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Get current chat session history."""
@@ -64,7 +68,7 @@ async def get_history(
 
 @router.delete("/history")
 async def clear_history(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Clear chat history."""

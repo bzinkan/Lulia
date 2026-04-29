@@ -3,7 +3,7 @@ import os
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 import psycopg2
 from src.lms_agents.tools.db import get_connection as _pool_get_connection
@@ -13,6 +13,7 @@ from src.lms_agents.crews.analytics_crew import (
     run_analytics, aggregate_class_data, generate_insights,
     generate_class_report, get_planner_analytics,
 )
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -27,16 +28,52 @@ def get_db():
         conn.close()
 
 
+def _assert_class_owner(class_id: str | UUID, teacher_id: str, conn) -> None:
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (str(class_id),))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Class not found")
+    assert_owner_or_403(teacher_id, row[0])
+
+
+def _assert_student_visible(student_id: str | UUID, teacher_id: str, conn) -> None:
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT 1
+           FROM submissions s
+           JOIN assignments a ON a.assignment_id = s.assignment_id
+           WHERE s.student_id = %s::uuid AND a.teacher_id = %s::uuid
+           LIMIT 1""",
+        (str(student_id), teacher_id),
+    )
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+
 @router.get("/class/{class_id}")
-async def class_analytics(class_id: UUID):
+async def class_analytics(
+    class_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Full class analytics dashboard data."""
+    _assert_class_owner(class_id, teacher_id, conn)
     data = run_analytics(str(class_id))
     return data
 
 
 @router.get("/class/{class_id}/standards")
-async def standards_heatmap(class_id: UUID):
+async def standards_heatmap(
+    class_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Standards mastery heatmap data."""
+    _assert_class_owner(class_id, teacher_id, conn)
     data = aggregate_class_data(str(class_id))
     return {
         "class_id": str(class_id),
@@ -47,8 +84,13 @@ async def standards_heatmap(class_id: UUID):
 
 
 @router.get("/class/{class_id}/trends")
-async def mastery_trends(class_id: UUID, conn=Depends(get_db)):
+async def mastery_trends(
+    class_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Mastery trend data over time."""
+    _assert_class_owner(class_id, teacher_id, conn)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         """SELECT standard_code, date, mastery_percent
@@ -63,8 +105,13 @@ async def mastery_trends(class_id: UUID, conn=Depends(get_db)):
 
 
 @router.get("/student/{student_id}")
-async def student_analytics(student_id: UUID, conn=Depends(get_db)):
+async def student_analytics(
+    student_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Individual student performance."""
+    _assert_student_visible(student_id, teacher_id, conn)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         """SELECT standard_id, total_questions, correct_questions,
@@ -90,8 +137,13 @@ async def student_analytics(student_id: UUID, conn=Depends(get_db)):
 
 
 @router.get("/student/{student_id}/recommendations")
-async def student_recommendations(student_id: UUID, conn=Depends(get_db)):
+async def student_recommendations(
+    student_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """AI-generated recommendations for differentiation."""
+    _assert_student_visible(student_id, teacher_id, conn)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         "SELECT * FROM student_mastery WHERE student_id = %s ORDER BY mastery_percentage ASC",
@@ -123,15 +175,25 @@ async def student_recommendations(student_id: UUID, conn=Depends(get_db)):
 
 
 @router.get("/struggling-students")
-async def struggling_students(class_id: str = Query(...), conn=Depends(get_db)):
+async def struggling_students(
+    class_id: str = Query(...),
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """List students needing support."""
+    _assert_class_owner(class_id, teacher_id, conn)
     data = aggregate_class_data(class_id)
     return {"students": data.get("struggling_students", [])}
 
 
 @router.get("/struggling-standards")
-async def struggling_standards(class_id: str = Query(...)):
+async def struggling_standards(
+    class_id: str = Query(...),
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """List standards needing re-teaching."""
+    _assert_class_owner(class_id, teacher_id, conn)
     data = aggregate_class_data(class_id)
     return {"standards": data.get("struggling_standards", [])}
 
@@ -140,8 +202,11 @@ async def struggling_standards(class_id: str = Query(...)):
 async def generate_report(
     class_id: str = Query(...),
     report_type: str = Query("class"),
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
 ):
     """Generate a printable analytics report."""
+    _assert_class_owner(class_id, teacher_id, conn)
     data = aggregate_class_data(class_id)
     insights = generate_insights(data)
 

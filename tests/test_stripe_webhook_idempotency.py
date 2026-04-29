@@ -66,7 +66,7 @@ def test_env():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM processed_webhooks WHERE event_id = %s", (event_id,))
-    cur.execute("DELETE FROM credit_transactions WHERE teacher_id = %s::uuid", (teacher_id,))
+    cur.execute("DELETE FROM credit_transactions_v2 WHERE teacher_id = %s::uuid", (teacher_id,))
     cur.execute("DELETE FROM teachers WHERE teacher_id = %s::uuid", (teacher_id,))
     conn.commit()
     cur.close()

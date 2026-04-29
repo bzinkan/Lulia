@@ -12,7 +12,7 @@ import os
 from typing import Optional
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 import psycopg2
 from src.lms_agents.tools.db import get_connection as _pool_get_connection
@@ -35,6 +35,7 @@ from src.lms_agents.tools.credit_manager import (
 )
 from src.lms_agents.tools.veo_generator import generate_clip, estimate_cost_usd
 from src.lms_agents.tools.imagen_generator import generate_previews
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +50,18 @@ def get_db():
         yield conn
     finally:
         conn.close()
+
+
+def _assert_class_owner(class_id: str | None, teacher_id: str, conn) -> None:
+    if not class_id:
+        return
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (class_id,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="class not found")
+    assert_owner_or_403(teacher_id, row[0])
 
 
 def _warning_band(duration_sec: int) -> dict:
@@ -69,7 +82,7 @@ def _warning_band(duration_sec: int) -> dict:
 @router.get("/cost")
 async def cost_preview(
     duration_sec: int = Query(..., ge=1, le=300),
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """
     Preview what a clip of this duration will cost the teacher.
@@ -106,7 +119,7 @@ async def cost_preview(
 
 
 @router.get("/balance")
-async def clip_balance(teacher_id: str = Query("00000000-0000-0000-0000-000000000001")):
+async def clip_balance(teacher_id: str = Depends(require_teacher)):
     """Current dual-bucket balance — for the Clips tab header chip."""
     b = get_balance_breakdown(teacher_id)
     return {
@@ -125,7 +138,7 @@ class PreviewRequest(BaseModel):
 
 @router.get("/preview/quota")
 async def preview_quota(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """
@@ -154,7 +167,11 @@ async def preview_quota(
 
 
 @router.post("/preview")
-async def preview(req: PreviewRequest, conn=Depends(get_db)):
+async def preview(
+    req: PreviewRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Generate preview thumbnails from a prompt. First 6/month are free on
     Plus+; after that, charges CLIP_PREVIEW_CREDITS credits per set.
@@ -163,7 +180,7 @@ async def preview(req: PreviewRequest, conn=Depends(get_db)):
     cur.execute(
         """SELECT tier, COALESCE(clip_previews_used_this_month, 0) AS previews_used
            FROM teachers WHERE teacher_id = %s FOR UPDATE""",
-        (req.teacher_id,),
+        (teacher_id,),
     )
     row = cur.fetchone()
     if not row:
@@ -189,13 +206,13 @@ async def preview(req: PreviewRequest, conn=Depends(get_db)):
         cur.execute(
             """UPDATE teachers SET clip_previews_used_this_month = clip_previews_used_this_month + 1
                WHERE teacher_id = %s""",
-            (req.teacher_id,),
+            (teacher_id,),
         )
         conn.commit()
     else:
         # Charge credits atomically
         charge = charge_credits(
-            req.teacher_id,
+            teacher_id,
             CLIP_PREVIEW_CREDITS,
             reference_type="clip_preview",
             description=f"Clip preview set ({CLIP_PREVIEW_IMAGES} images)",
@@ -219,14 +236,14 @@ async def preview(req: PreviewRequest, conn=Depends(get_db)):
             cur2 = conn2.cursor()
             cur2.execute(
                 "UPDATE teachers SET clip_previews_used_this_month = GREATEST(0, clip_previews_used_this_month - 1) WHERE teacher_id = %s",
-                (req.teacher_id,),
+                (teacher_id,),
             )
             conn2.commit()
             cur2.close()
             conn2.close()
         else:
             grant_credits(
-                req.teacher_id,
+                teacher_id,
                 CLIP_PREVIEW_CREDITS,
                 reason="Refund: clip preview generation failed",
                 bucket="purchased",
@@ -261,11 +278,17 @@ class GenerateClipRequest(BaseModel):
 
 
 @router.post("/generate")
-async def generate(req: GenerateClipRequest, conn=Depends(get_db)):
+async def generate(
+    req: GenerateClipRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Generate a short clip. Charges credits atomically BEFORE calling Veo.
     If Veo fails, credits are refunded.
     """
+    req.teacher_id = teacher_id
+    _assert_class_owner(req.class_id, teacher_id, conn)
     if req.duration_sec < 1 or req.duration_sec > 300:
         return JSONResponse({"error": "duration_sec must be 1-300"}, status_code=400)
 
@@ -336,9 +359,9 @@ async def generate(req: GenerateClipRequest, conn=Depends(get_db)):
 
 @router.get("")
 async def list_clips(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
     class_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List the teacher's generated clips, most recent first."""

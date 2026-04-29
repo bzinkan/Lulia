@@ -9,6 +9,8 @@ from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import Json, RealDictCursor
 from pydantic import BaseModel
 
+from src.lms_agents.tools.auth import require_teacher
+
 router = APIRouter(prefix="/onboarding", tags=["Onboarding"])
 
 
@@ -24,7 +26,7 @@ def get_db():
 
 @router.get("/status")
 async def onboarding_status(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Check if teacher needs onboarding."""
@@ -44,8 +46,13 @@ class OnboardingStepRequest(BaseModel):
 
 
 @router.post("/step")
-async def save_step(req: OnboardingStepRequest, conn=Depends(get_db)):
+async def save_step(
+    req: OnboardingStepRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Save progress for an onboarding step."""
+    req.teacher_id = teacher_id
     cur = conn.cursor()
     if req.step == "about_you":
         cur.execute(
@@ -71,7 +78,7 @@ async def save_step(req: OnboardingStepRequest, conn=Depends(get_db)):
 
 @router.post("/complete")
 async def complete_onboarding(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Finalize onboarding and unlock dashboard."""
