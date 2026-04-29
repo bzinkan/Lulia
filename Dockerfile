@@ -87,12 +87,13 @@ WORKDIR /app
 # Copy source. Chown at copy-time so we don't need a separate RUN chown
 # layer (that would double the image size of the app code).
 #
-# Note: `data/` is deliberately NOT copied in. Locally it's bind-mounted
-# via compose (state_standards is empty, content is 17 GB of OER data),
-# and in prod the content lives in S3. Anything the API truly needs at
-# startup is either in the DB or behind an S3 fetch, not in the image.
+# Note: most of `data/` is deliberately NOT copied in. Locally it's
+# bind-mounted via compose (state_standards is empty, content is 17 GB of
+# OER data), and in prod the content lives in S3. The small Git-backed
+# prebuilt activity source is copied because the seed script needs it.
 COPY --chown=appuser:appuser src/ ./src/
 COPY --chown=appuser:appuser scripts/ ./scripts/
+COPY --chown=appuser:appuser data/prebuilt_activities/ ./data/prebuilt_activities/
 COPY --chown=appuser:appuser alembic.ini ./alembic.ini
 COPY --chown=appuser:appuser alembic/ ./alembic/
 

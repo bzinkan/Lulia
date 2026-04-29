@@ -1,0 +1,91 @@
+{
+  "course": "U.S. History",
+  "grade_band": "9-12",
+  "subject": "Social Studies",
+  "units": [
+    {
+      "unit_number": 1,
+      "unit_title": "Founding Documents And Constitutional Principles",
+      "lessons": [
+        {
+          "lesson_number": 1,
+          "lesson_title": "Primary Source Claims And Evidence",
+          "activity": {
+            "activity_id": "hs_ushistory_u1_l1_primary_source_claims",
+            "title": "Federalist Argument Primary Source Study",
+            "activity_type": "document_study",
+            "estimated_minutes": 16,
+            "difficulty": "core",
+            "standards": [
+              {
+                "code": "D2.His.16.9-12",
+                "description": "Integrate evidence from multiple relevant historical sources and interpretations into a reasoned argument."
+              }
+            ],
+            "visual_surface": {
+              "kind": "primary_source_viewer"
+            },
+            "content": {
+              "objective": "Analyze a historical claim and select evidence that supports it.",
+              "document_title": "Federalist-Style Argument Excerpt",
+              "source_context": "Adapted classroom excerpt based on arguments for ratifying the U.S. Constitution.",
+              "passage": [
+                "A large republic can make it more difficult for one faction to control the whole government.",
+                "Representatives chosen by the people may refine public views and protect the common good.",
+                "The proposed Constitution divides power so ambition may check ambition."
+              ],
+              "evidence_task": "Select the sentence that best supports the claim that divided power helps prevent abuse."
+            },
+            "study_mode": {
+              "prompt": "Read the source context, then identify the main claim and the evidence that supports it."
+            },
+            "practice_mode": {
+              "prompt": "Write one sentence explaining how the evidence connects to the claim."
+            },
+            "checks": [
+              {
+                "type": "multiple_choice",
+                "question": "Which sentence best supports the claim that divided power can limit abuse?",
+                "choices": [
+                  {
+                    "id": "A",
+                    "text": "A large republic can make it more difficult for one faction to control the whole government.",
+                    "correct": false
+                  },
+                  {
+                    "id": "B",
+                    "text": "Representatives chosen by the people may refine public views and protect the common good.",
+                    "correct": false
+                  },
+                  {
+                    "id": "C",
+                    "text": "The proposed Constitution divides power so ambition may check ambition.",
+                    "correct": true
+                  }
+                ],
+                "feedback": {
+                  "correct": "Yes. That sentence directly connects divided power with checking ambition.",
+                  "incorrect": "Look for the evidence that explicitly mentions divided power and checking ambition."
+                },
+                "standard_code": "D2.His.16.9-12"
+              }
+            ],
+            "reflection_prompt": {
+              "prompt": "Explain why a historian should connect evidence back to a specific claim."
+            },
+            "customizable_fields": [
+              "passage",
+              "source_context",
+              "checks"
+            ],
+            "tags": [
+              "primary_source",
+              "constitution",
+              "evidence"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "course": "English 9",
+  "grade_band": "9-12",
+  "subject": "ELA",
+  "units": [
+    {
+      "unit_number": 1,
+      "unit_title": "Argument And Rhetoric",
+      "lessons": [
+        {
+          "lesson_number": 1,
+          "lesson_title": "Rhetorical Appeals In A Speech",
+          "activity": {
+            "activity_id": "hs_english9_u1_l1_rhetorical_appeals",
+            "title": "Rhetorical Appeals Annotation Study",
+            "activity_type": "document_study",
+            "estimated_minutes": 15,
+            "difficulty": "core",
+            "standards": [
+              {
+                "code": "CCSS.ELA-LITERACY.RI.9-10.6",
+                "description": "Determine an author's point of view or purpose and analyze how rhetoric is used to advance that point of view or purpose."
+              }
+            ],
+            "visual_surface": {
+              "kind": "annotated_text"
+            },
+            "content": {
+              "objective": "Identify ethos, pathos, and logos in a short civic speech excerpt.",
+              "document_title": "Community Library Speech Excerpt",
+              "passage": [
+                "Our town has always measured itself by the doors it opens for its children.",
+                "Last year, students checked out more than twelve thousand books from the library, and weekend tutoring sessions served families from every neighborhood.",
+                "As your mayor and as a parent, I ask you to renew the library fund so that this shared promise remains within reach."
+              ],
+              "annotation_categories": [
+                {
+                  "id": "ethos",
+                  "label": "Ethos",
+                  "description": "Credibility or trust"
+                },
+                {
+                  "id": "pathos",
+                  "label": "Pathos",
+                  "description": "Emotion or values"
+                },
+                {
+                  "id": "logos",
+                  "label": "Logos",
+                  "description": "Reasoning or evidence"
+                }
+              ]
+            },
+            "study_mode": {
+              "prompt": "Read the excerpt and match each sentence to the strongest rhetorical appeal."
+            },
+            "practice_mode": {
+              "prompt": "Select one sentence and explain how the appeal supports the speaker's purpose."
+            },
+            "checks": [
+              {
+                "type": "multiple_choice",
+                "question": "Which appeal is strongest in the sentence with checkout and tutoring numbers?",
+                "choices": [
+                  {
+                    "id": "A",
+                    "text": "Logos",
+                    "correct": true
+                  },
+                  {
+                    "id": "B",
+                    "text": "Pathos",
+                    "correct": false
+                  },
+                  {
+                    "id": "C",
+                    "text": "Ethos",
+                    "correct": false
+                  }
+                ],
+                "feedback": {
+                  "correct": "Correct. The speaker uses numbers as evidence.",
+                  "incorrect": "Look for the sentence that relies most on evidence and reasoning."
+                },
+                "standard_code": "CCSS.ELA-LITERACY.RI.9-10.6"
+              }
+            ],
+            "reflection_prompt": {
+              "prompt": "Which appeal would you strengthen if you revised this excerpt? Explain your choice."
+            },
+            "customizable_fields": [
+              "passage",
+              "annotation_categories",
+              "checks"
+            ],
+            "tags": [
+              "rhetoric",
+              "annotation",
+              "informational_text"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

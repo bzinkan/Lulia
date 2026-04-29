@@ -1,0 +1,111 @@
+{
+  "course": "Algebra I",
+  "grade_band": "9-12",
+  "subject": "Math",
+  "units": [
+    {
+      "unit_number": 1,
+      "unit_title": "Linear Relationships",
+      "lessons": [
+        {
+          "lesson_number": 1,
+          "lesson_title": "Slope as Rate of Change",
+          "activity": {
+            "activity_id": "hs_algebra1_u1_l1_slope_rate_change",
+            "title": "Slope As Rate Of Change Explorer",
+            "activity_type": "model_explorer",
+            "estimated_minutes": 14,
+            "difficulty": "core",
+            "standards": [
+              {
+                "code": "HSF-IF.B.6",
+                "description": "Calculate and interpret the average rate of change of a function over a specified interval."
+              }
+            ],
+            "visual_surface": {
+              "kind": "interactive_graph",
+              "scene": "linear_graph",
+              "x_axis": "Time",
+              "y_axis": "Distance",
+              "model": {
+                "type": "linear",
+                "slope": 2,
+                "intercept": 1
+              }
+            },
+            "content": {
+              "objective": "Connect slope to rate of change in a real-world linear model.",
+              "scenario": "A student starts 1 mile from home and bikes away at a steady speed of 2 miles every hour.",
+              "formula": "d = 2t + 1",
+              "controls": [
+                {
+                  "id": "slope",
+                  "label": "Rate",
+                  "min": 0,
+                  "max": 5,
+                  "step": 0.5,
+                  "value": 2
+                },
+                {
+                  "id": "intercept",
+                  "label": "Starting distance",
+                  "min": 0,
+                  "max": 6,
+                  "step": 1,
+                  "value": 1
+                }
+              ]
+            },
+            "study_mode": {
+              "prompt": "Change the rate and starting value. Watch how the graph and equation respond."
+            },
+            "practice_mode": {
+              "prompt": "Predict the graph change before adjusting each slider."
+            },
+            "checks": [
+              {
+                "type": "multiple_choice",
+                "question": "In d = 2t + 1, what does the 2 represent?",
+                "choices": [
+                  {
+                    "id": "A",
+                    "text": "The starting distance",
+                    "correct": false
+                  },
+                  {
+                    "id": "B",
+                    "text": "The distance traveled each hour",
+                    "correct": true
+                  },
+                  {
+                    "id": "C",
+                    "text": "The total distance after 1 hour only",
+                    "correct": false
+                  }
+                ],
+                "feedback": {
+                  "correct": "Yes. The coefficient of t is the rate of change.",
+                  "incorrect": "The number multiplied by time tells how much distance changes per hour."
+                },
+                "standard_code": "HSF-IF.B.6"
+              }
+            ],
+            "reflection_prompt": {
+              "prompt": "Describe a different real-world situation that could have a slope of 2."
+            },
+            "customizable_fields": [
+              "scenario",
+              "controls",
+              "checks"
+            ],
+            "tags": [
+              "linear_functions",
+              "slope",
+              "rate_of_change"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
