@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Print & Go',  icon: 'printer.png',    animate: 'printer', iconComponent: Printer, href: '/print-go' },
   { label: 'Calendar',    icon: 'calendar.png',   href: '/calendar' },
   { label: 'Interactive', icon: 'interactive.png', href: '/interactive' },
+  { label: 'Prebuilt',    iconComponent: NotebookPen, href: '/prebuilt' },
   { label: 'Video Library', icon: 'video-camera.png', href: '/videos/library' },
   { label: 'Analytics',   icon: 'chart.png',      href: '/analytics' },
   { label: 'Grades',      icon: 'check.png',      href: '/grades' },

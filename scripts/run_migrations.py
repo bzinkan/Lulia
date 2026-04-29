@@ -25,6 +25,10 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 
 def _ensure_migrations_table(conn):
     cur = conn.cursor()

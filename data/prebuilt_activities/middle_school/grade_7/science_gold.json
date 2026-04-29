@@ -1,0 +1,261 @@
+{
+  "course": "Grade 7 Science",
+  "grade_level": "7",
+  "grade_band": "6-8",
+  "subject": "Science",
+  "units": [
+    {
+      "unit_number": 1,
+      "unit_title": "Cells and Body Systems",
+      "lessons": [
+        {
+          "lesson_number": 1,
+          "lesson_title": "Cell Organelles and Function",
+          "activity": {
+            "activity_id": "ms_grade7_science_u1_l1_cell_organelles",
+            "title": "Animal Cell Organelles Visual Study",
+            "activity_type": "visual_study",
+            "estimated_minutes": 12,
+            "difficulty": "core",
+            "standards": [
+              {
+                "code": "MS-LS1-2",
+                "description": "Develop and use a model to describe the function of a cell as a whole and ways parts of cells contribute to the function."
+              }
+            ],
+            "visual_surface": {
+              "kind": "scientific_visual",
+              "scene": "animal_cell",
+              "image_prompt": "Middle school life science animal cell illustration with visible organelles, no text baked into the image, open space for overlay labels.",
+              "annotations": [
+                {
+                  "id": "nucleus",
+                  "label": "Nucleus",
+                  "x": 15,
+                  "y": 22,
+                  "target_x": 44,
+                  "target_y": 42,
+                  "description": "Stores DNA and controls many cell activities."
+                },
+                {
+                  "id": "mitochondria",
+                  "label": "Mitochondria",
+                  "x": 70,
+                  "y": 20,
+                  "target_x": 64,
+                  "target_y": 56,
+                  "description": "Release usable energy from food molecules."
+                },
+                {
+                  "id": "cell_membrane",
+                  "label": "Cell membrane",
+                  "x": 66,
+                  "y": 82,
+                  "target_x": 80,
+                  "target_y": 66,
+                  "description": "Controls what enters and leaves the cell."
+                },
+                {
+                  "id": "golgi",
+                  "label": "Golgi apparatus",
+                  "x": 18,
+                  "y": 75,
+                  "target_x": 37,
+                  "target_y": 62,
+                  "description": "Packages and ships materials around or out of the cell."
+                }
+              ],
+              "arrows": []
+            },
+            "content": {
+              "objective": "Identify major organelles and connect each structure to its function.",
+              "teacher_note": "Students should use the overlay labels first, then switch to practice mode and explain functions from memory."
+            },
+            "study_mode": {
+              "prompt": "Select each label and study how the organelle structure supports the cell's needs."
+            },
+            "practice_mode": {
+              "prompt": "Hide labels, choose an organelle, and explain its role in the cell system."
+            },
+            "checks": [
+              {
+                "type": "multiple_choice",
+                "question": "Which organelle is most directly responsible for releasing usable energy from food?",
+                "choices": [
+                  {
+                    "id": "A",
+                    "text": "Nucleus",
+                    "correct": false
+                  },
+                  {
+                    "id": "B",
+                    "text": "Mitochondria",
+                    "correct": true
+                  },
+                  {
+                    "id": "C",
+                    "text": "Cell membrane",
+                    "correct": false
+                  }
+                ],
+                "feedback": {
+                  "correct": "Yes. Mitochondria release usable energy from food molecules.",
+                  "incorrect": "Look for the organelle connected to energy release."
+                },
+                "standard_code": "MS-LS1-2"
+              }
+            ],
+            "reflection_prompt": {
+              "prompt": "Choose two organelles and explain how they work together to help the cell function."
+            },
+            "customizable_fields": [
+              "annotations",
+              "checks",
+              "reflection_prompt"
+            ],
+            "tags": [
+              "cells",
+              "organelles",
+              "life_science"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "unit_number": 2,
+      "unit_title": "Water And Earth Systems",
+      "lessons": [
+        {
+          "lesson_number": 1,
+          "lesson_title": "Water Cycle Systems",
+          "activity": {
+            "activity_id": "ms_grade7_science_u2_l1_water_cycle",
+            "title": "Water Cycle Visual Systems Study",
+            "activity_type": "visual_study",
+            "estimated_minutes": 12,
+            "difficulty": "core",
+            "standards": [
+              {
+                "code": "MS-ESS2-4",
+                "description": "Develop a model to describe the cycling of water through Earth's systems driven by energy from the sun and force of gravity."
+              }
+            ],
+            "visual_surface": {
+              "kind": "scientific_visual",
+              "scene": "water_cycle",
+              "image_prompt": "Middle school Earth science water cycle landscape with mountains, ocean, clouds, precipitation, runoff, infiltration, and groundwater; no labels baked into the image.",
+              "annotations": [
+                {
+                  "id": "evaporation",
+                  "label": "Evaporation",
+                  "x": 10,
+                  "y": 25,
+                  "target_x": 28,
+                  "target_y": 62,
+                  "description": "Sunlight adds energy and liquid water changes into water vapor."
+                },
+                {
+                  "id": "condensation",
+                  "label": "Condensation",
+                  "x": 46,
+                  "y": 12,
+                  "target_x": 50,
+                  "target_y": 24,
+                  "description": "Water vapor cools and forms cloud droplets."
+                },
+                {
+                  "id": "precipitation",
+                  "label": "Precipitation",
+                  "x": 76,
+                  "y": 22,
+                  "target_x": 70,
+                  "target_y": 37,
+                  "description": "Water falls from clouds as rain, snow, sleet, or hail."
+                },
+                {
+                  "id": "runoff",
+                  "label": "Runoff",
+                  "x": 70,
+                  "y": 78,
+                  "target_x": 58,
+                  "target_y": 67,
+                  "description": "Gravity moves water over land into rivers, lakes, and oceans."
+                },
+                {
+                  "id": "infiltration",
+                  "label": "Infiltration",
+                  "x": 18,
+                  "y": 82,
+                  "target_x": 40,
+                  "target_y": 78,
+                  "description": "Water soaks into soil and can become groundwater."
+                }
+              ],
+              "arrows": [
+                {
+                  "from": "evaporation",
+                  "to": "condensation"
+                },
+                {
+                  "from": "precipitation",
+                  "to": "runoff"
+                }
+              ]
+            },
+            "content": {
+              "objective": "Use a systems model to explain how energy and gravity move water through Earth systems."
+            },
+            "study_mode": {
+              "prompt": "Trace each water movement and name the energy source or force that drives it."
+            },
+            "practice_mode": {
+              "prompt": "Hide the labels and explain how water could travel from ocean to groundwater."
+            },
+            "checks": [
+              {
+                "type": "multiple_choice",
+                "question": "Which process is driven mainly by energy from the sun?",
+                "choices": [
+                  {
+                    "id": "A",
+                    "text": "Evaporation",
+                    "correct": true
+                  },
+                  {
+                    "id": "B",
+                    "text": "Runoff",
+                    "correct": false
+                  },
+                  {
+                    "id": "C",
+                    "text": "Precipitation falling downward",
+                    "correct": false
+                  }
+                ],
+                "feedback": {
+                  "correct": "Right. Solar energy helps liquid water become water vapor.",
+                  "incorrect": "Think about the process where water gains energy and changes state."
+                },
+                "standard_code": "MS-ESS2-4"
+              }
+            ],
+            "reflection_prompt": {
+              "prompt": "Explain how the sun and gravity each affect one part of the water cycle."
+            },
+            "customizable_fields": [
+              "annotations",
+              "checks",
+              "reflection_prompt"
+            ],
+            "tags": [
+              "water_cycle",
+              "earth_science",
+              "systems"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
