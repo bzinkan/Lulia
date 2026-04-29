@@ -57,11 +57,14 @@ async def list_templates():
 
 
 @router.post("/generate")
-async def generate_activity(req: GenerateInteractiveRequest):
+async def generate_activity(
+    req: GenerateInteractiveRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """Generate and deploy an interactive activity."""
     result = generate_interactive_activity(
         assignment_id=req.assignment_id,
-        teacher_id=req.teacher_id,
+        teacher_id=teacher_id,
         interactive_template_id=req.interactive_template_id,
         class_id=req.class_id,
         max_attempts=req.max_attempts,
@@ -101,9 +104,19 @@ async def submit_response(activity_id: UUID, req: SubmitInteractiveRequest):
 
 
 @router.get("/{activity_id}/submissions")
-async def list_submissions(activity_id: UUID, conn=Depends(get_db)):
+async def list_submissions(
+    activity_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Teacher views all submissions for an activity."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT teacher_id FROM interactive_activities WHERE activity_id = %s", (str(activity_id),))
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        return JSONResponse({"error": "Activity not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     cur.execute(
         """SELECT * FROM interactive_submissions
            WHERE activity_id = %s ORDER BY submitted_at DESC""",
@@ -119,9 +132,19 @@ async def list_submissions(activity_id: UUID, conn=Depends(get_db)):
 
 
 @router.get("/{activity_id}/analytics")
-async def activity_analytics(activity_id: UUID, conn=Depends(get_db)):
+async def activity_analytics(
+    activity_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Class performance breakdown for an activity."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT teacher_id FROM interactive_activities WHERE activity_id = %s", (str(activity_id),))
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        return JSONResponse({"error": "Activity not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     cur.execute(
         """SELECT AVG(percentage) as avg_score, COUNT(*) as total_submissions,
                   AVG(time_spent_seconds) as avg_time
@@ -319,11 +342,23 @@ async def list_refinement_instructions():
 
 
 @router.post("/{activity_id}/refine")
-async def refine(activity_id: UUID, req: RefineRequest):
+async def refine(
+    activity_id: UUID,
+    req: RefineRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Apply a refinement chip to an existing activity. Creates a new activity
     row (preserves original) and returns the new activity metadata.
     """
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT teacher_id FROM interactive_activities WHERE activity_id = %s", (str(activity_id),))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return JSONResponse({"error": "Activity not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     result = refine_activity(
         activity_id=str(activity_id),
         instruction_id=req.instruction_id,

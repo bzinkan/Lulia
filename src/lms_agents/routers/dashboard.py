@@ -40,6 +40,7 @@ from fastapi import APIRouter, Depends, Query
 from psycopg2.extras import RealDictCursor
 
 from src.lms_agents.tools.db import get_connection as _pool_get_connection
+from src.lms_agents.tools.auth import require_teacher
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 log = logging.getLogger(__name__)
@@ -123,7 +124,7 @@ def _kind_to_icon(kind: str) -> tuple[str, str]:
 
 @router.get("/home")
 async def dashboard_home(
-    teacher_id: UUID = Query(..., description="The viewing teacher's UUID"),
+    teacher_id: str = Depends(require_teacher),
     class_id: Optional[UUID] = Query(
         None,
         description=(

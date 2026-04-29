@@ -14,6 +14,7 @@ from src.lms_agents.tools.accommodation_engine import (
     get_all_profiles, get_profile, apply_modifications, DEFAULT_PROFILES,
 )
 from src.lms_agents.tools.template_renderer import render_template
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 router = APIRouter(prefix="/accommodations", tags=["Accommodations"])
 
@@ -43,7 +44,7 @@ class GenerateRequest(BaseModel):
 
 @router.get("/profiles")
 async def list_profiles(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """List all accommodation profiles (defaults + custom)."""
     profiles = get_all_profiles(teacher_id)
@@ -51,7 +52,11 @@ async def list_profiles(
 
 
 @router.post("/profiles")
-async def create_profile(req: CreateProfileRequest, conn=Depends(get_db)):
+async def create_profile(
+    req: CreateProfileRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Create a custom accommodation profile."""
     cur = conn.cursor()
     profile_id = str(uuid4())
@@ -59,7 +64,7 @@ async def create_profile(req: CreateProfileRequest, conn=Depends(get_db)):
         """INSERT INTO accommodation_profiles
            (profile_id, teacher_id, name, type, modifications, is_default)
            VALUES (%s, %s::uuid, %s, %s, %s, false)""",
-        (profile_id, req.teacher_id, req.name, req.type, Json(req.modifications)),
+        (profile_id, teacher_id, req.name, req.type, Json(req.modifications)),
     )
     conn.commit()
     cur.close()
@@ -67,14 +72,19 @@ async def create_profile(req: CreateProfileRequest, conn=Depends(get_db)):
 
 
 @router.put("/profiles/{profile_id}")
-async def update_profile(profile_id: UUID, req: CreateProfileRequest, conn=Depends(get_db)):
+async def update_profile(
+    profile_id: UUID,
+    req: CreateProfileRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Update a custom profile."""
     cur = conn.cursor()
     cur.execute(
         """UPDATE accommodation_profiles
            SET name = %s, type = %s, modifications = %s
-           WHERE profile_id = %s""",
-        (req.name, req.type, Json(req.modifications), str(profile_id)),
+           WHERE profile_id = %s AND teacher_id = %s::uuid""",
+        (req.name, req.type, Json(req.modifications), str(profile_id), teacher_id),
     )
     if cur.rowcount == 0:
         cur.close()
@@ -85,17 +95,28 @@ async def update_profile(profile_id: UUID, req: CreateProfileRequest, conn=Depen
 
 
 @router.delete("/profiles/{profile_id}")
-async def delete_profile(profile_id: UUID, conn=Depends(get_db)):
+async def delete_profile(
+    profile_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Delete a custom profile."""
     cur = conn.cursor()
-    cur.execute("DELETE FROM accommodation_profiles WHERE profile_id = %s", (str(profile_id),))
+    cur.execute(
+        "DELETE FROM accommodation_profiles WHERE profile_id = %s AND teacher_id = %s::uuid",
+        (str(profile_id), teacher_id),
+    )
     conn.commit()
     cur.close()
     return {"status": "deleted"}
 
 
 @router.post("/generate")
-async def generate_accommodated(req: GenerateRequest, conn=Depends(get_db)):
+async def generate_accommodated(
+    req: GenerateRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Generate modified versions of an existing assignment for each profile.
 
@@ -113,6 +134,8 @@ async def generate_accommodated(req: GenerateRequest, conn=Depends(get_db)):
 
     if not original:
         return JSONResponse({"error": "Assignment not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, original["teacher_id"])
+    req.teacher_id = teacher_id
 
     original_content = original["questions"] or []
     template_id = original["output_template_id"]

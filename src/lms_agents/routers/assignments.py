@@ -11,6 +11,7 @@ from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
 from src.lms_agents.crews.assignment_crew import run_assignment_crew
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 router = APIRouter(prefix="/assignments", tags=["Assignments"])
 
@@ -47,18 +48,28 @@ class WorkOrder(BaseModel):
 # real teacher hitting 30/min is already implausible; this is an anti-abuse
 # gate, not a product constraint.
 @limiter.limit("30/minute")
-async def generate_assignment(request: Request, work_order: WorkOrder):
+async def generate_assignment(
+    request: Request,
+    work_order: WorkOrder,
+    teacher_id: str = Depends(require_teacher),
+):
     """
     Generate an assignment using the 5-agent crew chain.
 
     Curriculum Agent → Content Agent → Rubric Agent → QA Agent → Format Agent
     """
-    result = run_assignment_crew(work_order.model_dump())
+    payload = work_order.model_dump()
+    payload["teacher_id"] = teacher_id
+    result = run_assignment_crew(payload)
     return result
 
 
 @router.get("/{assignment_id}")
-async def get_assignment(assignment_id: UUID, conn=Depends(get_db)):
+async def get_assignment(
+    assignment_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Get assignment detail with all content."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
@@ -74,19 +85,26 @@ async def get_assignment(assignment_id: UUID, conn=Depends(get_db)):
     cur.close()
     if not row:
         return JSONResponse({"error": "Assignment not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     return dict(row)
 
 
 @router.get("/{assignment_id}/preview")
-async def preview_assignment(assignment_id: UUID, version: str = "student", conn=Depends(get_db)):
+async def preview_assignment(
+    assignment_id: UUID,
+    version: str = "student",
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Preview the rendered HTML for an assignment."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
-        "SELECT questions, answer_key FROM assignments WHERE assignment_id = %s",
+        "SELECT teacher_id, questions, answer_key FROM assignments WHERE assignment_id = %s",
         (str(assignment_id),),
     )
     row = cur.fetchone()
     cur.close()
     if not row:
         return JSONResponse({"error": "Assignment not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
     return {"assignment_id": str(assignment_id), "version": version, "status": "preview available"}

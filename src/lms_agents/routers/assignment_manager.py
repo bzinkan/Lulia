@@ -11,6 +11,8 @@ from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import Json, RealDictCursor
 from pydantic import BaseModel
 
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
+
 router = APIRouter(prefix="/manager", tags=["Assignment Manager"])
 
 
@@ -28,7 +30,7 @@ def get_db():
 
 @router.get("/classes")
 async def list_classes(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List teacher's classes with assignment counts."""
@@ -48,7 +50,11 @@ async def list_classes(
 
 
 @router.get("/classes/{class_id}")
-async def class_detail(class_id: UUID, conn=Depends(get_db)):
+async def class_detail(
+    class_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Class detail with current week summary."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM classes WHERE class_id = %s", (str(class_id),))
@@ -56,6 +62,7 @@ async def class_detail(class_id: UUID, conn=Depends(get_db)):
     if not cls:
         cur.close()
         return JSONResponse({"error": "Class not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, cls["teacher_id"])
 
     # This week's assignments
     today = date.today()
@@ -80,6 +87,7 @@ async def class_detail(class_id: UUID, conn=Depends(get_db)):
 async def class_week_view(
     class_id: UUID,
     date_str: str = Query(None, alias="date"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Full week view with assignments by day."""
@@ -87,6 +95,13 @@ async def class_week_view(
     monday = target - timedelta(days=target.weekday())
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s", (str(class_id),))
+    cls = cur.fetchone()
+    if not cls:
+        cur.close()
+        return JSONResponse({"error": "Class not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, cls["teacher_id"])
+
     days = {}
     for i in range(5):
         day_date = monday + timedelta(days=i)
@@ -109,7 +124,7 @@ async def class_week_view(
 async def class_calendar(
     class_id: UUID,
     month: str = Query(None),
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Month calendar: per-day assignments + school_calendar overlay (day_type, label, notes)."""
@@ -126,6 +141,12 @@ async def class_calendar(
     last_day = end - timedelta(days=1)
 
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s", (str(class_id),))
+    cls = cur.fetchone()
+    if not cls:
+        cur.close()
+        return JSONResponse({"error": "Class not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, cls["teacher_id"])
 
     # Assignments per day (full rows, not just counts)
     cur.execute(
@@ -194,7 +215,12 @@ class SchoolDayUpsert(BaseModel):
 
 
 @router.put("/school-calendar/{date_iso}")
-async def upsert_school_day(date_iso: str, req: SchoolDayUpsert, conn=Depends(get_db)):
+async def upsert_school_day(
+    date_iso: str,
+    req: SchoolDayUpsert,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Upsert a single day in the teacher's school calendar.
     Used by the Calendar tab's day-detail modal to toggle school status and save a per-day note.
@@ -224,7 +250,7 @@ async def upsert_school_day(date_iso: str, req: SchoolDayUpsert, conn=Depends(ge
              notes = EXCLUDED.notes,
              school_year = EXCLUDED.school_year
            RETURNING date, day_type, label, notes""",
-        (req.teacher_id, school_year, target, req.day_type, req.label, req.notes),
+        (teacher_id, school_year, target, req.day_type, req.label, req.notes),
     )
     row = cur.fetchone()
     conn.commit()
@@ -242,7 +268,7 @@ async def upsert_school_day(date_iso: str, req: SchoolDayUpsert, conn=Depends(ge
 
 @router.get("/grading-inbox")
 async def grading_inbox(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """All items needing grading across all classes."""
@@ -287,7 +313,7 @@ async def grading_inbox(
 
 @router.get("/grading-inbox/count")
 async def inbox_count(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Badge count for sidebar."""
@@ -313,6 +339,7 @@ class RescheduleRequest(BaseModel):
 async def duplicate_assignment(
     assignment_id: UUID,
     target_class_id: str = Query(None),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Copy an assignment to another class or week."""
@@ -322,6 +349,14 @@ async def duplicate_assignment(
     if not orig:
         cur.close()
         return JSONResponse({"error": "Assignment not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, orig["teacher_id"])
+    if target_class_id:
+        cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (target_class_id,))
+        target_cls = cur.fetchone()
+        if not target_cls:
+            cur.close()
+            return JSONResponse({"error": "Target class not found"}, status_code=404)
+        assert_owner_or_403(teacher_id, target_cls["teacher_id"])
 
     new_id = str(uuid4())
     target = target_class_id or str(orig["class_id"])
@@ -343,26 +378,41 @@ async def duplicate_assignment(
 
 
 @router.post("/assignments/{assignment_id}/reschedule")
-async def reschedule(assignment_id: UUID, req: RescheduleRequest, conn=Depends(get_db)):
+async def reschedule(
+    assignment_id: UUID,
+    req: RescheduleRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Change assigned_date."""
     cur = conn.cursor()
     cur.execute(
-        "UPDATE assignments SET assigned_date = %s WHERE assignment_id = %s",
-        (req.assigned_date, str(assignment_id)),
+        "UPDATE assignments SET assigned_date = %s WHERE assignment_id = %s AND teacher_id = %s::uuid",
+        (req.assigned_date, str(assignment_id), teacher_id),
     )
+    if cur.rowcount == 0:
+        cur.close()
+        return JSONResponse({"error": "Assignment not found"}, status_code=404)
     conn.commit()
     cur.close()
     return {"status": "rescheduled"}
 
 
 @router.post("/assignments/{assignment_id}/archive")
-async def archive(assignment_id: UUID, conn=Depends(get_db)):
+async def archive(
+    assignment_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Archive an assignment."""
     cur = conn.cursor()
     cur.execute(
-        "UPDATE assignments SET status = 'archived' WHERE assignment_id = %s",
-        (str(assignment_id),),
+        "UPDATE assignments SET status = 'archived' WHERE assignment_id = %s AND teacher_id = %s::uuid",
+        (str(assignment_id), teacher_id),
     )
+    if cur.rowcount == 0:
+        cur.close()
+        return JSONResponse({"error": "Assignment not found"}, status_code=404)
     conn.commit()
     cur.close()
     return {"status": "archived"}

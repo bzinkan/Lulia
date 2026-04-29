@@ -4,7 +4,7 @@ import os
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket
 from fastapi.responses import JSONResponse
 import psycopg2
 from src.lms_agents.tools.db import get_connection as _pool_get_connection
@@ -19,6 +19,7 @@ from src.lms_agents.tools.game_session_manager import (
 )
 from src.lms_agents.tools.redis_client import get_game_state
 from src.lms_agents.websocket.game_server import handle_game_websocket
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 router = APIRouter(tags=["Games"])
 
@@ -31,6 +32,40 @@ def get_db():
         yield conn
     finally:
         conn.close()
+
+
+def _assert_class_owner(class_id: str | None, teacher_id: str, conn) -> None:
+    if not class_id:
+        return
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (class_id,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Class not found")
+    assert_owner_or_403(teacher_id, row[0])
+
+
+def _assert_assignment_owner(assignment_id: str | None, teacher_id: str, conn) -> None:
+    if not assignment_id:
+        return
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM assignments WHERE assignment_id = %s::uuid", (assignment_id,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    assert_owner_or_403(teacher_id, row[0])
+
+
+def _assert_pin_owner(pin: str, teacher_id: str, conn) -> None:
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM game_sessions_v2 WHERE pin = %s", (pin,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Game not found")
+    assert_owner_or_403(teacher_id, row[0])
 
 
 class QuestionSource(BaseModel):
@@ -64,7 +99,7 @@ async def list_game_shells():
 @router.get("/api/v1/games/standards-match-count")
 async def standards_match_count(
     standards: str = Query(..., description="Comma-separated standard codes"),
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """
@@ -97,15 +132,21 @@ class SuggestCategoriesRequest(BaseModel):
 
 
 @router.post("/api/v1/games/suggest-categories")
-async def suggest_categories(req: SuggestCategoriesRequest, conn=Depends(get_db)):
+async def suggest_categories(
+    req: SuggestCategoriesRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Suggest 5 Jeopardy category names based on the selected content source.
     Returns a list of up to 5 category strings.
     """
+    req.teacher_id = teacher_id
     context_label = ""
     if req.source_type == "assignment" and req.assignment_id:
+        _assert_assignment_owner(req.assignment_id, teacher_id, conn)
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT title, subject FROM assignments WHERE assignment_id = %s", (req.assignment_id,))
+        cur.execute("SELECT title, subject FROM assignments WHERE assignment_id = %s::uuid", (req.assignment_id,))
         a = cur.fetchone()
         cur.close()
         if a:
@@ -154,7 +195,12 @@ async def suggest_categories(req: SuggestCategoriesRequest, conn=Depends(get_db)
 # `custom` source generates Haiku questions on the spot — a rogue client
 # could otherwise spam the endpoint to bleed credits or saturate the LLM.
 @limiter.limit("20/minute")
-async def create_game(request: Request, req: CreateGameRequest):
+async def create_game(
+    request: Request,
+    req: CreateGameRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Create a new game session.
     Question source determines credit charging:
@@ -162,6 +208,10 @@ async def create_game(request: Request, req: CreateGameRequest):
       - standards:  free (pulls from teacher's existing assignments tagged to those standards)
       - custom:     charges live_game_custom_questions credits (Haiku generation)
     """
+    req.teacher_id = teacher_id
+    _assert_class_owner(req.class_id, teacher_id, conn)
+    if req.question_source.type == "assignment":
+        _assert_assignment_owner(req.question_source.assignment_id, teacher_id, conn)
     result = create_game_session(
         teacher_id=req.teacher_id,
         game_shell_id=req.game_shell_id,
@@ -175,14 +225,19 @@ async def create_game(request: Request, req: CreateGameRequest):
 
 
 @router.post("/api/v1/games/{session_id}/replay")
-async def replay_game(session_id: UUID, req: ReplayRequest, conn=Depends(get_db)):
+async def replay_game(
+    session_id: UUID,
+    req: ReplayRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Replay a prior session — same questions, same settings, new PIN.
     Never charges credits, even if the original was a custom-generated game.
     """
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
-        """SELECT game_shell_id, class_id, assignment_id, settings_json
+        """SELECT teacher_id, game_shell_id, class_id, assignment_id, settings_json
            FROM game_sessions_v2 WHERE session_id = %s""",
         (str(session_id),),
     )
@@ -190,6 +245,7 @@ async def replay_game(session_id: UUID, req: ReplayRequest, conn=Depends(get_db)
     cur.close()
     if not prior:
         return JSONResponse({"error": "Original session not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, prior["teacher_id"])
 
     settings_json = prior["settings_json"] or {}
     cached_questions = settings_json.get("generated_questions")
@@ -202,7 +258,7 @@ async def replay_game(session_id: UUID, req: ReplayRequest, conn=Depends(get_db)
         return JSONResponse({"error": "Cannot replay — no cached questions and no assignment"}, status_code=400)
 
     result = create_game_session(
-        teacher_id=req.teacher_id,
+        teacher_id=teacher_id,
         game_shell_id=prior["game_shell_id"],
         class_id=str(prior["class_id"]) if prior["class_id"] else None,
         question_source=replay_source,
@@ -228,21 +284,41 @@ async def game_info(pin: str):
 
 
 @router.post("/api/v1/games/{pin}/start")
-async def start_game_route(pin: str):
+async def start_game_route(
+    pin: str,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Teacher starts the game."""
+    _assert_pin_owner(pin, teacher_id, conn)
     return start_game(pin)
 
 
 @router.post("/api/v1/games/{pin}/end")
-async def end_game_route(pin: str):
+async def end_game_route(
+    pin: str,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Teacher ends the game."""
+    _assert_pin_owner(pin, teacher_id, conn)
     return end_game(pin)
 
 
 @router.get("/api/v1/games/{session_id}/results")
-async def game_results(session_id: UUID, conn=Depends(get_db)):
+async def game_results(
+    session_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Post-game results and analytics."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT teacher_id FROM game_sessions_v2 WHERE session_id = %s", (str(session_id),))
+    session = cur.fetchone()
+    if not session:
+        cur.close()
+        return JSONResponse({"error": "Results not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, session["teacher_id"])
     cur.execute("SELECT * FROM game_results WHERE session_id = %s", (str(session_id),))
     result = cur.fetchone()
     if not result:
@@ -263,18 +339,15 @@ async def game_results(session_id: UUID, conn=Depends(get_db)):
 
 @router.get("/api/v1/games/sessions")
 async def list_sessions(
-    teacher_id: Optional[str] = Query(None),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List teacher's recent game sessions."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    if teacher_id:
-        cur.execute(
-            "SELECT * FROM game_sessions_v2 WHERE teacher_id = %s::uuid ORDER BY created_at DESC LIMIT 20",
-            (teacher_id,),
-        )
-    else:
-        cur.execute("SELECT * FROM game_sessions_v2 ORDER BY created_at DESC LIMIT 20")
+    cur.execute(
+        "SELECT * FROM game_sessions_v2 WHERE teacher_id = %s::uuid ORDER BY created_at DESC LIMIT 20",
+        (teacher_id,),
+    )
     rows = [dict(r) for r in cur.fetchall()]
     cur.close()
     return {"sessions": rows}

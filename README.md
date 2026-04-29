@@ -13,12 +13,12 @@
 | **Planner** | A weekly plan from your curriculum + state standards. Per-day refinement before generation. |
 | **Print & Go** | One-shot worksheet generator with live standards auto-match. |
 | **Interactive activities** | Six structured engines (crossword, word search, flashcards, timeline, number line, fill-in-blank) where Gemini emits data only — engine code is human-authored, so no LLM-written JS can crash at runtime. Plus an **artifact mode** where Gemini-2.5-Pro writes a full HTML file for ad-hoc topics (MCQ, drag-drop, hotspot, etc.) with a validator + retry guard. |
-| **Video Library** | Curated catalog of teacher uploads, YouTube embeds (Standard YT License), and public-domain MP4s — not on-demand compute. Generated videos are the fallback when no library match exists. |
+| **Video** | Strategy still undecided. The curated Video Library is the current low-cost candidate; generated videos, upload processing, and short clips remain retained fallback/experiment paths. |
 | **Grading** | Claude vision OCR + 5 grading methods + mastery tracking, surfaced in the unified Grades tab. |
 | **Calendar / Curriculum / Analytics** | Living curriculum tracking, school-calendar overlay, class-mastery and standards-coverage views. |
 | **Image Library** | Teacher uploads + Wikimedia Commons fallback, semantically searchable via Gemini-vision captioning on upload. |
 
-> ⚠ **Live Games / Arcade is shelved** for the initial launch (Phase 28). The 16 game shells, the `/games` / `/play` / `/join` UI, and the Arcade tab are removed from the dashboard. The backend (`routers/games.py`, `websocket/game_server.py`, `tools/game_session_manager.py`, the `/api/v1/games/*` endpoints, the `arcade_*` and `game_*` tables) stays intact — re-enabling is a frontend-only effort.
+> ⚠ **Live Games / Arcade is shelved** for the initial launch (Phase 28). The 16 game shells, the `/games` / `/play` / `/join` UI, and the Arcade tab are removed from the dashboard. The backend (`routers/games.py`, `websocket/game_server.py`, `tools/game_session_manager.py`, the `/api/v1/games/*` endpoints, the `arcade_*` and `game_*` tables) stays intentionally intact because the feature may be reused later; re-enabling is a frontend-first effort.
 
 ## Tech stack
 

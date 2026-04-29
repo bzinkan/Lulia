@@ -15,7 +15,7 @@ from src.lms_agents.tools.db import get_connection as _pool_get_connection
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
-from src.lms_agents.tools.auth import require_teacher
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
@@ -42,10 +42,10 @@ def get_db():
 
 @router.get("/assignments")
 async def list_teacher_assignments(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
     search: Optional[str] = Query(None),
     subject: Optional[str] = Query(None),
     limit: int = Query(20),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List teacher's assignments for the picker dropdown."""
@@ -86,7 +86,7 @@ class GenerateFromPromptRequest(BaseModel):
     prompt: str
     output_type: str = "interactive"
     teacher_id: str = "00000000-0000-0000-0000-000000000001"
-    class_id: str = "00000000-0000-0000-0000-000000000010"
+    class_id: str | None = None
     auto_confirm: bool = False
     # Optional explicit inputs that bypass Haiku's prompt-parse. When the UI
     # already knows these (tile pick, selected standards, topic text), pass
@@ -99,7 +99,10 @@ class GenerateFromPromptRequest(BaseModel):
 
 
 @router.post("/parse-intent")
-async def parse_intent(req: ParseIntentRequest):
+async def parse_intent(
+    req: ParseIntentRequest,
+    _teacher_id: str = Depends(require_teacher),
+):
     """Parse a natural language prompt into generation parameters."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -165,6 +168,18 @@ async def generate_from_prompt(
     """
     # Authenticated teacher owns the output, regardless of any body field.
     req.teacher_id = authenticated_teacher_id
+    if req.class_id:
+        conn = _pool_get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (req.class_id,))
+            row = cur.fetchone()
+            cur.close()
+        finally:
+            conn.close()
+        if not row:
+            return JSONResponse({"error": "Class not found"}, status_code=404)
+        assert_owner_or_403(authenticated_teacher_id, row[0])
     # Step 1: Parse intent
     intent_req = ParseIntentRequest(prompt=req.prompt, output_type=req.output_type)
     from starlette.testclient import TestClient
@@ -344,9 +359,13 @@ _ACTIVITY_META = {
 
 
 @router.post("/topic-suggestions")
-async def topic_suggestions(req: TopicSuggestionsRequest):
+async def topic_suggestions(
+    req: TopicSuggestionsRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """Return 3 specific topic phrases for a vague partial_topic."""
     import time
+    req.teacher_id = teacher_id
     if not req.partial_topic or len(req.partial_topic.strip()) < 3:
         return {"suggestions": []}
 
@@ -365,8 +384,8 @@ async def topic_suggestions(req: TopicSuggestionsRequest):
             cur.execute(
                 """SELECT c.grade_level, c.subject, t.state_code
                    FROM classes c LEFT JOIN teachers t ON c.teacher_id = t.teacher_id
-                   WHERE c.class_id = %s::uuid""",
-                (req.class_id,),
+                   WHERE c.class_id = %s::uuid AND c.teacher_id = %s::uuid""",
+                (req.class_id, teacher_id),
             )
             row = cur.fetchone()
             if row:

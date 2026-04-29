@@ -2,10 +2,12 @@
 import logging
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
+from src.lms_agents.tools.db import get_connection
 from src.lms_agents.tools.class_intelligence import (
     get_class_context,
     get_ai_context_prompt,
@@ -24,7 +26,30 @@ from src.lms_agents.tools.curriculum_generator import generate_curriculum_from_s
 
 log = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/classes/{class_id}/intelligence", tags=["Class Intelligence"])
+
+def _require_class_owner(
+    class_id: str,
+    teacher_id: str = Depends(require_teacher),
+) -> str:
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (class_id,))
+        row = cur.fetchone()
+        cur.close()
+    finally:
+        conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Class not found")
+    assert_owner_or_403(teacher_id, row[0])
+    return teacher_id
+
+
+router = APIRouter(
+    prefix="/classes/{class_id}/intelligence",
+    tags=["Class Intelligence"],
+    dependencies=[Depends(_require_class_owner)],
+)
 
 
 # --- Request models ---

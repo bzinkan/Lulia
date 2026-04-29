@@ -19,6 +19,7 @@ from psycopg2.extras import Json
 
 from src.lms_agents.tools.knowledge_ingestion import ingest_file, ingest_url
 from src.lms_agents.tools.curriculum_importer import import_curriculum
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +53,24 @@ def get_s3_client():
         aws_secret_access_key=os.environ.get("S3_SECRET_KEY", os.environ.get("AWS_SECRET_ACCESS_KEY")),
         region_name=os.environ.get("AWS_REGION", "us-east-1"),
     )
+
+
+def _assert_class_owner(class_id: str | None, teacher_id: str) -> JSONResponse | None:
+    """Return an error response if class_id is present and not owned by teacher."""
+    if not class_id:
+        return None
+    conn = _pool_get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (class_id,))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+        conn.close()
+    if not row:
+        return JSONResponse({"error": "Class not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row[0])
+    return None
 
 
 def _extract_text_from_file(content: bytes, filename: str, max_chars: int = 15000) -> str:
@@ -179,7 +198,11 @@ Rules:
 
 
 @router.post("/standards")
-async def upload_standards(file: UploadFile = File(...), conn=Depends(get_db)):
+async def upload_standards(
+    file: UploadFile = File(...),
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """
     Upload custom standards file (Tier 1 — highest priority).
 
@@ -311,9 +334,9 @@ async def upload_materials(
     subject: str = Form(None),
     grade_level: str = Form(None),
     unit: str = Form(None),
-    teacher_id: str = Form("00000000-0000-0000-0000-000000000000"),
     class_id: str = Form(None),
     scope: str = Form("class"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """
     Upload teaching materials to the RAG Knowledge Base.
@@ -327,6 +350,9 @@ async def upload_materials(
             {"error": "Provide either a file or a URL"},
             status_code=400,
         )
+    owner_error = _assert_class_owner(class_id, teacher_id)
+    if owner_error:
+        return owner_error
 
     # --- URL upload ---
     if url:
@@ -413,8 +439,8 @@ async def upload_curriculum(
     class_id: str = Form(...),
     subject: str = Form(None),
     grade_level: str = Form(None),
-    teacher_id: str = Form("00000000-0000-0000-0000-000000000001"),
     week_start: str = Form(None),
+    teacher_id: str = Depends(require_teacher),
 ):
     """
     Upload curriculum/pacing guide — dual pipeline.
@@ -423,6 +449,9 @@ async def upload_curriculum(
     2. Parsed pacing → curriculum_calendar (for Planner scheduling)
     """
     from datetime import date as date_type
+    owner_error = _assert_class_owner(class_id, teacher_id)
+    if owner_error:
+        return owner_error
 
     filename = file.filename or "curriculum"
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -480,8 +509,8 @@ async def upload_curriculum(
 @router.post("/school-calendar")
 async def upload_school_calendar(
     file: UploadFile = File(...),
-    teacher_id: str = Form("00000000-0000-0000-0000-000000000001"),
     school_year: str = Form("2025-2026"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """
     Legacy one-shot: parse AND store in one call.
@@ -520,6 +549,7 @@ async def upload_school_calendar(
 async def parse_school_calendar(
     file: UploadFile = File(...),
     school_year: str = Form("2025-2026"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """
     Phase 1 of review-before-save: extract entries via Haiku and return to teacher.
@@ -567,12 +597,15 @@ class ConfirmCalendarRequest(BaseModel):
 
 
 @router.post("/school-calendar/confirm")
-async def confirm_school_calendar(req: ConfirmCalendarRequest):
+async def confirm_school_calendar(
+    req: ConfirmCalendarRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """Phase 2 of review-before-save: store only the teacher-approved entries."""
     from src.lms_agents.tools.school_calendar import store_school_calendar
 
     entries = [e.model_dump() for e in req.entries]
-    stored = store_school_calendar(req.teacher_id, entries, req.school_year)
+    stored = store_school_calendar(teacher_id, entries, req.school_year)
     return {
         "stored": stored,
         "total_submitted": len(entries),

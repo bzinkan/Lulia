@@ -10,7 +10,7 @@ from datetime import date
 from typing import Optional
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 import psycopg2
 from src.lms_agents.tools.db import get_connection as _pool_get_connection
@@ -18,6 +18,7 @@ from psycopg2.extras import Json, RealDictCursor
 from pydantic import BaseModel
 
 from src.lms_agents.tools.curriculum_importer import import_csv_pacing
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 router = APIRouter(prefix="/calendar", tags=["Calendar"])
 
@@ -30,6 +31,32 @@ def get_db():
         yield conn
     finally:
         conn.close()
+
+
+def _assert_class_owner(class_id: str | UUID, teacher_id: str, conn) -> None:
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (str(class_id),))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Class not found")
+    assert_owner_or_403(teacher_id, row[0])
+
+
+def _assert_calendar_owner(calendar_id: UUID, teacher_id: str, conn) -> None:
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT c.teacher_id
+           FROM curriculum_calendar cc
+           JOIN classes c ON c.class_id = cc.class_id
+           WHERE cc.calendar_id = %s::uuid""",
+        (str(calendar_id),),
+    )
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Calendar entry not found")
+    assert_owner_or_403(teacher_id, row[0])
 
 
 class CalendarEntryCreate(BaseModel):
@@ -55,9 +82,11 @@ class CalendarEntryUpdate(BaseModel):
 @router.get("/{class_id}")
 async def get_curriculum_calendar(
     class_id: UUID,
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Get the full curriculum calendar for a class, ordered by week."""
+    _assert_class_owner(class_id, teacher_id, conn)
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
         """SELECT calendar_id, class_id, week_number, week_start_date,
@@ -77,9 +106,11 @@ async def get_curriculum_calendar(
 async def add_calendar_entry(
     class_id: UUID,
     entry: CalendarEntryCreate,
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Manually add a single calendar entry for a class."""
+    _assert_class_owner(class_id, teacher_id, conn)
     cur = conn.cursor()
     calendar_id = str(uuid4())
     cur.execute(
@@ -105,9 +136,11 @@ async def add_calendar_entry(
 async def update_calendar_entry(
     calendar_id: UUID,
     entry: CalendarEntryUpdate,
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Edit an existing calendar entry."""
+    _assert_calendar_owner(calendar_id, teacher_id, conn)
     cur = conn.cursor()
 
     # Build dynamic SET clause for non-None fields
@@ -154,9 +187,11 @@ async def update_calendar_entry(
 @router.delete("/{calendar_id}")
 async def delete_calendar_entry(
     calendar_id: UUID,
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Delete a calendar entry."""
+    _assert_calendar_owner(calendar_id, teacher_id, conn)
     cur = conn.cursor()
     cur.execute(
         "DELETE FROM curriculum_calendar WHERE calendar_id = %s",
@@ -175,8 +210,11 @@ async def import_csv(
     class_id: UUID,
     file: UploadFile = File(...),
     week_start: Optional[str] = Form(None),
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
 ):
     """
+    _assert_class_owner(class_id, teacher_id, conn)
     Import pacing data from CSV file.
 
     Expected columns: week_number, unit_name, topic, standards, assessment, notes
@@ -203,18 +241,18 @@ async def import_csv(
 # --- Future Phase 8: Google integration stubs ---
 
 @router.post("/sync-google")
-async def sync_google_calendar():
+async def sync_google_calendar(_teacher_id: str = Depends(require_teacher)):
     """Sync to Google Calendar."""
     return {"status": "stub"}
 
 
 @router.post("/sync-classroom")
-async def sync_classroom():
+async def sync_classroom(_teacher_id: str = Depends(require_teacher)):
     """Organize Classroom topics."""
     return {"status": "stub"}
 
 
 @router.get("/pdf")
-async def calendar_pdf():
+async def calendar_pdf(_teacher_id: str = Depends(require_teacher)):
     """Generate visual calendar PDF."""
     return {"status": "stub"}

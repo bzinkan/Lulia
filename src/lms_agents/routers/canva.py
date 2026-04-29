@@ -3,7 +3,7 @@ import logging
 import os
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
@@ -17,6 +17,7 @@ from src.lms_agents.tools.canva_auth import (
     is_connected,
     canva_api_call,
 )
+from src.lms_agents.tools.auth import require_teacher
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ def _client_secret() -> str:
 
 @router.get("/auth/start")
 async def start_auth(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """Redirect the teacher to Canva's OAuth consent screen (PKCE)."""
     verifier, challenge = generate_pkce()
@@ -112,7 +113,7 @@ async def auth_callback(code: str = "", state: str = ""):
 
 @router.get("/status")
 async def check_status(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """Check whether a teacher has a connected Canva account."""
     connected = is_connected(teacher_id)
@@ -121,7 +122,7 @@ async def check_status(
 
 @router.post("/disconnect")
 async def disconnect(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """Remove stored Canva tokens for a teacher."""
     remove_canva_credentials(teacher_id)
@@ -144,11 +145,15 @@ class CreateDesignRequest(BaseModel):
 
 
 @router.post("/design/create")
-async def create_design(req: CreateDesignRequest):
+async def create_design(
+    req: CreateDesignRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """Create a new blank design in the teacher's Canva account.
 
     Returns the design_id and edit_url so the teacher can open it directly.
     """
+    req.teacher_id = teacher_id
     type_cfg = DESIGN_TYPE_MAP.get(req.design_type, DESIGN_TYPE_MAP["document"])
 
     try:
@@ -180,7 +185,7 @@ async def create_design(req: CreateDesignRequest):
 @router.get("/design/{design_id}")
 async def get_design(
     design_id: str,
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """Fetch details of an existing Canva design."""
     try:
@@ -209,12 +214,16 @@ class ExportDesignRequest(BaseModel):
 
 
 @router.post("/design/export")
-async def export_design(req: ExportDesignRequest):
+async def export_design(
+    req: ExportDesignRequest,
+    teacher_id: str = Depends(require_teacher),
+):
     """Request an export of a Canva design to PDF/PNG/JPG.
 
     Canva exports are async — this returns an export job ID. Poll
     GET /canva/design/export/{export_id} until status is 'completed'.
     """
+    req.teacher_id = teacher_id
     try:
         result = canva_api_call(
             req.teacher_id,
@@ -243,7 +252,7 @@ async def export_design(req: ExportDesignRequest):
 @router.get("/design/export/{export_id}")
 async def get_export_status(
     export_id: str,
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """Poll the status of a Canva export job.
 

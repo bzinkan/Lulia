@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from src.lms_agents.crews.video_crew import generate_video
 from src.lms_agents.tools.tts_generator import list_voices
 from src.lms_agents.tools.voice_cloning import clone_voice_from_sample, delete_cloned_voice, get_teacher_voice
+from src.lms_agents.tools.auth import require_teacher, assert_owner_or_403
 
 router = APIRouter(prefix="/videos", tags=["Videos"])
 
@@ -39,24 +40,26 @@ class GenerateVideoRequest(BaseModel):
 
 
 @router.post("/generate")
-async def create_video(req: GenerateVideoRequest):
+async def create_video(
+    req: GenerateVideoRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Generate a video from an assignment. Routes to Polly (default) or ElevenLabs (premium)."""
     from src.lms_agents.tools.tts_generator import get_provider_for_voice
     from src.lms_agents.tools.voice_cloning import get_teacher_voice
-    from src.lms_agents.tools.db import get_connection as get_conn
-    from psycopg2.extras import RealDictCursor as RDC
 
-    # Check teacher tier
-    conn = get_conn()
-    cur = conn.cursor(cursor_factory=RDC)
-    cur.execute("SELECT COALESCE((SELECT tier FROM credit_accounts WHERE teacher_id = %s::uuid), 'basic') as tier", (req.teacher_id,))
+    req.teacher_id = teacher_id
+    _assert_assignment_owner(req.assignment_id, teacher_id, conn)
+
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT COALESCE((SELECT tier FROM credit_accounts WHERE teacher_id = %s::uuid), 'basic') as tier", (teacher_id,))
     tier = cur.fetchone()["tier"]
     cur.close()
-    conn.close()
 
     # Check if voice requires premium
     voice = req.voice_id or "Joanna"
-    custom_voice = get_teacher_voice(req.teacher_id)
+    custom_voice = get_teacher_voice(teacher_id)
     provider = get_provider_for_voice(voice, custom_voice, tier)
 
     if provider == "elevenlabs" and tier not in ("premium", "max"):
@@ -76,7 +79,7 @@ async def create_video(req: GenerateVideoRequest):
             name="video/generation.requested",
             data={
                 "assignment_id": req.assignment_id,
-                "teacher_id": req.teacher_id,
+                "teacher_id": teacher_id,
                 "voice_id": req.voice_id,
                 "use_my_voice": req.use_my_voice,
                 "target_duration": req.target_duration,
@@ -89,7 +92,7 @@ async def create_video(req: GenerateVideoRequest):
 
 
 @router.get("/voices")
-async def available_voices(teacher_id: str = Query("00000000-0000-0000-0000-000000000001")):
+async def available_voices(teacher_id: str = Depends(require_teacher)):
     """List available voices grouped by tier (standard=Polly, premium=ElevenLabs)."""
     custom = get_teacher_voice(teacher_id)
     voices = list_voices(teacher_id=teacher_id, custom_voice_id=custom)
@@ -114,9 +117,47 @@ def _get_s3():
 _LIBRARY_BUCKET = "lulia-generated"
 
 
+def _assert_class_owner(class_id: str | UUID | None, teacher_id: str, conn) -> None:
+    """Ensure the authenticated teacher owns the class before class-scoped media work."""
+    if not class_id:
+        return
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM classes WHERE class_id = %s::uuid", (str(class_id),))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="class not found")
+    assert_owner_or_403(teacher_id, row[0])
+
+
+def _assert_assignment_owner(assignment_id: str, teacher_id: str, conn) -> None:
+    cur = conn.cursor()
+    cur.execute("SELECT teacher_id FROM assignments WHERE assignment_id = %s::uuid", (assignment_id,))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="assignment not found")
+    assert_owner_or_403(teacher_id, row[0])
+
+
+def _assert_video_access(row: dict, teacher_id: str, conn, *, write: bool = False) -> None:
+    """Read access permits public/class visibility; writes require owner."""
+    if write:
+        assert_owner_or_403(teacher_id, row["teacher_id"])
+        return
+    scope = row.get("scope") or "teacher"
+    if scope == "public":
+        return
+    if str(row.get("teacher_id")) == str(teacher_id):
+        return
+    if scope == "class" and row.get("class_id"):
+        _assert_class_owner(row["class_id"], teacher_id, conn)
+        return
+    assert_owner_or_403(teacher_id, row.get("teacher_id"))
+
+
 @router.get("/library")
 async def browse_library(
-    teacher_id: str = Query("00000000-0000-0000-0000-000000000001"),
     class_id: Optional[str] = Query(None),
     grade_band: Optional[str] = Query(None),
     subject: Optional[str] = Query(None),
@@ -127,6 +168,7 @@ async def browse_library(
     video_kind: Optional[str] = Query(None, regex=r"^(short_clip|explainer_video)$"),
     limit: int = Query(48, le=200),
     offset: int = Query(0),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """Browse the class-scoped video library.
@@ -136,6 +178,7 @@ async def browse_library(
       - scope='teacher' → only the uploading teacher
       - scope='class'   → teachers of that class_id
     """
+    _assert_class_owner(class_id, teacher_id, conn)
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     sql = """
@@ -203,8 +246,14 @@ class PresignUploadRequest(BaseModel):
 
 
 @router.post("/upload/presign")
-async def upload_presign(req: PresignUploadRequest, conn=Depends(get_db)):
+async def upload_presign(
+    req: PresignUploadRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Create a videos row in 'uploading' state and return a presigned PUT URL."""
+    req.teacher_id = teacher_id
+    _assert_class_owner(req.class_id, teacher_id, conn)
     allowed_types = {"video/mp4", "video/quicktime", "video/webm", "video/x-matroska"}
     if req.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail=f"content_type must be one of {allowed_types}")
@@ -217,9 +266,13 @@ async def upload_presign(req: PresignUploadRequest, conn=Depends(get_db)):
     scope = req.scope or "teacher"
     if scope not in ("teacher", "class", "public"):
         raise HTTPException(status_code=400, detail="scope must be 'teacher', 'class', or 'public'")
+    if scope == "public":
+        raise HTTPException(status_code=403, detail="public video sharing requires admin review")
     source_lane = req.source_lane or "teacher_upload"
     if source_lane not in ("teacher_upload", "lulia_signature", "oer_public_domain", "generated"):
         raise HTTPException(status_code=400, detail="invalid source_lane")
+    if source_lane == "lulia_signature":
+        raise HTTPException(status_code=403, detail="lulia_signature videos require admin access")
 
     video_id = str(uuid4())
     s3_key = f"library/uploads/{video_id}.mp4"
@@ -260,17 +313,22 @@ class CompleteUploadRequest(BaseModel):
 
 
 @router.post("/upload/complete")
-async def upload_complete(req: CompleteUploadRequest, conn=Depends(get_db)):
+async def upload_complete(
+    req: CompleteUploadRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Mark an upload complete and fire the Inngest post-processing pipeline."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(
-        "SELECT video_id, file_url, status FROM videos WHERE video_id = %s::uuid",
+        "SELECT video_id, teacher_id, file_url, status FROM videos WHERE video_id = %s::uuid",
         (req.video_id,),
     )
     row = cur.fetchone()
     if not row:
         cur.close()
         raise HTTPException(status_code=404, detail="video not found")
+    assert_owner_or_403(teacher_id, row["teacher_id"])
 
     s3 = _get_s3()
     try:
@@ -303,7 +361,11 @@ async def upload_complete(req: CompleteUploadRequest, conn=Depends(get_db)):
 
 
 @router.get("/{video_id}")
-async def get_video(video_id: UUID, conn=Depends(get_db)):
+async def get_video(
+    video_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Get video metadata."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM videos WHERE video_id = %s", (str(video_id),))
@@ -311,25 +373,24 @@ async def get_video(video_id: UUID, conn=Depends(get_db)):
     cur.close()
     if not row:
         return JSONResponse({"error": "Video not found"}, status_code=404)
+    _assert_video_access(dict(row), teacher_id, conn)
     return dict(row)
 
 
 @router.get("")
 async def list_videos(
     assignment_id: Optional[str] = Query(None),
-    teacher_id: Optional[str] = Query(None),
+    teacher_id: str = Depends(require_teacher),
     conn=Depends(get_db),
 ):
     """List videos."""
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    conditions = []
-    params = []
+    conditions = ["teacher_id = %s::uuid"]
+    params = [teacher_id]
     if assignment_id:
+        _assert_assignment_owner(assignment_id, teacher_id, conn)
         conditions.append("assignment_id = %s::uuid")
         params.append(assignment_id)
-    if teacher_id:
-        conditions.append("teacher_id = %s::uuid")
-        params.append(teacher_id)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     params.append(50)
     cur.execute(f"SELECT * FROM videos {where} ORDER BY created_at DESC LIMIT %s", params)
@@ -339,10 +400,17 @@ async def list_videos(
 
 
 @router.delete("/{video_id}")
-async def delete_video(video_id: UUID, conn=Depends(get_db)):
+async def delete_video(
+    video_id: UUID,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Delete a video."""
     cur = conn.cursor()
-    cur.execute("DELETE FROM videos WHERE video_id = %s", (str(video_id),))
+    cur.execute("DELETE FROM videos WHERE video_id = %s AND teacher_id = %s::uuid", (str(video_id), teacher_id))
+    if cur.rowcount == 0:
+        cur.close()
+        return JSONResponse({"error": "Video not found"}, status_code=404)
     conn.commit()
     cur.close()
     return {"status": "deleted"}
@@ -354,7 +422,7 @@ async def delete_video(video_id: UUID, conn=Depends(get_db)):
 async def clone_voice(
     file: UploadFile = File(...),
     voice_name: str = Form("My Teaching Voice"),
-    teacher_id: str = Form("00000000-0000-0000-0000-000000000001"),
+    teacher_id: str = Depends(require_teacher),
 ):
     """Upload audio sample to clone teacher's voice (premium feature)."""
     content = await file.read()
@@ -371,7 +439,7 @@ async def clone_voice(
 
 
 @router.delete("/voice-clone")
-async def remove_cloned_voice(teacher_id: str = Query("00000000-0000-0000-0000-000000000001")):
+async def remove_cloned_voice(teacher_id: str = Depends(require_teacher)):
     """Remove teacher's cloned voice."""
     delete_cloned_voice(teacher_id)
     return {"status": "deleted"}
@@ -386,7 +454,12 @@ class PatchVideoRequest(BaseModel):
 
 
 @router.patch("/{video_id}")
-async def patch_video(video_id: UUID, req: PatchVideoRequest, conn=Depends(get_db)):
+async def patch_video(
+    video_id: UUID,
+    req: PatchVideoRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
     """Teacher-override classification. Never overwritten by Haiku reclassification."""
     updates: dict = {}
     if req.title is not None:
@@ -401,6 +474,14 @@ async def patch_video(video_id: UUID, req: PatchVideoRequest, conn=Depends(get_d
         updates["grade_bands"] = req.grade_bands
     if not updates:
         return {"status": "no_changes"}
+
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT teacher_id FROM videos WHERE video_id = %s::uuid", (str(video_id),))
+    row = cur.fetchone()
+    cur.close()
+    if not row:
+        return JSONResponse({"error": "Video not found"}, status_code=404)
+    assert_owner_or_403(teacher_id, row["teacher_id"])
 
     set_parts = ", ".join(f"{k} = %s" for k in updates)
     params = list(updates.values()) + [str(video_id)]
@@ -417,15 +498,25 @@ class ShareVideoRequest(BaseModel):
 
 
 @router.post("/{video_id}/share")
-async def share_video(video_id: UUID, req: ShareVideoRequest, conn=Depends(get_db)):
-    """Change a video's visibility scope. Admin-check should be added in prod."""
+async def share_video(
+    video_id: UUID,
+    req: ShareVideoRequest,
+    teacher_id: str = Depends(require_teacher),
+    conn=Depends(get_db),
+):
+    """Change a video's visibility scope."""
     if req.scope not in {"teacher", "class", "public"}:
         raise HTTPException(status_code=400, detail="scope must be teacher|class|public")
+    if req.scope == "public":
+        raise HTTPException(status_code=403, detail="public video sharing requires admin review")
     cur = conn.cursor()
     cur.execute(
-        "UPDATE videos SET scope = %s WHERE video_id = %s::uuid",
-        (req.scope, str(video_id)),
+        "UPDATE videos SET scope = %s WHERE video_id = %s::uuid AND teacher_id = %s::uuid",
+        (req.scope, str(video_id), teacher_id),
     )
+    if cur.rowcount == 0:
+        cur.close()
+        return JSONResponse({"error": "Video not found"}, status_code=404)
     conn.commit()
     cur.close()
     return {"video_id": str(video_id), "scope": req.scope}
